@@ -694,6 +694,13 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
           }} 
         />
       )}
+
+      {/* Small bottom-left sign (added on user request) */}
+      <div className="pointer-events-auto fixed left-4 bottom-4 z-50">
+        <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white text-sm shadow-md">
+          <span className="font-semibold">i</span>
+        </div>
+      </div>
     </div>
   );
 }
