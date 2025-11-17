@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { createClient } from '@supabase/supabase-js';
+import { toast } from 'sonner@2.0.3';
 import { projectId, publicAnonKey } from './supabase/info';
 
 const supabase = createClient(
@@ -114,9 +115,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
-    setUser(null);
-    setAccessToken(null);
+    console.log('Auth: signOut called');
+    try {
+      const { error } = await supabase.auth.signOut();
+      if (error) {
+        console.error('Auth: signOut error', error);
+        toast.error('Sign out failed');
+        throw error;
+      }
+      setUser(null);
+      setAccessToken(null);
+      toast.success('Signed out');
+      console.log('Auth: signOut successful');
+    } catch (err: any) {
+      console.error('Auth: signOut exception', err);
+      throw err;
+    }
   };
 
   const clearJustSignedUp = () => {
