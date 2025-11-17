@@ -695,12 +695,15 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
         />
       )}
 
-      {/* Small bottom-left sign (added on user request) */}
-      <div className="pointer-events-auto fixed left-4 bottom-4 z-50">
-        <div className="w-10 h-10 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center text-white text-sm shadow-md">
-          <span className="font-semibold">i</span>
-        </div>
-      </div>
+      {/* Prominent bottom-left info button (opens Settings) */}
+      <button
+        aria-label="Open settings"
+        title="Settings"
+        onClick={() => openModal('settings')}
+        className="pointer-events-auto fixed left-4 bottom-4 z-50 w-14 h-14 rounded-full bg-white text-gray-900 flex items-center justify-center text-sm shadow-lg border border-white/30"
+      >
+        <span className="font-bold">⚙️</span>
+      </button>
     </div>
   );
 }
