@@ -542,6 +542,7 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
                 connectedApps={connectedApps}
                 setConnectedApps={setConnectedApps}
                 onClose={closeModal}
+                onSignOut={onSignOut}
               />
             )}
 
