@@ -12,22 +12,34 @@ interface AnimatedBackgroundProps {
  * - Halftone dot pattern with pulsating animation (dots grow/shrink)
  * - Decorative geometric circles with blur effects
  * 
- * The background uses CSS animations defined in globals.css:
- * - .background-fade: Color cycling (95s loop - 19s per color)
- * - .dot-pulsate: Dot size pulsation (19s loop)
+ * The background uses inline CSS animations for maximum compatibility
  */
 function AnimatedBackgroundComponent({ animationsPaused = false }: AnimatedBackgroundProps) {
   return (
     <>
-      {/* Main animated background with color cycling - starts at first color to prevent flash */}
-      <div 
-        className="absolute inset-0 bg-[#025E73] -z-10 background-fade" 
-        style={{ 
-          willChange: 'background-color', 
-          transform: 'translateZ(0)',
-          animationPlayState: animationsPaused ? 'paused' : 'running'
-        }} 
-      />
+      <style>{`
+        @keyframes backgroundFade {
+          0% { background-color: #025E73; }
+          20% { background-color: #011F26; }
+          40% { background-color: #A5A692; }
+          60% { background-color: #BFB78F; }
+          80% { background-color: #F2A71B; }
+          100% { background-color: #025E73; }
+        }
+        
+        @keyframes dotPulsate {
+          0% { opacity: 0.3; transform: scale(1); }
+          21.05% { opacity: 0.2; transform: scale(1.15); }
+          57.89% { opacity: 0.2; transform: scale(1.15); }
+          100% { opacity: 0.3; transform: scale(1); }
+        }
+        
+        .spredfit-dot-pulse {
+          animation: dotPulsate 19s ease-in-out infinite;
+        }
+      `}</style>
+
+      {/* Main animated background removed to allow animation visibility */}
 
       {/* Halftone pattern overlay - centered */}
       <div className="absolute inset-0 pointer-events-none flex items-center justify-center" style={{ transform: 'translateZ(0)' }}>
@@ -35,7 +47,7 @@ function AnimatedBackgroundComponent({ animationsPaused = false }: AnimatedBackg
           <svg className="w-full h-auto" viewBox="0 0 400 400" xmlns="http://www.w3.org/2000/svg">
             <g 
               opacity="0.5" 
-              className="dot-pulsate" 
+              className="spredfit-dot-pulse" 
               style={{ 
                 willChange: 'opacity, transform',
                 animationPlayState: animationsPaused ? 'paused' : 'running'

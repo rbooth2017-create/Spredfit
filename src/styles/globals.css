@@ -5,7 +5,7 @@
 :root {
   --font-family: 'Space Grotesk', sans-serif;
   --font-size: 16px;
-  --background: #8C7A64;
+  --background: #025E73;
   --foreground: #1a1a1a;
   --card: #9ca895;
   --card-foreground: #1a1a1a;
@@ -140,8 +140,10 @@
   }
 
   body {
-    @apply bg-background text-foreground;
+    @apply text-foreground;
     font-family: var(--font-family);
+    background-color: #025E73;
+    animation: backgroundFade 95s ease-in-out infinite;
   }
 }
 

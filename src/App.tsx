@@ -1012,7 +1012,7 @@ export default function App() {
   }, []);
   
   return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#86a088]">
+    <div className="min-h-screen w-full flex items-center justify-center">
       {/* Centered container - 440px max-width for mobile dimensions */}
       <div className="w-full max-w-[440px] min-h-screen relative">
         <AuthProvider>
