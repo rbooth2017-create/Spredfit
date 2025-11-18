@@ -204,7 +204,10 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
     })),
     [leagues]
   );
-
+{/* Temporary version check - REMOVE AFTER TESTING */}
+<div className="fixed top-4 left-4 bg-green-500 text-white px-4 py-2 rounded-lg text-sm z-[100]">
+  ✅ Version: {new Date().toISOString()}
+</div>
   // Available sports
   // ✅ Memoize to prevent recreation on every render
   const sports = useMemo(() => [
