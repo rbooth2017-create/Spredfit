@@ -1,3 +1,5 @@
+
+import { useAuth } from "../../utils/auth";
 import { memo } from "react";
 import {
   UserCircle,
@@ -56,6 +58,7 @@ interface NavigationSidebarProps {
  * - Coffee and Add to Home Screen buttons
  */
 function DashboardHeaderComponent({ onModalOpen }: DashboardHeaderProps) {
+  const { user } = useAuth();
   const { isPWAInstallable, promptInstall } = usePWAInstall();
 
   const handleAddToHome = async () => {
@@ -72,7 +75,7 @@ function DashboardHeaderComponent({ onModalOpen }: DashboardHeaderProps) {
       {/* User Name - right aligned */}
       <div className="flex items-center justify-end mb-3">
         <div>
-          <h1 className="text-2xl text-[#eef0ed]">Alex</h1>
+          <h1 className="text-2xl text-[#eef0ed]">{user?.name || 'User'}</h1>
         </div>
       </div>
       

@@ -11,6 +11,9 @@ const supabase = createClient(
 interface User {
   id: string;
   email: string;
+  name?: string;
+  username?: string;
+  avatar_url?: string;
 }
 
 interface AuthContextType {
@@ -43,11 +46,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     // Check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session) {
+        // Fetch user profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('full_name, username, avatar_url')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+        }
+
         setUser({
           id: session.user.id,
           email: session.user.email!,
+          name: profileData?.full_name || profileData?.username || 'User',
+          username: profileData?.username,
+          avatar_url: profileData?.avatar_url,
         });
         setAccessToken(session.access_token);
       }
@@ -55,11 +72,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       if (session) {
+        // Fetch user profile
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('full_name, username, avatar_url')
+          .eq('id', session.user.id)
+          .single();
+
+        if (profileError) {
+          console.error('Error fetching profile:', profileError);
+        }
+
         setUser({
           id: session.user.id,
           email: session.user.email!,
+          name: profileData?.full_name || profileData?.username || 'User',
+          username: profileData?.username,
+          avatar_url: profileData?.avatar_url,
         });
         setAccessToken(session.access_token);
       } else {
@@ -72,21 +103,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signIn = async (email: string, password: string) => {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      throw new Error(error.message);
-    }
-
-    if (data.session) {
-      setUser({
-        id: data.user.id,
-        email: data.user.email!,
+    console.log('🟢 auth.tsx: signIn called');
+    
+    try {
+      // Add timeout wrapper
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Login timeout - check Supabase URL configuration')), 10000)
+      );
+      
+      const signInPromise = supabase.auth.signInWithPassword({
+        email,
+        password,
       });
-      setAccessToken(data.session.access_token);
+      
+      const { data, error } = await Promise.race([signInPromise, timeoutPromise]) as any;
+      
+      console.log('🟢 auth.tsx: Supabase response:', { data, error });
+      
+      if (error) {
+        console.error('🔴 auth.tsx: signIn error:', error);
+        throw new Error(error.message);
+      }
+      
+      if (data.session) {
+        console.log('🟢 auth.tsx: Session exists, fetching profile...');
+        // Fetch user profile to get name
+        const { data: profileData, error: profileError } = await supabase
+          .from('profiles')
+          .select('full_name, username, avatar_url')
+          .eq('id', data.user.id)
+          .single();
+      
+        if (profileError) {
+          console.error('🟡 auth.tsx: Profile fetch error (non-fatal):', profileError);
+        }
+      
+        console.log('🟢 auth.tsx: Setting user state...');
+        setUser({
+          id: data.user.id,
+          email: data.user.email!,
+          name: profileData?.full_name || profileData?.username || 'User',
+          username: profileData?.username,
+          avatar_url: profileData?.avatar_url,
+        });
+        setAccessToken(data.session.access_token);
+        console.log('🟢 auth.tsx: signIn complete!');
+      }
+    } catch (err: any) {
+      console.error('🔴 auth.tsx: signIn exception:', err);
+      throw err;
     }
   };
 

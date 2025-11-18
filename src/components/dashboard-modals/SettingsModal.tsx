@@ -82,21 +82,20 @@ export function SettingsModal({
                 Units & Preferences
               </button>
               <button 
-                onClick={() => setSettingsScreen('connectedApps')}
-                className="w-full p-3 rounded-full bg-[#2d332d]/60 backdrop-blur-sm border border-white/10 hover:bg-[#2d332d]/80 transition-all text-white text-sm"
-              >
-                Connected Apps
-              </button>
-              <button 
-                onClick={() => {
-                  toast.success('Signed out successfully');
-                  closeModal();
-                  if (onSignOut) onSignOut();
-                }}
-                className="w-full p-3 rounded-full bg-red-600/60 backdrop-blur-sm border border-red-400/20 hover:bg-red-600/80 transition-all text-white text-sm"
-              >
-                Sign Out
-              </button>
+  onClick={() => {
+    console.log('🔴 handleLogout called from SettingsModal');
+    toast.success('Signed out successfully');
+    if (onSignOut) {
+      onSignOut();
+    }
+    if (closeModal && typeof closeModal === 'function') {
+      closeModal();
+    }
+  }}
+  className="w-full p-3 rounded-full bg-red-600/60 backdrop-blur-sm border border-red-400/20 hover:bg-red-600/80 transition-all text-white text-sm"
+>
+  Sign Out
+</button>
             </div>
           </>
         )}

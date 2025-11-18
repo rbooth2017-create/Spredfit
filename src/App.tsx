@@ -99,30 +99,37 @@ function AppContent() {
   const [signupPassword, setSignupPassword] = useState("");
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   
-  // Handle login
-  const handleLogin = async () => {
-    if (!loginEmail || !loginPassword) {
-      toast.error("Please enter email and password");
-      return;
-    }
-    
-    setAuthLoading2(true);
-    try {
-      await signIn(loginEmail, loginPassword);
-      toast.success("Welcome back!", {
-        description: "Ready to crush your fitness goals?",
-      });
-      setLoginEmail("");
-      setLoginPassword("");
-    } catch (error: any) {
-      toast.error("Login failed", {
-        description: error.message || "Please check your credentials",
-      });
-    } finally {
-      setAuthLoading2(false);
-    }
-  };
+ // Handle login
+const handleLogin = async () => {
+  console.log('🔵 Login button clicked!');
+  console.log('Email:', loginEmail);
+  console.log('Password length:', loginPassword.length);
   
+  if (!loginEmail || !loginPassword) {
+    toast.error("Please fill in all fields");
+    return;
+  }
+  
+  setAuthLoading2(true);
+  try {
+    console.log('🔵 Calling signIn...');
+    await signIn(loginEmail, loginPassword);
+    console.log('🔵 SignIn successful!');
+    toast.success("Welcome back!", {
+      description: "Ready to crush your fitness goals?",
+    });
+    setLoginEmail("");
+    setLoginPassword("");
+  } catch (error: any) {
+    console.error('🔴 Login error:', error);
+    toast.error("Login failed", {
+      description: error.message || "Please check your credentials",
+    });
+  } finally {
+    setAuthLoading2(false);
+  }
+};
+
   // Handle signup
   const handleSignup = async () => {
     if (!signupName || !signupEmail || !signupPassword) {
@@ -152,14 +159,16 @@ function AppContent() {
   
   // Handle logout
   const handleLogout = async () => {
+    console.log('🔴 handleLogout called from SettingsModal');
     try {
       await signOut();
       setCurrentScreen("dashboard");
       toast.success("Signed out successfully");
     } catch (error: any) {
       toast.error("Logout failed", {
-        description: error.message,
+        description: error.message || "Please try again",
       });
+      console.error('🔴 Logout failed', error);
     }
   };
   
