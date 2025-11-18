@@ -10,7 +10,7 @@ import React, {
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import type { Session } from "@supabase/supabase-js";
 import { Database } from "@/lib/database.types";
-import { projectId, publicAnonKey } from "@/supabase/info";
+import { projectId, publicAnonKey } from './supabase/info.tsx';
 
 export interface UserProfile {
   id: string;
