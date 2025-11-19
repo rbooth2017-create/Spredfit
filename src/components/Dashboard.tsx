@@ -238,51 +238,89 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
     return R * c;
   };
 
-  // GPS tracking effect
-  useEffect(() => {
-    if (gpsSearching && modalStep === 2) {
-      console.log('📍 Starting GPS search...');
-      
-      if ('geolocation' in navigator) {
-        const watchId = navigator.geolocation.watchPosition(
-          (position) => {
-            console.log('📍 GPS position received:', position);
-            setGpsPositions(prev => [...prev, position]);
-            setLastPosition(position);
-            setGpsConnected(true);
-            setGpsSearching(false);
-            setModalStep(3);
-            toast.success('GPS Connected!');
-          },
-          (error) => {
-            console.error('❌ GPS error:', error);
-            toast.error('GPS unavailable', {
-              description: 'Continue without GPS?'
-            });
-            setGpsSearching(false);
-            setGpsConnected(false);
-          },
-          {
-            enableHighAccuracy: true,
-            timeout: 10000,
-            maximumAge: 0
-          }
-        );
-        setGpsWatchId(watchId);
-      } else {
-        toast.error('GPS not supported on this device');
-        setGpsSearching(false);
-        setModalStep(3);
+        // GPS tracking effect
+    useEffect(() => {
+      if (gpsSearching && modalStep === 2) {
+        console.log('📍 Starting GPS search...');
+        
+        if ('geolocation' in navigator) {
+          let hasConnected = false;
+          
+          // Minimum 2 second search animation
+          const minSearchTimer = setTimeout(() => {
+            // If GPS already connected by now, proceed
+            if (hasConnected) {
+              setGpsSearching(false);
+              setModalStep(3);
+            }
+          }, 2000);
+    
+          const watchId = navigator.geolocation.watchPosition(
+            (position) => {
+              console.log('📍 GPS position received:', position);
+              
+              if (!hasConnected) {
+                hasConnected = true;
+                setGpsPositions([position]);
+                setLastPosition(position);
+                setGpsConnected(true);
+                
+                // Don't transition yet - wait for minimum timer
+                console.log('📍 GPS connected, waiting for minimum search time...');
+                
+                toast.success('GPS Connected!', {
+                  description: `Accuracy: ${position.coords.accuracy.toFixed(0)}m`
+                });
+              } else {
+                // Add subsequent positions
+                setGpsPositions(prev => [...prev, position]);
+              }
+            },
+            (error) => {
+              console.error('❌ GPS error:', error);
+              clearTimeout(minSearchTimer);
+              
+              let errorMessage = 'Unable to access location';
+              if (error.code === 1) {
+                errorMessage = 'Location permission denied';
+              } else if (error.code === 2) {
+                errorMessage = 'Location unavailable';
+              } else if (error.code === 3) {
+                errorMessage = 'Location request timeout';
+              }
+              
+              toast.error('GPS unavailable', {
+                description: errorMessage
+              });
+              setGpsSearching(false);
+              setGpsConnected(false);
+              setModalStep(3);
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 15000,
+              maximumAge: 0
+            }
+          );
+          setGpsWatchId(watchId);
+    
+          return () => {
+            clearTimeout(minSearchTimer);
+          };
+        } else {
+          toast.error('GPS not supported on this device');
+          setGpsSearching(false);
+          setModalStep(3);
+        }
       }
-    }
-
-    return () => {
-      if (gpsWatchId !== null) {
-        navigator.geolocation.clearWatch(gpsWatchId);
-        setGpsWatchId(null);
-      }
-    };
-  }, [gpsSearching, modalStep]);
+    
+      return () => {
+        if (gpsWatchId !== null) {
+          navigator.geolocation.clearWatch(gpsWatchId);
+          setGpsWatchId(null);
+        }
+      };
+    }, [gpsSearching, modalStep]);
 
   // Update recorded distance based on GPS positions
   useEffect(() => {
