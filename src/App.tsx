@@ -68,7 +68,7 @@ function AppContent() {
 
   console.log('🔵 App.tsx: user state:', user);
 
-  const { createWorkout, currentLeague } = useApp();
+  const { createWorkout, currentLeague, joinLeague } = useApp();
   
   const [currentScreen, setCurrentScreen] = useState<Screen>("dashboard");
   const [previousScreen, setPreviousScreen] = useState<Screen>("dashboard");
@@ -97,6 +97,94 @@ function AppContent() {
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [showSignupPassword, setShowSignupPassword] = useState(false);
+
+  // Auto-join league functionality
+  useEffect(() => {
+    const handleAutoJoinLeague = async (code: string) => {
+      try {
+        console.log('🔵 Auto-joining league with code:', code);
+        
+        // Call your join league API
+        await joinLeague(code);
+        
+        toast.success("Joined league!", {
+          description: `Successfully joined league with code: ${code}`,
+          duration: 5000,
+        });
+        
+        // Navigate to leagues view after a short delay
+        setTimeout(() => {
+          setCurrentScreen('leagues');
+        }, 1000);
+      } catch (error) {
+        console.error('🔴 Error auto-joining league:', error);
+        toast.error("Failed to join league", {
+          description: "Please try entering the code manually in the Leagues section.",
+          duration: 5000,
+        });
+      }
+    };
+
+    // Check for league code in URL when component mounts or user changes
+    const urlParams = new URLSearchParams(window.location.search);
+    const leagueCode = urlParams.get('code');
+    
+    if (leagueCode) {
+      console.log('🔵 League code detected in URL:', leagueCode);
+      
+      if (user) {
+        // User is logged in, join immediately
+        console.log('🔵 User is logged in, auto-joining league...');
+        handleAutoJoinLeague(leagueCode);
+        // Clean up URL
+        window.history.replaceState({}, '', window.location.pathname);
+      } else {
+        // User not logged in, store code for after login
+        console.log('🔵 User not logged in, storing code for after login');
+        sessionStorage.setItem('pendingLeagueCode', leagueCode);
+        toast.info("Please log in to join the league", {
+          description: "You'll be automatically added after logging in.",
+          duration: 5000,
+        });
+      }
+    }
+  }, [user, joinLeague]);
+
+  // Handle post-login auto-join
+  useEffect(() => {
+    if (user) {
+      const pendingCode = sessionStorage.getItem('pendingLeagueCode');
+      if (pendingCode) {
+        console.log('🔵 User logged in, processing pending league code:', pendingCode);
+        
+        const handlePendingJoin = async () => {
+          try {
+            await joinLeague(pendingCode);
+            
+            toast.success("Welcome! You've joined the league!", {
+              description: `Successfully joined with code: ${pendingCode}`,
+              duration: 5000,
+            });
+            
+            // Navigate to leagues
+            setTimeout(() => {
+              setCurrentScreen('leagues');
+            }, 1000);
+          } catch (error) {
+            console.error('🔴 Error joining league after login:', error);
+            toast.error("Failed to join league", {
+              description: "Please try manually in the Leagues section.",
+              duration: 5000,
+            });
+          } finally {
+            sessionStorage.removeItem('pendingLeagueCode');
+          }
+        };
+        
+        handlePendingJoin();
+      }
+    }
+  }, [user, joinLeague]);
   
   const handleLogin = async () => {
     console.log('🔵 Login button clicked!');

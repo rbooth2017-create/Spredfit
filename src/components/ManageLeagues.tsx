@@ -16,6 +16,7 @@ import {
   Gift,
   Zap,
   UserX,
+  Share2,
 } from "lucide-react";
 import { Button } from "./ui/button";
 import { Card } from "./ui/card";
@@ -242,6 +243,34 @@ export function ManageLeagues({
           : league,
       ),
     );
+  };
+
+    const handleShareLeague = async (league: ManagedLeague) => {
+    const shareUrl = `https://www.spredfit.com/join/${league.leagueCode}`;
+    const shareText = `Join my league "${league.name}" on SPREDfit!\n\n${shareUrl}\n\nLeague Code: ${league.leagueCode}`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Join ${league.name}`,
+          text: shareText,
+          url: shareUrl
+        });
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          console.error('Error sharing:', err);
+        }
+      }
+    } else {
+      // Fallback for browsers that don't support Web Share API
+      try {
+        await navigator.clipboard.writeText(shareText);
+        alert('League code and URL copied to clipboard!');
+      } catch (err) {
+        console.error('Error copying to clipboard:', err);
+        alert('Unable to copy to clipboard');
+      }
+    }
   };
 
   const handleSportToggle = (sport: string) => {
@@ -543,9 +572,20 @@ export function ManageLeagues({
                           <span>Ends {league.endDate}</span>
                         </div>
                       </div>
-                      <p className="text-xs text-[#2d332d]/40 font-mono">
-                        {league.leagueCode}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-[#2d332d]/40 font-mono">
+                          {league.leagueCode}
+                        </p>
+                        <Button
+                          onClick={() => handleShareLeague(league)}
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 text-[#2d332d]/40 hover:text-[#2d332d] hover:bg-[#8a9881]/30"
+                          title="Share league code"
+                        >
+                          <Share2 className="w-3 h-3" />
+                        </Button>
+                      </div>
                     </div>
                   </div>
 
