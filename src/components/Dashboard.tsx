@@ -3,7 +3,7 @@ import { useAuth } from "../utils/auth";
 import { useApp } from "../utils/AppContext";
 import { useDashboardState } from "../hooks/useDashboardState";
 import { APIClient } from "../utils/api";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { PersonStanding, Bike, Waves, Dumbbell, Heart, Zap, Users, MoreHorizontal, Activity, Trophy } from "lucide-react";
 import { AnimatedBackground } from "./dashboard/AnimatedBackground";
 import { DashboardHeader, ActivityCarousel, MainActionCards, NavigationSidebar } from "./dashboard/DashboardUI";
@@ -45,7 +45,7 @@ interface DashboardProps {
   onChat?: () => void;
   onDealFinder?: () => void;
   onBrandedStore?: () => void;
-  isLoginBackground?: boolean; // Hide interactive elements when used as login background
+  isLoginBackground?: boolean;
 }
 
 // Training plan data (keeping for future implementation)
@@ -57,8 +57,8 @@ const trainingPlan = {
 };
 
 export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagues, onProfile, onSignOut, onActivityFeed, onTrainingPlans, onChat, onDealFinder, onBrandedStore, isLoginBackground }: DashboardProps) {
-  const { accessToken, justSignedUp, clearJustSignedUp, user } = useAuth(); // ✅ Get user here
-  const { leagues, profile, currentLeague, refreshLeagues, refreshProfile } = useApp();
+  const { accessToken, justSignedUp, clearJustSignedUp, user } = useAuth();
+  const { leagues, profile, currentLeague, refreshLeagues, refreshProfile, createWorkout } = useApp();
   
   // Tutorial state - show if user just signed up
   const [showTutorial, setShowTutorial] = useState(false);
@@ -191,20 +191,29 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
   const sliderRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // League states (using leagues from context)
-  // ✅ Memoize to prevent recreation on every render
-  const userLeagues = useMemo(() => 
-    leagues.map((league, index) => ({
-      name: league.name,
-      rank: index + 1, // Temporary ranking
-      totalMembers: league.members.length,
-      id: league.id
-    })),
-    [leagues]
-  );
+  // GPS tracking state
+  const [gpsWatchId, setGpsWatchId] = useState<number | null>(null);
+  const [gpsPositions, setGpsPositions] = useState<GeolocationPosition[]>([]);
+  const [lastPosition, setLastPosition] = useState<GeolocationPosition | null>(null);
 
+  // League states (using leagues from context)
+  console.log('🔍 BEFORE useMemo - leagues:', leagues);
+  console.log('🔍 BEFORE useMemo - profile:', profile);
+
+  const userLeagues = useMemo(() => {
+    const currentUserId = profile?.id;
+    
+    return leagues.map((league, index) => ({
+      name: league.name,
+      rank: index + 1,
+      totalMembers: league.members?.length || 0,
+      id: league.id,
+      isManager: league.createdBy === currentUserId,
+      code: league.leagueCode
+    }));
+  }, [leagues, profile]);
+  
   // Available sports
-  // ✅ Memoize to prevent recreation on every render
   const sports = useMemo(() => [
     { name: 'Running', icon: PersonStanding },
     { name: 'Cycling', icon: Bike },
@@ -215,6 +224,93 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
     { name: 'Team Sports', icon: Users },
     { name: 'Other', icon: MoreHorizontal },
   ], []);
+
+  // Calculate distance between two GPS coordinates (Haversine formula)
+  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+    const R = 6371; // Earth's radius in km
+    const dLat = (lat2 - lat1) * Math.PI / 180;
+    const dLon = (lon2 - lon1) * Math.PI / 180;
+    const a = 
+      Math.sin(dLat/2) * Math.sin(dLat/2) +
+      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+      Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    return R * c;
+  };
+
+  // GPS tracking effect
+  useEffect(() => {
+    if (gpsSearching && modalStep === 2) {
+      console.log('📍 Starting GPS search...');
+      
+      if ('geolocation' in navigator) {
+        const watchId = navigator.geolocation.watchPosition(
+          (position) => {
+            console.log('📍 GPS position received:', position);
+            setGpsPositions(prev => [...prev, position]);
+            setLastPosition(position);
+            setGpsConnected(true);
+            setGpsSearching(false);
+            setModalStep(3);
+            toast.success('GPS Connected!');
+          },
+          (error) => {
+            console.error('❌ GPS error:', error);
+            toast.error('GPS unavailable', {
+              description: 'Continue without GPS?'
+            });
+            setGpsSearching(false);
+            setGpsConnected(false);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 10000,
+            maximumAge: 0
+          }
+        );
+        setGpsWatchId(watchId);
+      } else {
+        toast.error('GPS not supported on this device');
+        setGpsSearching(false);
+        setModalStep(3);
+      }
+    }
+
+    return () => {
+      if (gpsWatchId !== null) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+        setGpsWatchId(null);
+      }
+    };
+  }, [gpsSearching, modalStep]);
+
+  // Update recorded distance based on GPS positions
+  useEffect(() => {
+    if (gpsPositions.length >= 2) {
+      let totalDistance = 0;
+      for (let i = 1; i < gpsPositions.length; i++) {
+        const prev = gpsPositions[i - 1];
+        const curr = gpsPositions[i];
+        totalDistance += calculateDistance(
+          prev.coords.latitude,
+          prev.coords.longitude,
+          curr.coords.latitude,
+          curr.coords.longitude
+        );
+      }
+      setRecordedDistance(totalDistance);
+    }
+  }, [gpsPositions, setRecordedDistance]);
+
+  // Update recorded pace
+  useEffect(() => {
+    if (workoutTime > 0 && recordedDistance > 0) {
+      const paceMinutes = (workoutTime / 60) / recordedDistance;
+      const minutes = Math.floor(paceMinutes);
+      const seconds = Math.floor((paceMinutes - minutes) * 60);
+      setRecordedPace(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+    }
+  }, [workoutTime, recordedDistance, setRecordedPace]);
   
   // Load activities when component mounts or when a workout is created
   useEffect(() => {
@@ -272,8 +368,6 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
       setSelectedPhotoFile(null);
     }
   }, [activeModal, setProfileScreen, setSelectedPhotoFile]);
-
-  // Removed auto-scroll - user now manually scrolls
   
   const teamChats: any[] = [];
 
@@ -293,10 +387,75 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
     toggleLock,
     handleSlideStart,
     handlePauseToggle,
-    handleCompleteWorkout,
     handleReaction,
     handleComment,
   } = handlers;
+
+  // Override handleCompleteWorkout to save to Supabase
+  const handleCompleteWorkout = async () => {
+    if (!user || !selectedSport) {
+      toast.error('Cannot save workout');
+      return;
+    }
+
+    try {
+      console.log('💾 Saving workout to Supabase...');
+      
+      // Stop GPS tracking
+      if (gpsWatchId !== null) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+        setGpsWatchId(null);
+      }
+
+      // Stop workout timer
+      setIsWorkoutRunning(false);
+
+      // Save workout to Supabase
+      await createWorkout({
+        type: selectedSport,
+        duration: Math.floor(workoutTime / 60), // Convert seconds to minutes
+        distance: gpsConnected ? recordedDistance : 0,
+        date: new Date().toISOString(),
+        notes: gpsConnected ? `GPS tracked: ${gpsPositions.length} points` : 'Indoor workout',
+      });
+
+      toast.success('Workout Saved!', {
+        description: `${selectedSport} - ${formatTime(workoutTime)}`,
+      });
+
+      // Move to review step
+      setModalStep(4);
+      
+      // Refresh profile and activities
+      await refreshProfile();
+      
+      // Reload activities
+      if (accessToken) {
+        const api = new APIClient(accessToken);
+        const workouts = await api.getUserWorkouts();
+        setActivities(workouts);
+      }
+    } catch (error) {
+      console.error('❌ Failed to save workout:', error);
+      toast.error('Failed to save workout', {
+        description: error instanceof Error ? error.message : 'Please try again',
+      });
+    }
+  };
+
+  // Reset GPS data when modal closes
+  useEffect(() => {
+    if (activeModal !== 'start') {
+      setGpsPositions([]);
+      setLastPosition(null);
+      setRecordedDistance(0);
+      setRecordedPace('0:00');
+      if (gpsWatchId !== null) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+        setGpsWatchId(null);
+      }
+    }
+  }, [activeModal, gpsWatchId]);
 
   // Create cover flow items from league activities
   const getSportIcon = (sport?: string) => {
@@ -347,7 +506,6 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
         <MainActionCards onModalOpen={(modal) => {
           console.log('🎯 Opening modal:', modal);
           setActiveModal(modal);
-          // Reset modal step to 1 when opening leaderboard or leagues
           if (modal === 'leaderboard' || modal === 'leagues') {
             setModalStep(1);
           }
@@ -546,11 +704,7 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
 
             {/* Metrics Modal */}
             {activeModal === 'metrics' && (
-              <MetricsModal
-                profile={profile}
-                refreshProfile={refreshProfile}
-                onClose={closeModal}
-              />
+              <MetricsModal />
             )}
 
             {/* Activity Feed Modal */}

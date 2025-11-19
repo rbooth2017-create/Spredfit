@@ -6,9 +6,13 @@ interface UserProfile {
   id: string;
   email: string;
   name: string;
+  username?: string;
+  avatar_url?: string;
   totalWorkouts: number;
+  totalHours: number;      // ← ADD THIS
   totalMinutes: number;
   totalDistance: number;
+  streak: number;          // ← ADD THIS
   leagues: string[];
   settings?: {
     units: 'metric' | 'imperial';
@@ -146,9 +150,38 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return result;
   }, [accessToken, user, api, refreshProfile]);
 
-  const createLeague = useCallback(async (league: any) => {
+  const createLeague = useCallback(async (leagueData: {
+    name: string;
+    description?: string;
+    startDate?: string;
+    endDate?: string;
+    isPrivate?: boolean;
+    allowedSports?: string[] | null;
+    allowTeams?: boolean;
+    allowStealthMode?: boolean;
+    allowDoubleUp?: boolean;
+  }) => {
     if (!accessToken) throw new Error('Not authenticated');
-    const result = await api.createLeague(league);
+    
+    console.log('🏆 AppContext: Creating league with data:', leagueData);
+    
+    // Calculate dates if not provided
+    const startDate = leagueData.startDate || new Date().toISOString();
+    const endDate = leagueData.endDate || new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(); // Default 1 year
+    
+    const result = await api.createLeague({
+      name: leagueData.name,
+      description: leagueData.description || '',
+      startDate: startDate,
+      endDate: endDate,
+      isPrivate: leagueData.isPrivate ?? false,
+      allowedSports: leagueData.allowedSports || undefined,
+      allowTeams: leagueData.allowTeams ?? true,
+      allowStealthMode: leagueData.allowStealthMode ?? true,
+      allowDoubleUp: leagueData.allowDoubleUp ?? true,
+    });
+    
+    console.log('✅ AppContext: League created successfully', result);
     await refreshLeagues();
     return result;
   }, [accessToken, api, refreshLeagues]);

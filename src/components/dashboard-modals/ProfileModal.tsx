@@ -1,8 +1,7 @@
 import { memo } from "react";
-import { Camera, Check, ChevronLeft } from "lucide-react";
+import { Camera, Check, ChevronLeft, User } from "lucide-react";
 import { toast } from "sonner@2.0.3";
 import { APIClient } from "../../utils/api";
-import logo from "figma:asset/acd126c619660e3932cb554ee937e18cc6986211.png";
 import type { ProfileScreen } from "../../hooks/useDashboardState";
 
 interface ProfileModalProps {
@@ -36,6 +35,7 @@ function ProfileModalComponent({
 
     setIsUploadingPhoto(true);
     try {
+      console.log('📸 Starting photo upload...');
       const api = new APIClient(accessToken);
       await api.uploadProfilePhoto(selectedPhotoFile);
       
@@ -45,7 +45,7 @@ function ProfileModalComponent({
       setProfileScreen('view');
       setSelectedPhotoFile(null);
       
-      // Refresh profile to get new photo URL
+      // Refresh page to show new photo
       window.location.reload();
     } catch (error) {
       console.error('Photo upload error:', error);
@@ -57,6 +57,9 @@ function ProfileModalComponent({
     }
   };
 
+  // Create preview URL for selected photo
+  const previewUrl = selectedPhotoFile ? URL.createObjectURL(selectedPhotoFile) : null;
+
   return (
     <>
       {/* Modal Content */}
@@ -64,9 +67,29 @@ function ProfileModalComponent({
         <div className="flex flex-col items-center text-center w-full max-w-[280px]">
           {profileScreen === 'view' ? (
             <>
-              <div className="w-16 h-16 mb-2 border-2 border-white/40 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center flex-shrink-0">
-                <img src={logo} alt="SPREDfit" className="w-10 h-10 object-contain" />
-              </div>
+              {/* Profile Photo - Clickable to upload */}
+              <button
+                onClick={() => setProfileScreen('upload')}
+                className="w-20 h-20 mb-2 border-2 border-white/40 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center flex-shrink-0 overflow-hidden hover:border-white/60 transition-all group relative"
+              >
+                {profile?.avatar_url ? (
+                  <>
+                    <img 
+                      src={profile.avatar_url} 
+                      alt={profile.name} 
+                      className="w-full h-full object-cover" 
+                    />
+                    <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      <Camera className="w-6 h-6 text-white" strokeWidth={2} />
+                    </div>
+                  </>
+                ) : (
+                  <div className="relative">
+                    <User className="w-10 h-10 text-white/60" strokeWidth={2} />
+                    <Camera className="w-5 h-5 text-white/40 absolute -bottom-1 -right-1" strokeWidth={2} />
+                  </div>
+                )}
+              </button>
               <p className="text-white text-sm mb-0.5">{profile?.name || 'User'}</p>
               <p className="text-white/70 text-[10px] mb-3">{profile?.email || ''}</p>
               <div className="space-y-1.5 w-full">
@@ -91,9 +114,19 @@ function ProfileModalComponent({
           ) : (
             <>
               <p className="text-white text-sm mb-4">Upload Photo</p>
-              <label htmlFor="photo-upload" className="w-32 h-32 mb-4 rounded-full bg-[#2d332d]/40 backdrop-blur-sm border-2 border-dashed border-white/30 flex items-center justify-center cursor-pointer hover:bg-[#2d332d]/60 transition-all">
-                <Camera className="w-12 h-12 text-white/60" strokeWidth={1.5} />
+              
+              {/* Photo Preview or Upload Area */}
+              <label 
+                htmlFor="photo-upload" 
+                className="w-32 h-32 mb-4 rounded-full bg-[#2d332d]/40 backdrop-blur-sm border-2 border-dashed border-white/30 flex items-center justify-center cursor-pointer hover:bg-[#2d332d]/60 transition-all overflow-hidden"
+              >
+                {previewUrl ? (
+                  <img src={previewUrl} alt="Preview" className="w-full h-full object-cover" />
+                ) : (
+                  <Camera className="w-12 h-12 text-white/60" strokeWidth={1.5} />
+                )}
               </label>
+              
               <input 
                 id="photo-upload" 
                 type="file" 
@@ -132,7 +165,7 @@ function ProfileModalComponent({
                 </label>
               </div>
               <p className="text-white/70 text-[10px] mb-4 px-4">
-                Select from gallery or take a new photo
+                {selectedPhotoFile ? 'Photo ready to upload!' : 'Select from gallery or take a new photo'}
               </p>
             </>
           )}
