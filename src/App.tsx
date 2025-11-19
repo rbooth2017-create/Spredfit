@@ -66,7 +66,6 @@ interface LeagueData {
 function AppContent() {
   const { user, signIn, signUp, signOut, loading: authLoading } = useAuth();
 
-  // Add this debug log
   console.log('🔵 App.tsx: user state:', user);
 
   const { createWorkout, currentLeague } = useApp();
@@ -85,14 +84,10 @@ function AppContent() {
     members?: number;
   } | null>(null);
   
-  // Track login/signup view
   const [authView, setAuthView] = useState<"login" | "signup">("login");
-  
-  // Track disclaimer acceptance
   const [disclaimerAccepted, setDisclaimerAccepted] = useState(false);
   const [disclaimerChecked, setDisclaimerChecked] = useState(false);
   
-  // Auth form state
   const [authLoading2, setAuthLoading2] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
   const [loginPassword, setLoginPassword] = useState("");
@@ -103,38 +98,36 @@ function AppContent() {
   const [signupPassword, setSignupPassword] = useState("");
   const [showSignupPassword, setShowSignupPassword] = useState(false);
   
- // Handle login
-const handleLogin = async () => {
-  console.log('🔵 Login button clicked!');
-  console.log('Email:', loginEmail);
-  console.log('Password length:', loginPassword.length);
-  
-  if (!loginEmail || !loginPassword) {
-    toast.error("Please fill in all fields");
-    return;
-  }
-  
-  setAuthLoading2(true);
-  try {
-    console.log('🔵 Calling signIn...');
-    await signIn(loginEmail, loginPassword, rememberMe);
-    console.log('🔵 SignIn successful!');
-    toast.success("Welcome back!", {
-      description: "Ready to crush your fitness goals?",
-    });
-    setLoginEmail("");
-    setLoginPassword("");
-  } catch (error: any) {
-    console.error('🔴 Login error:', error);
-    toast.error("Login failed", {
-      description: error.message || "Please check your credentials",
-    });
-  } finally {
-    setAuthLoading2(false);
-  }
-};
+  const handleLogin = async () => {
+    console.log('🔵 Login button clicked!');
+    console.log('Email:', loginEmail);
+    console.log('Password length:', loginPassword.length);
+    
+    if (!loginEmail || !loginPassword) {
+      toast.error("Please fill in all fields");
+      return;
+    }
+    
+    setAuthLoading2(true);
+    try {
+      console.log('🔵 Calling signIn...');
+      await signIn(loginEmail, loginPassword, rememberMe);
+      console.log('🔵 SignIn successful!');
+      toast.success("Welcome back!", {
+        description: "Ready to crush your fitness goals?",
+      });
+      setLoginEmail("");
+      setLoginPassword("");
+    } catch (error: any) {
+      console.error('🔴 Login error:', error);
+      toast.error("Login failed", {
+        description: error.message || "Please check your credentials",
+      });
+    } finally {
+      setAuthLoading2(false);
+    }
+  };
 
-  // Handle signup
   const handleSignup = async () => {
     if (!signupName || !signupEmail || !signupPassword) {
       toast.error("Please fill in all fields");
@@ -161,7 +154,6 @@ const handleLogin = async () => {
     }
   };
   
-  // Handle logout
   const handleLogout = async () => {
     console.log('🔴 handleLogout called from SettingsModal');
     try {
@@ -176,7 +168,6 @@ const handleLogin = async () => {
     }
   };
   
-  // Page transition wrapper
   const PageTransition = ({ children }: { children: React.ReactNode }) => (
     <motion.div
       key={currentScreen}
@@ -192,22 +183,19 @@ const handleLogin = async () => {
     </motion.div>
   );
 
-  // Add this BEFORE the "if (!user)" check around line 204:
-if (authLoading) {
-  return (
-    <div className="min-h-screen w-full flex items-center justify-center bg-[#1a1f1a]">
-      <div className="text-white">Loading...</div>
-    </div>
-  );
-}
+  if (authLoading) {
+    return (
+      <div className="min-h-screen w-full flex items-center justify-center bg-[#1a1f1a]">
+        <div className="text-white">Loading...</div>
+      </div>
+    );
+  }
 
-  // Show login modal if not authenticated
   if (!user) {
     return (
       <>
         <Toaster position="top-center" richColors />
         
-        {/* Dashboard background */}
         <Dashboard
           onLogWorkout={() => {}}
           onStartWorkout={() => {}}
@@ -223,7 +211,6 @@ if (authLoading) {
           isLoginBackground={true}
         />
         
-        {/* Login Modal Overlay */}
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4 pb-48">
           <motion.div
             initial={{ scale: 0.9, opacity: 0 }}
@@ -394,12 +381,10 @@ if (authLoading) {
             </AnimatePresence>
           </motion.div>
           
-          {/* Auth Action Buttons - Bottom Right - Constrained to mobile viewport */}
           <div className="fixed bottom-0 left-0 right-0 z-[60] flex justify-end pointer-events-none">
             <div className="max-w-[440px] w-full mx-auto px-4 pb-8 pointer-events-auto">
               <div className="flex justify-end">
                 <div className="flex flex-col gap-3">
-                  {/* Show Sign Up toggle if on login, OR show Back to Login if on signup/disclaimer screen */}
                   {authView === "login" ? (
                     <div className="flex flex-col items-center gap-1.5">
                       <button
@@ -430,7 +415,6 @@ if (authLoading) {
                     </div>
                   )}
                   
-                  {/* Submit/Accept button */}
                   {authView === "login" ? (
                     <div className="flex flex-col items-center gap-1.5 mt-2">
                       <button
@@ -458,13 +442,12 @@ if (authLoading) {
                       </span>
                     </div>
                   ) : (
-                    /* Accept button for disclaimer */
                     <div className="flex flex-col items-center gap-1.5 mt-2">
                       <button
                         onClick={() => {
                           if (disclaimerChecked) {
                             setDisclaimerAccepted(true);
-                            setDisclaimerChecked(false); // Reset for next time
+                            setDisclaimerChecked(false);
                           } else {
                             toast.error("Please accept the health & safety disclaimer");
                           }
@@ -490,7 +473,6 @@ if (authLoading) {
             </div>
           </div>
           
-          {/* Checkbox - Bottom Left for disclaimer only */}
           {authView === "signup" && !disclaimerAccepted && (
             <div className="fixed bottom-8 left-4 z-[60]">
               <div className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-2xl p-3 max-w-[200px]">
@@ -645,37 +627,38 @@ if (authLoading) {
           }}
           onSave={async (data: WorkoutData) => {
             if (editingWorkoutId) {
-              // Editing existing workout
-              await handleUpdateWorkout(editingWorkoutId, data);
+              console.log("Edit workout not implemented yet");
+              toast.error("Edit feature coming soon!");
               setEditingWorkoutId(null);
-              // Stay on useractivities if it's the current user's workout
-              if (selectedUser?.id === 1) {
-                setCurrentScreen("useractivities");
-              } else {
-                setCurrentScreen("profile");
-              }
+              setCurrentScreen("dashboard");
             } else {
-              // New workout
-              await handleWorkoutSave(data);
-              setCurrentScreen("uploadworkoutphoto");
+              try {
+                console.log("=== SAVING MANUAL WORKOUT ===");
+                console.log("Workout data:", data);
+                
+                await createWorkout({
+                  type: data.sport,
+                  duration: data.duration,
+                  distance: data.distance || 0,
+                  date: data.date || new Date().toISOString(),
+                  notes: data.notes,
+                  leagueId: currentLeague?.id || undefined,
+                });
+                
+                toast.success("Workout logged!", {
+                  description: `${data.sport} workout saved successfully`,
+                });
+                
+                setCurrentScreen("uploadworkoutphoto");
+              } catch (error) {
+                console.error("Failed to save workout:", error);
+                toast.error("Failed to save workout", {
+                  description: error instanceof Error ? error.message : "Please try again",
+                });
+              }
             }
           }}
-          initialData={editingWorkoutId ? (() => {
-            // Find the workout being edited
-            const userWorkouts = mockWorkouts.filter(w => w.userId === 1);
-            const workout = userWorkouts.find((_, index) => index === editingWorkoutId);
-            if (workout) {
-              return {
-                sport: selectedSport,
-                duration: workout.duration,
-                distance: workout.distance,
-                calories: workout.calories,
-                effort: workout.effort,
-                notes: workout.description || ""
-              };
-            }
-            return undefined;
-          })() : undefined}
+          initialData={undefined}
           isEditing={editingWorkoutId !== null}
         />
       </>
@@ -701,7 +684,6 @@ if (authLoading) {
         <UploadWorkoutPhoto
           onBack={() => setCurrentScreen("workoutdetail")}
           onSkip={() => {
-            // Navigate to user activities (current user's profile activities)
             setSelectedUser({
               id: 1,
               name: "Sarah Chen",
@@ -729,47 +711,6 @@ if (authLoading) {
       </>
     );
   }
-
-  // Legacy screens - Profile and ManageLeagues are now handled via Dashboard modals
-  // Commenting out to prevent 500 errors from missing CoverFlowScroll component
-  /*
-  if (currentScreen === "manageleagues") {
-    return (
-      <>
-        <AnimatedBackground dimmed={true} />
-        <ManageLeagues
-          onBack={() => setCurrentScreen("dashboard")}
-          onUserClick={(userId, userName, userAvatar, userInitials) => {
-            setSelectedUser({ id: userId, name: userName, avatar: userAvatar, initials: userInitials });
-            setPreviousScreen("manageleagues");
-            setCurrentScreen("useractivities");
-          }}
-        />
-      </>
-    );
-  }
-
-  if (currentScreen === "profile") {
-    return (
-      <>
-        <AnimatedBackground dimmed={true} />
-        <Profile
-          onBack={() => setCurrentScreen(previousScreen)}
-          onSettings={() => setCurrentScreen("settings")}
-          onManageLeagues={() => setCurrentScreen("manageleagues")}
-          onManageGoals={() => setCurrentScreen("goals")}
-          onMetrics={() => setCurrentScreen("metrics")}
-          onChat={() => setCurrentScreen("chat")}
-          onEditWorkout={(workoutId: number, sport: string) => {
-            setEditingWorkoutId(workoutId);
-            setSelectedSport(sport);
-            setCurrentScreen("workoutdetail");
-          }}
-        />
-      </>
-    );
-  }
-  */
 
   if (currentScreen === "metrics") {
     return (
@@ -823,8 +764,6 @@ if (authLoading) {
           onBack={() => setCurrentScreen("leagues")}
           onCreate={(data: LeagueData) => {
             console.log("League created:", data);
-            // TODO: Save league data
-            // Stay on the success screen, user clicks "Back to Leagues" to return
           }}
         />
       </>
@@ -839,7 +778,6 @@ if (authLoading) {
           onBack={() => setCurrentScreen("leagues")}
           onJoin={(leagueId) => {
             console.log("Joined league:", leagueId);
-            // TODO: Join league
             setCurrentScreen("leagues");
           }}
         />
@@ -867,10 +805,8 @@ if (authLoading) {
   if (currentScreen === "leaderboard") {
     return (
       <>
-        {/* Always-visible animated background */}
         <AnimatedBackground dimmed={true} />
         
-        {/* Floating leaderboard content - no PageTransition wrapper */}
         <Leaderboard
           onBack={() => setCurrentScreen("dashboard")}
           onProfile={() => {
@@ -896,7 +832,6 @@ if (authLoading) {
           onComplete={async (duration, distance, route) => {
             console.log("Workout completed:", { sport: selectedSport, duration, distance, route });
             
-            // Save workout to backend (creates activity automatically)
             try {
               console.log("=== SAVING ACTIVE WORKOUT TO BACKEND ===");
               console.log("Workout data:", {
@@ -909,7 +844,7 @@ if (authLoading) {
               
               const result = await createWorkout({
                 type: selectedSport,
-                duration: duration * 60, // Convert hours to minutes
+                duration: duration * 60,
                 distance: distance || 0,
                 date: new Date().toISOString(),
                 leagueId: currentLeague?.id || undefined,
@@ -926,19 +861,15 @@ if (authLoading) {
               return;
             }
             
-            // Store route for later use
             if (route) {
-              // In a real app, this would be saved to backend with the workout
               console.log("Route tracked with", route.length, "GPS points");
             }
             
-            // Show success toast
             toast.success("🎉 Awesome Workout!", {
               description: `${selectedSport} completed! ${duration.toFixed(2)} hours tracked`,
               duration: 3000,
             });
             
-            // Navigate to user activities (current user's profile activities)
             setSelectedUser({
               id: 1,
               name: "Sarah Chen",
@@ -1005,11 +936,9 @@ if (authLoading) {
     );
   }
   
-  // Fallback
   return (
     <>
       <Toaster position="top-center" richColors />
-      {/* PWA Install Prompt - Shows automatically after 3 seconds if installable */}
       <PWAInstall autoShow={true} />
     </>
   );
@@ -1017,7 +946,6 @@ if (authLoading) {
 
 export default function App() {
   useEffect(() => {
-    // Initialize PWA features for iOS mobile support
     try {
       registerServiceWorker();
       addPWAMetaTags();
@@ -1026,7 +954,6 @@ export default function App() {
       console.log('⚠️ PWA initialization skipped:', error);
     }
     
-    // Initialize native app features if running in a native environment
     if (isNativeApp()) {
       initializeNativeApp();
       console.log('✅ Native app features initialized');
@@ -1035,7 +962,6 @@ export default function App() {
   
   return (
     <div className="min-h-screen w-full flex items-center justify-center">
-      {/* Centered container - 440px max-width for mobile dimensions */}
       <div className="w-full max-w-[440px] min-h-screen relative">
         <AuthProvider>
           <AppProvider>
