@@ -649,12 +649,20 @@ function LeaguesModalComponent({
             </div>
             <div className="flex flex-col items-center gap-1.5">
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (joinLeagueCode.length >= 4) {
-                    toast.success('Joined League!', {
-                      description: `You've joined with code ${joinLeagueCode}`,
-                    });
-                    onClose();
+                    try {
+                      const api = new APIClient(accessToken!);
+                      await api.joinLeague(joinLeagueCode);
+                      toast.success('Joined League!', {
+                        description: `You've joined with code ${joinLeagueCode}`,
+                      });
+                      await refreshLeagues();
+                      setJoinLeagueCode('');
+                      setModalStep(1);
+                    } catch (error: any) {
+                      toast.error(error.message || 'Failed to join league');
+                    }
                   } else {
                     toast.error('Please enter a valid code');
                   }
