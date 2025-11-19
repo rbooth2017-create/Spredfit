@@ -168,36 +168,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /* ---------- SIGN IN ---------- */
 
-  const signIn = async (email: string, password: string) => {
-    console.log("🟢 auth.tsx: signIn called");
-    console.log("   → email:", email);
-    console.log("   → password length:", password?.length ?? 0);
+ const signIn = async (email: string, password: string, rememberMe: boolean = false) => {
+  console.log("🟢 auth.tsx: signIn called");
+  console.log("   → email:", email);
+  console.log("   → password length:", password?.length ?? 0);
+  console.log("   → remember me:", rememberMe);
 
-    try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+      options: {
+        persistSession: rememberMe, // This is the key change
+      },
+    });
 
-      console.log("🟢 auth.tsx: Supabase response:", { data, error });
+    console.log("🟢 auth.tsx: Supabase response:", { data, error });
 
-      if (error) {
-        console.error("🔴 auth.tsx: signIn error from Supabase:", error);
-        throw new Error(error.message || "Login failed");
-      }
-
-      if (!data || !data.session || !data.user) {
-        console.error("🔴 auth.tsx: signIn missing session or user", data);
-        throw new Error("Login failed - no session returned from Supabase");
-      }
-
-      await populateUserFromSession(data.session);
-      console.log("🟢 auth.tsx: signIn complete!");
-    } catch (err: any) {
-      console.error("🔴 auth.tsx: signIn exception:", err);
-      throw err;
+    if (error) {
+      console.error("🔴 auth.tsx: signIn error from Supabase:", error);
+      throw new Error(error.message || "Login failed");
     }
-  };
+
+    if (!data || !data.session || !data.user) {
+      console.error("🔴 auth.tsx: signIn missing session or user", data);
+      throw new Error("Login failed - no session returned from Supabase");
+    }
+
+    await populateUserFromSession(data.session);
+    console.log("🟢 auth.tsx: signIn complete!");
+  } catch (err: any) {
+    console.error("🔴 auth.tsx: signIn exception:", err);
+    throw err;
+  }
+};
 
   /* ---------- SIGN UP ---------- */
 

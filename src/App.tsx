@@ -117,7 +117,7 @@ const handleLogin = async () => {
   setAuthLoading2(true);
   try {
     console.log('🔵 Calling signIn...');
-    await signIn(loginEmail, loginPassword);
+    await signIn(loginEmail, loginPassword, rememberMe);
     console.log('🔵 SignIn successful!');
     toast.success("Welcome back!", {
       description: "Ready to crush your fitness goals?",
