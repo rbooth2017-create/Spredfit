@@ -1,13 +1,34 @@
 import { memo } from "react";
 import { Users, Trophy, ArrowLeft, Check, EyeOff, Star, Share2, Copy } from "lucide-react";
-import { Switch } from "../ui/switch";
 import { toast } from "sonner@2.0.3";
+import { useApp } from "../../utils/AppContext";
+
+// ✅ Switch component - inline definition since import path is unclear
+function Switch({ checked, onCheckedChange }: { checked: boolean; onCheckedChange: (checked: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onCheckedChange(!checked)}
+      className={`relative inline-flex h-5 w-9 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-white/40 focus:ring-offset-2 ${
+        checked ? 'bg-white/40' : 'bg-white/10'
+      }`}
+    >
+      <span
+        className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+          checked ? 'translate-x-4' : 'translate-x-0'
+        }`}
+      />
+    </button>
+  );
+}
 
 interface League {
   name: string;
   rank: number;
   totalMembers: number;
-  id: string; // Add an ID to uniquely identify each league
+  id: string;
 }
 
 interface Sport {
@@ -78,6 +99,53 @@ function LeaguesModalComponent({
   setDoubleUpActivated,
   onClose,
 }: LeaguesModalProps) {
+  // ✅ Get createLeague and refreshLeagues from context
+  const { createLeague, refreshLeagues } = useApp();
+
+  // ✅ Handle league creation
+  const handleCreateLeague = async () => {
+    if (!newLeagueName.trim()) {
+      toast.error('Please enter a league name');
+      return;
+    }
+
+    try {
+      console.log('🏆 Creating league:', newLeagueName);
+      
+      // Create league with all settings
+      const result = await createLeague({
+        name: newLeagueName,
+        description: '', // Optional
+        is_private: isPrivate,
+        duration: duration,
+        allowed_sports: selectedLeagueSports.length > 0 ? selectedLeagueSports : null,
+        allow_teams: allowTeams,
+        allow_stealth_mode: stealthMode,
+        allow_double_up: doubleUp,
+      });
+
+      console.log('✅ League created:', result);
+
+      // Set the generated code
+      setCreatedLeagueCode(result.league_code);
+      
+      // Refresh leagues list
+      await refreshLeagues();
+      
+      // Show success screen
+      setModalStep(5);
+      
+      toast.success('League Created!', {
+        description: `Share code ${result.league_code} with friends`,
+      });
+    } catch (error) {
+      console.error('❌ Failed to create league:', error);
+      toast.error('Failed to create league', {
+        description: error instanceof Error ? error.message : 'Please try again',
+      });
+    }
+  };
+
   return (
     <>
       {/* Modal Content */}
@@ -229,14 +297,6 @@ function LeaguesModalComponent({
                 <p className="text-white/50 text-[8px] text-center">
                   {selectedLeagueSports.length} of {sports.length} sports selected
                 </p>
-              </div>
-
-              {/* League code */}
-              <div className="text-center">
-                <p className="text-white/70 text-[9px] mb-1">Invite code:</p>
-                <div className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 inline-block">
-                  <span className="text-white text-xs">SPRD{Math.floor(Math.random() * 1000).toString().padStart(3, '0')}</span>
-                </div>
               </div>
             </div>
           </div>
@@ -418,13 +478,7 @@ function LeaguesModalComponent({
             </div>
             <div className="flex flex-col items-center gap-1.5">
               <button
-                onClick={() => {
-                  if (newLeagueName.trim()) {
-                    const code = `SPRD${Math.floor(Math.random() * 10000).toString().padStart(4, '0')}`;
-                    setCreatedLeagueCode(code);
-                    setModalStep(5);
-                  }
-                }}
+                onClick={handleCreateLeague}
                 disabled={!newLeagueName.trim()}
                 className={`w-20 h-20 rounded-full backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 shadow-lg ${
                   newLeagueName.trim()
@@ -453,7 +507,6 @@ function LeaguesModalComponent({
                       description: `${createdLeagueCode} copied to clipboard`,
                     });
                   } catch (error) {
-                    // Fallback if clipboard API fails
                     toast.info('League Code', {
                       description: createdLeagueCode,
                       duration: 5000,
@@ -476,7 +529,6 @@ function LeaguesModalComponent({
                         text: `Join "${newLeagueName}" on SPREDfit with code: ${createdLeagueCode}`,
                       });
                     } catch (error) {
-                      // User cancelled or share failed, show toast with code
                       if (error instanceof Error && error.name !== 'AbortError') {
                         toast.info('Share Code', {
                           description: `Code: ${createdLeagueCode}`,
@@ -485,7 +537,6 @@ function LeaguesModalComponent({
                       }
                     }
                   } else {
-                    // Fallback: show code in toast
                     toast.info('Share Code', {
                       description: `Code: ${createdLeagueCode}`,
                       duration: 5000,
@@ -514,5 +565,4 @@ function LeaguesModalComponent({
   );
 }
 
-// ✅ Memoize to prevent unnecessary re-renders
 export const LeaguesModal = memo(LeaguesModalComponent);

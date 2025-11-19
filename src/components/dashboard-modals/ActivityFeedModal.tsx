@@ -17,6 +17,7 @@ interface ActivityFeedModalProps {
   activityFilter: 'all' | 'you';
   setActivityFilter: (filter: 'all' | 'you') => void;
   onActivityClick: (activity: Activity) => void;
+  currentUserId?: string; // ✅ Add this
 }
 
 function ActivityFeedModalComponent({
@@ -24,6 +25,7 @@ function ActivityFeedModalComponent({
   activityFilter,
   setActivityFilter,
   onActivityClick,
+  currentUserId, // ✅ Add this
 }: ActivityFeedModalProps) {
   return (
     <div className="w-96 h-96 rounded-full bg-transparent border-2 border-white/40 flex items-center justify-center p-8 shadow-2xl overflow-hidden">
@@ -35,14 +37,14 @@ function ActivityFeedModalComponent({
             <p className="text-white/50 text-xs italic">No activities yet. Log a workout to get started!</p>
           ) : (
             activities
-              .filter(activity => activityFilter === 'all' || activity.userName === 'You')
+              .filter(activity => activityFilter === 'all' || activity.userId === currentUserId) // ✅ Changed from userName === 'You'
               .slice(0, 8)
               .map((activity) => (
                 <button
                   key={activity.id}
                   onClick={() => onActivityClick(activity)}
                   className={`w-full p-2.5 rounded-3xl transition-all text-left cursor-pointer ${
-                    activity.userName === 'You' ? 'bg-white/20 backdrop-blur-sm border border-white/30 hover:bg-white/30' : 'bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20'
+                    activity.userId === currentUserId ? 'bg-white/20 backdrop-blur-sm border border-white/30 hover:bg-white/30' : 'bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20' // ✅ Changed from userName === 'You'
                   }`}
                 >
                   <p className="text-white text-xs pointer-events-none">

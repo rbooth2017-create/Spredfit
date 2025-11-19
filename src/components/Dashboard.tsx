@@ -56,15 +56,13 @@ const trainingPlan = {
   nextWorkout: "Long Run"
 };
 
-// Mock activity data removed - now using real Supabase data
-
 export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagues, onProfile, onSignOut, onActivityFeed, onTrainingPlans, onChat, onDealFinder, onBrandedStore, isLoginBackground }: DashboardProps) {
-  const { accessToken, justSignedUp, clearJustSignedUp } = useAuth();
+  const { accessToken, justSignedUp, clearJustSignedUp, user } = useAuth(); // ✅ Get user here
   const { leagues, profile, currentLeague, refreshLeagues, refreshProfile } = useApp();
   
   // Tutorial state - show if user just signed up
   const [showTutorial, setShowTutorial] = useState(false);
-  
+
   // Show tutorial when user just signed up
   useEffect(() => {
     if (justSignedUp) {
@@ -218,24 +216,24 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
     { name: 'Other', icon: MoreHorizontal },
   ], []);
   
-  // Load activities when league changes
+  // Load activities when component mounts or when a workout is created
   useEffect(() => {
     async function loadActivities() {
-      if (!currentLeague || !accessToken) {
-        // Don't clear activities - keep mock data for demo purposes
+      if (!accessToken) {
+        setActivities([]);
         return;
       }
       try {
         const api = new APIClient(accessToken);
-        const data = await api.getLeagueFeed(currentLeague.id);
-        setActivities(data);
+        const workouts = await api.getUserWorkouts();
+        setActivities(workouts);
       } catch (error) {
-        console.error('Failed to load activities:', error);
-        // Don't clear activities on error - keep existing data
+        console.error('Failed to load workouts:', error);
+        setActivities([]);
       }
     }
     loadActivities();
-  }, [currentLeague, accessToken, setActivities]);
+  }, [accessToken, setActivities]);
   
   // Load chat when league changes
   useEffect(() => {
@@ -565,6 +563,7 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
                   setSelectedActivity(activity);
                   setActiveModal('activityDetail');
                 }}
+                currentUserId={user?.id}
                 onClose={closeModal}
               />
             )}

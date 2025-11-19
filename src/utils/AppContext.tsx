@@ -95,7 +95,7 @@ const AppContext = createContext<AppContextType>({
 });
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const { accessToken, user } = useAuth();  // ✅ Get user at top level
+  const { accessToken, user } = useAuth();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [leagues, setLeagues] = useState<League[]>([]);
   const [currentLeague, setCurrentLeague] = useState<League | null>(null);
@@ -103,17 +103,14 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // ✅ Memoize API client to prevent recreation on every render
   const api = useMemo(() => new APIClient(accessToken), [accessToken]);
 
-  // ✅ Get app settings from profile or use defaults
   const appSettings = useMemo(() => profile?.settings || {
     units: 'metric' as const,
     notifications: true,
     privateProfile: false,
   }, [profile]);
 
-  // ✅ Wrap functions in useCallback for stable references
   const refreshProfile = useCallback(async () => {
     if (!accessToken) return;
     try {
@@ -121,7 +118,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
       setProfile(data);
     } catch (error) {
       console.error('Failed to fetch profile:', error);
-      // Profile will remain null if API fails
     }
   }, [accessToken, api]);
 
@@ -130,13 +126,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     try {
       const data = await api.getUserLeagues();
       setLeagues(data);
-      // Set first league as current if not set
       if (data.length > 0 && !currentLeague) {
         setCurrentLeague(data[0]);
       }
     } catch (error) {
       console.error('Failed to fetch leagues:', error);
-      // Leagues will remain empty if API fails
     }
   }, [accessToken, api, currentLeague]);
 
@@ -146,11 +140,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     
     const result = await api.createWorkout({
       ...workout,
-      userId: user.id,  // ✅ Use user from top-level useAuth
+      userId: user.id,
     });
     await refreshProfile();
     return result;
-  }, [accessToken, user, api, refreshProfile]);  // ✅ Add user to dependencies
+  }, [accessToken, user, api, refreshProfile]);
 
   const createLeague = useCallback(async (league: any) => {
     if (!accessToken) throw new Error('Not authenticated');
@@ -206,7 +200,6 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [accessToken, refreshProfile, refreshLeagues]);
 
-  // ✅ Memoize context value to prevent unnecessary re-renders
   const contextValue = useMemo(() => ({
     profile,
     leagues,
