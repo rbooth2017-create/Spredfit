@@ -1,6 +1,7 @@
 import { memo } from "react";
 import { ArrowLeft, Check, Camera } from "lucide-react";
 import { toast } from "sonner@2.0.3";
+import { useApp } from "../../utils/AppContext";
 
 interface Sport {
   name: string;
@@ -44,6 +45,8 @@ function LogWorkoutModalComponent({
   setShowPhotoUpload,
   onClose,
 }: LogWorkoutModalProps) {
+  const { createWorkout, currentLeague } = useApp();
+
   return (
     <>
       {/* Modal Content */}
@@ -257,9 +260,23 @@ function LogWorkoutModalComponent({
             </div>
             <div className="flex flex-col items-center gap-1.5">
               <button
-                onClick={() => {
-                  toast.success('Workout Logged!');
-                  setModalStep(5);
+                onClick={async () => {
+                  try {
+                    const totalMinutes = (parseInt(logHours) || 0) * 60 + (parseInt(logMinutes) || 0);
+                    await createWorkout({
+                      type: selectedSport!,
+                      duration: totalMinutes,
+                      distance: parseFloat(logDistance) || 0,
+                      date: new Date().toISOString(),
+                      notes: logNotes,
+                      leagueId: currentLeague?.id,
+                    });
+                    toast.success('Workout Logged!');
+                    setModalStep(5);
+                  } catch (error) {
+                    console.error("Failed to save workout:", error);
+                    toast.error("Failed to save workout");
+                  }
                 }}
                 className="w-20 h-20 rounded-full bg-[#2d2d2d] backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 hover:bg-[#2d2d2d]/90 shadow-lg"
               >

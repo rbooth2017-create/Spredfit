@@ -1,12 +1,23 @@
 import { projectId, publicAnonKey } from './supabase/info';
+import { createClient } from "@supabase/supabase-js";
 
 const API_BASE = `https://${projectId}.supabase.co/functions/v1/make-server-6eb09999`;
+const supabaseUrl = `https://${projectId}.supabase.co`;
 
 export class APIClient {
   private accessToken: string | null;
+  private supabase;
 
   constructor(accessToken: string | null) {
     this.accessToken = accessToken;
+    // Create Supabase client with user's access token
+    this.supabase = createClient(supabaseUrl, publicAnonKey, {
+      global: {
+        headers: this.accessToken ? {
+          Authorization: `Bearer ${this.accessToken}`
+        } : {}
+      }
+    });
   }
 
   private async request(endpoint: string, options: RequestInit = {}) {
@@ -67,9 +78,10 @@ export class APIClient {
     return response.json();
   }
 
-  // Workouts
+  // Workouts - Save directly to Supabase
   async createWorkout(workout: {
-    sport: string;
+    userId: string;
+    type: string;
     duration: number;
     distance?: number;
     date: string;
@@ -77,10 +89,30 @@ export class APIClient {
     photo?: string;
     leagueId?: string;
   }) {
-    return this.request('/workouts', {
-      method: 'POST',
-      body: JSON.stringify(workout),
-    });
+    console.log("🔵 API Client: Creating workout with token:", this.accessToken ? "✅ Present" : "❌ Missing");
+    console.log("🔵 API Client: Workout data:", workout);
+    
+    const { data, error } = await this.supabase
+      .from('workouts')
+      .insert({
+        user_id: workout.userId,
+        type: workout.type,
+        duration_min: workout.duration,
+        distance_km: workout.distance || 0,
+        performed_at: workout.date,
+        notes: workout.notes,
+        photo_url: workout.photo,
+      })
+      .select()
+      .single();
+      
+    if (error) {
+      console.error("🔴 Supabase error creating workout:", error);
+      throw new Error(error.message);
+    }
+    
+    console.log("✅ Workout created:", data);
+    return data;
   }
 
   async getUserWorkouts() {

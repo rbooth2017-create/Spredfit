@@ -95,7 +95,7 @@ const AppContext = createContext<AppContextType>({
 });
 
 export function AppProvider({ children }: { children: ReactNode }) {
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();  // ✅ Get user at top level
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [leagues, setLeagues] = useState<League[]>([]);
   const [currentLeague, setCurrentLeague] = useState<League | null>(null);
@@ -142,10 +142,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const createWorkout = useCallback(async (workout: any) => {
     if (!accessToken) throw new Error('Not authenticated');
-    const result = await api.createWorkout(workout);
+    if (!user) throw new Error('No user found');
+    
+    const result = await api.createWorkout({
+      ...workout,
+      userId: user.id,  // ✅ Use user from top-level useAuth
+    });
     await refreshProfile();
     return result;
-  }, [accessToken, api, refreshProfile]);
+  }, [accessToken, user, api, refreshProfile]);  // ✅ Add user to dependencies
 
   const createLeague = useCallback(async (league: any) => {
     if (!accessToken) throw new Error('Not authenticated');
