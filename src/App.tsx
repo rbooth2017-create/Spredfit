@@ -192,6 +192,15 @@ const handleLogin = async () => {
     </motion.div>
   );
 
+  // Add this BEFORE the "if (!user)" check around line 204:
+if (authLoading) {
+  return (
+    <div className="min-h-screen w-full flex items-center justify-center bg-[#1a1f1a]">
+      <div className="text-white">Loading...</div>
+    </div>
+  );
+}
+
   // Show login modal if not authenticated
   if (!user) {
     return (
