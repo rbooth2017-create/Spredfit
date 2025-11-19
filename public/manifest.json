@@ -1,22 +1,72 @@
 {
-  "name": "SPREDfit - Exercise Competition",
+  "name": "SPREDfit",
   "short_name": "SPREDfit",
-  "description": "Join friends and compete to move more each month. Track workouts, join leagues, and stay motivated together.",
+  "description": "Fitness tracking and league competition app",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f5f1ed",
-  "theme_color": "#2d332d",
-  "orientation": "portrait-primary",
+  "background_color": "#025E73",
+  "theme_color": "#025E73",
+  "orientation": "portrait",
   "icons": [
-    { "src": "/icons/icon-72x72.png", "sizes": "72x72", "type": "image/png" },
-    { "src": "/icons/icon-96x96.png", "sizes": "96x96", "type": "image/png" },
-    { "src": "/icons/icon-120x120.png", "sizes": "120x120", "type": "image/png" },
-    { "src": "/icons/icon-128x128.png", "sizes": "128x128", "type": "image/png" },
-    { "src": "/icons/icon-144x144.png", "sizes": "144x144", "type": "image/png" },
-    { "src": "/icons/icon-152x152.png", "sizes": "152x152", "type": "image/png" },
-    { "src": "/icons/icon-180x180.png", "sizes": "180x180", "type": "image/png" },
-    { "src": "/icons/icon-192x192.png", "sizes": "192x192", "type": "image/png" },
-    { "src": "/icons/icon-256x256.png", "sizes": "256x256", "type": "image/png" },
-    { "src": "/icons/icon-512x512.png", "sizes": "512x512", "type": "image/png" }
+    {
+      "src": "/icons/icon-48x48-v2.png",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-96x96-v2.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-128x128-v2.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-144x144-v2.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-152x152-v2.png",
+      "sizes": "152x152",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-192x192-v2.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-256x256-v2.png",
+      "sizes": "256x256",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-384x384-v2.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512-v2.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-1024x1024-v2.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
   ]
 }
