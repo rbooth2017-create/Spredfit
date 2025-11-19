@@ -65,6 +65,10 @@ interface LeagueData {
 
 function AppContent() {
   const { user, signIn, signUp, signOut, loading: authLoading } = useAuth();
+
+  // Add this debug log
+  console.log('🔵 App.tsx: user state:', user);
+
   const { createWorkout, currentLeague } = useApp();
   
   const [currentScreen, setCurrentScreen] = useState<Screen>("dashboard");

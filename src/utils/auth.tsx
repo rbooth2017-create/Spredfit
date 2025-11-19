@@ -1,5 +1,3 @@
-"use client";
-
 import React, {
   createContext,
   useContext,
@@ -9,8 +7,7 @@ import React, {
 } from "react";
 import { createClient, SupabaseClient } from "@supabase/supabase-js";
 import type { Session } from "@supabase/supabase-js";
-import { Database } from "@/lib/database.types";
-import { projectId, publicAnonKey } from './supabase/info.tsx';
+import { projectId, publicAnonKey } from './supabase/info';
 
 export interface UserProfile {
   id: string;
@@ -28,6 +25,8 @@ interface AuthContextType {
   signUp: (email: string, password: string, name: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
+  justSignedUp: boolean;
+  clearJustSignedUp: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,10 +36,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const supabaseUrl = `https://${projectId}.supabase.co`;
 console.log("🟠 auth.tsx: Supabase URL", supabaseUrl);
 
-const supabase: SupabaseClient<Database> = createClient(
-  supabaseUrl,
-  publicAnonKey
-);
+const supabase = createClient(supabaseUrl, publicAnonKey);
 
 /* ---------- provider ---------- */
 
@@ -48,6 +44,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [justSignedUp, setJustSignedUp] = useState(false);
 
   // Load initial session
   useEffect(() => {
@@ -102,44 +99,74 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  async function populateUserFromSession(session: Session) {
-    try {
-      const supaUser = session.user;
-      console.log("🟢 auth.tsx: populateUserFromSession", supaUser.id);
+ async function populateUserFromSession(session: Session) {
+  try {
+    const supaUser = session.user;
+    console.log("🟢 auth.tsx: populateUserFromSession", supaUser.id);
 
-      const { data: profile, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", supaUser.id)
-        .maybeSingle();
+    // Add a 5-second timeout
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Profile fetch timeout after 5 seconds')), 5000)
+    );
+    
+    const fetchPromise = supabase
+      .from("profiles")
+      .select("full_name, username, avatar_url")
+      .eq("id", supaUser.id)
+      .maybeSingle();
+    
+    console.log("🟡 Starting profile fetch with timeout...");
+    
+    // Race between fetch and timeout
+    const result = await Promise.race([fetchPromise, timeoutPromise]) as any;
+    
+    console.log("🟡 Profile fetch completed:", result);
+    
+    const { data: profile, error: profileError } = result;
 
-      if (profileError) {
-        console.warn(
-          "🟡 auth.tsx: populateUserFromSession profile error",
-          profileError
-        );
-      }
-
-      setUser({
-        id: supaUser.id,
-        email: supaUser.email ?? "",
-        name:
-          profile?.full_name ||
-          profile?.username ||
-          supaUser.user_metadata?.name ||
-          supaUser.email ||
-          "User",
-        username: profile?.username,
-        avatar_url: profile?.avatar_url,
-      });
-
-      setAccessToken(session.access_token);
-    } catch (err) {
-      console.error("🔴 auth.tsx: populateUserFromSession exception", err);
+    if (profileError) {
+      console.warn(
+        "🟡 auth.tsx: populateUserFromSession profile error",
+        profileError
+      );
     }
-  }
 
-  /* ---------- SIGN IN (fixed – no timeout wrapper) ---------- */
+    const userData = {
+      id: supaUser.id,
+      email: supaUser.email ?? "",
+      name:
+        profile?.full_name ||
+        profile?.username ||
+        supaUser.user_metadata?.name ||
+        supaUser.email ||
+        "User",
+      username: profile?.username,
+      avatar_url: profile?.avatar_url,
+    };
+
+    console.log("🟢 Setting user:", userData);
+    setUser(userData);
+    setAccessToken(session.access_token);
+    console.log("🟢 User set complete!");
+  } catch (err) {
+    console.error("🔴 auth.tsx: populateUserFromSession exception", err);
+    
+    // FALLBACK: Set basic user even on error so UI isn't stuck
+    const fallbackUser = {
+      id: session.user.id,
+      email: session.user.email ?? "",
+      name: session.user.email?.split("@")[0] || "User",
+      username: undefined,
+      avatar_url: undefined,
+    };
+    
+    console.log("🟠 Setting fallback user due to error:", fallbackUser);
+    setUser(fallbackUser);
+    setAccessToken(session.access_token);
+  }
+}
+
+  /* ---------- SIGN IN ---------- */
 
   const signIn = async (email: string, password: string) => {
     console.log("🟢 auth.tsx: signIn called");
@@ -164,34 +191,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error("Login failed - no session returned from Supabase");
       }
 
-      // Fetch user profile to get display name, etc.
-      const { data: profileData, error: profileError } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("id", data.user.id)
-        .maybeSingle();
-
-      if (profileError) {
-        console.warn(
-          "🟡 auth.tsx: signIn profile fetch error (non-fatal):",
-          profileError
-        );
-      }
-
-      console.log("🟢 auth.tsx: setting user + access token");
-      setUser({
-        id: data.user.id,
-        email: data.user.email!,
-        name:
-          profileData?.full_name ||
-          profileData?.username ||
-          data.user.user_metadata?.name ||
-          data.user.email ||
-          "User",
-        username: profileData?.username,
-        avatar_url: profileData?.avatar_url,
-      });
-      setAccessToken(data.session.access_token);
+      await populateUserFromSession(data.session);
       console.log("🟢 auth.tsx: signIn complete!");
     } catch (err: any) {
       console.error("🔴 auth.tsx: signIn exception:", err);
@@ -199,7 +199,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  /* ---------- SIGN UP (uses edge function) ---------- */
+  /* ---------- SIGN UP ---------- */
 
   const signUp = async (email: string, password: string, name: string) => {
     console.log("🟠 auth.tsx: signUp called with", { email, name });
@@ -229,31 +229,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         throw new Error(message);
       }
 
-      // After signup, call Supabase directly to sign the user in
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        console.error(
-          "🔴 auth.tsx: signUp->signIn error from Supabase:",
-          error
-        );
-        throw new Error(error.message || "Sign up succeeded but login failed");
-      }
-
-      if (!data || !data.session || !data.user) {
-        console.error(
-          "🔴 auth.tsx: signUp->signIn missing session or user",
-          data
-        );
-        throw new Error(
-          "Sign up succeeded but login failed - no session returned"
-        );
-      }
-
-      await populateUserFromSession(data.session);
+      await signIn(email, password);
+      setJustSignedUp(true);
     } catch (err: any) {
       console.error("🔴 auth.tsx: signUp exception", err);
       throw err;
@@ -262,17 +239,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /* ---------- SIGN OUT ---------- */
 
-  const signOut = async () => {
-    console.log("🟠 auth.tsx: signOut called");
-    try {
-      await supabase.auth.signOut();
-    } catch (err) {
-      console.error("🔴 auth.tsx: signOut error", err);
-    } finally {
-      setUser(null);
-      setAccessToken(null);
-    }
-  };
+/* ---------- SIGN OUT ---------- */
+
+let isSigningOut = false; // Add guard flag
+
+const signOut = async () => {
+  if (isSigningOut) {
+    console.log("🟡 auth.tsx: signOut already in progress, skipping");
+    return;
+  }
+  
+  isSigningOut = true;
+  console.log("🟠 auth.tsx: signOut called");
+  
+  try {
+    await supabase.auth.signOut();
+    setUser(null);
+    setAccessToken(null);
+  } catch (err) {
+    console.error("🔴 auth.tsx: signOut error", err);
+  } finally {
+    isSigningOut = false;
+  }
+};
 
   /* ---------- REFRESH SESSION ---------- */
 
@@ -301,6 +290,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+  const clearJustSignedUp = () => {
+    setJustSignedUp(false);
+  };
+
   const value: AuthContextType = {
     user,
     accessToken,
@@ -309,6 +302,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signUp,
     signOut,
     refreshSession,
+    justSignedUp,
+    clearJustSignedUp,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
