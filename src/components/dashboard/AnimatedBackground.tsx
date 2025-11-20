@@ -1,5 +1,5 @@
-import { motion } from "motion/react";
-import { createPortal } from "react-dom";
+import React from 'react';
+import { motion } from 'motion/react';
 
 interface AnimatedBackgroundProps {
   animationsPaused?: boolean;
@@ -7,145 +7,107 @@ interface AnimatedBackgroundProps {
 }
 
 export function AnimatedBackground({ animationsPaused = false, dimmed = false }: AnimatedBackgroundProps) {
-  const backgroundContent = (
+  return (
     <div 
-      className="fixed top-0 left-0 w-screen h-screen overflow-hidden bg-gradient-to-br from-slate-800 via-slate-700 to-slate-800"
-      style={{ 
-        zIndex: -10,
+      className="fixed inset-0 w-screen h-screen -z-10"
+      style={{
         position: 'fixed',
         top: 0,
         left: 0,
         right: 0,
         bottom: 0,
         width: '100vw',
-        height: '100vh'
+        height: '100vh',
+        zIndex: -10,
       }}
     >
-      {/* Wave layer 1 - Top left corner */}
-      <motion.div
-        className="absolute -top-[30%] -left-[20%] w-[80%] h-[80%] will-change-transform"
-        animate={!animationsPaused ? {
-          x: [0, 20, 0],
-          y: [0, 15, 0],
-          rotate: [0, 2, 0],
-        } : false}
+      {/* Base gradient background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-[#86a088] via-[#86a088] to-transparent" />
+      
+      {/* Wave Layer 1 - Sage Green */}
+      <motion.svg
+        className="absolute inset-0 w-full h-full"
+        style={{ mixBlendMode: 'soft-light' }}
+        animate={animationsPaused ? {} : {
+          opacity: [0.3, 0.5, 0.3],
+        }}
         transition={{
-          duration: 20,
+          duration: 8,
           repeat: Infinity,
-          ease: "easeInOut",
+          ease: "easeInOut"
         }}
       >
-        <svg
-          viewBox="0 0 1000 1000"
-          className="w-full h-full opacity-30"
-          preserveAspectRatio="xMidYMid slice"
-        >
-          <motion.path
-            d="M0,400 Q250,300 500,400 T1000,400 L1000,1000 L0,1000 Z"
-            animate={!animationsPaused ? {
-              fill: [
-                "#70d4a8", // Sage green
-                "#f09a6b", // Coral peach
-                "#88aed6", // Powder blue
-                "#70d4a8", // Back to sage green
-              ],
-            } : false}
-            transition={{
-              duration: 20,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-        </svg>
-      </motion.div>
+        <motion.path
+          d="M0,50 Q250,20 500,50 T1000,50 L1000,200 L0,200 Z"
+          animate={animationsPaused ? {} : {
+            fill: ['#8a9881', '#7a8872', '#8a9881'],
+          }}
+          transition={{
+            duration: 10,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+      </motion.svg>
 
-      {/* Wave layer 2 - Top right corner */}
-      <motion.div
-        className="absolute -top-[30%] -right-[20%] w-[80%] h-[80%] will-change-transform"
-        animate={!animationsPaused ? {
-          x: [0, -15, 0],
-          y: [0, 20, 0],
-          rotate: [0, -2, 0],
-        } : false}
+      {/* Wave Layer 2 - Coral Peach */}
+      <motion.svg
+        className="absolute inset-0 w-full h-full"
+        style={{ mixBlendMode: 'soft-light' }}
+        animate={animationsPaused ? {} : {
+          opacity: [0.2, 0.4, 0.2],
+        }}
         transition={{
-          duration: 25,
+          duration: 12,
           repeat: Infinity,
           ease: "easeInOut",
-          delay: 2,
+          delay: 2
         }}
       >
-        <svg
-          viewBox="0 0 1000 1000"
-          className="w-full h-full opacity-25"
-          preserveAspectRatio="xMidYMid slice"
-        >
-          <motion.path
-            d="M0,500 Q300,350 600,500 T1200,500 L1200,1000 L0,1000 Z"
-            animate={!animationsPaused ? {
-              fill: [
-                "#f09a6b", // Coral peach
-                "#88aed6", // Powder blue
-                "#70d4a8", // Sage green
-                "#f09a6b", // Back to coral peach
-              ],
-            } : false}
-            transition={{
-              duration: 25,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-        </svg>
-      </motion.div>
+        <motion.path
+          d="M0,100 Q250,70 500,100 T1000,100 L1000,300 L0,300 Z"
+          animate={animationsPaused ? {} : {
+            fill: ['#a88e86', '#8C7A64', '#a88e86'],
+          }}
+          transition={{
+            duration: 14,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+      </motion.svg>
 
-      {/* Wave layer 3 - Bottom area */}
-      <motion.div
-        className="absolute -bottom-[20%] left-0 w-[100%] h-[60%] will-change-transform"
-        animate={!animationsPaused ? {
-          x: [0, 15, 0],
-          y: [0, -15, 0],
-          rotate: [0, 1, 0],
-        } : false}
+      {/* Wave Layer 3 - Powder Blue */}
+      <motion.svg
+        className="absolute inset-0 w-full h-full"
+        style={{ mixBlendMode: 'soft-light' }}
+        animate={animationsPaused ? {} : {
+          opacity: [0.15, 0.35, 0.15],
+        }}
         transition={{
-          duration: 30,
+          duration: 16,
           repeat: Infinity,
           ease: "easeInOut",
-          delay: 4,
+          delay: 4
         }}
       >
-        <svg
-          viewBox="0 0 1000 1000"
-          className="w-full h-full opacity-20"
-          preserveAspectRatio="xMidYMid slice"
-        >
-          <motion.path
-            d="M0,600 Q200,500 400,600 T800,600 T1200,600 L1200,1000 L0,1000 Z"
-            animate={!animationsPaused ? {
-              fill: [
-                "#88aed6", // Powder blue
-                "#70d4a8", // Sage green
-                "#f09a6b", // Coral peach
-                "#88aed6", // Back to powder blue
-              ],
-            } : false}
-            transition={{
-              duration: 30,
-              repeat: Infinity,
-              ease: "easeInOut",
-            }}
-          />
-        </svg>
-      </motion.div>
+        <motion.path
+          d="M0,150 Q250,120 500,150 T1000,150 L1000,400 L0,400 Z"
+          animate={animationsPaused ? {} : {
+            fill: ['#86a088', '#9ca895', '#86a088'],
+          }}
+          transition={{
+            duration: 18,
+            repeat: Infinity,
+            ease: "easeInOut"
+          }}
+        />
+      </motion.svg>
 
-      {/* Dimmed overlay for modal screens */}
+      {/* Dimming overlay when modals are open */}
       {dimmed && (
-        <div className="absolute inset-0 bg-black/40 z-10" />
+        <div className="absolute inset-0 bg-black/30 transition-opacity duration-300" />
       )}
     </div>
   );
-
-  // Render directly to document.body to escape ALL parent constraints
-  return createPortal(backgroundContent, document.body);
 }
-
-export default AnimatedBackground;
