@@ -382,30 +382,19 @@ function StartWorkoutModalComponent({
       )}
 
       {/* External Buttons - Step 4: Review Activity */}
-      {modalStep === 4 && !showPhotoUpload && (
-        <div className="fixed bottom-8 right-4 z-[60]" onClick={(e) => e.stopPropagation()}>
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col items-center gap-1.5">
-              <button
-                onClick={() => setShowPhotoUpload(true)}
-                className="w-20 h-20 rounded-full bg-[#2d2d2d] backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 hover:bg-[#2d2d2d]/90 shadow-lg"
-              >
-                <Camera className="w-7 h-7 text-white" strokeWidth={2} />
-              </button>
-              <span className="text-white text-[10px] text-center">Add Photo</span>
-            </div>
-            <div className="flex flex-col items-center gap-1.5">
-              <button
-                onClick={onClose}
-                className="w-20 h-20 rounded-full bg-[#2d2d2d] backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 hover:bg-[#2d2d2d]/90 shadow-lg"
-              >
-                <Check className="w-7 h-7 text-white" strokeWidth={2} />
-              </button>
-              <span className="text-white text-[10px] text-center">Done</span>
-            </div>
-          </div>
-        </div>
-      )}
+{modalStep === 4 && (
+  <div className="fixed bottom-8 right-4 z-[60]" onClick={(e) => e.stopPropagation()}>
+    <div className="flex flex-col items-center gap-1.5">
+      <button
+        onClick={onClose}
+        className="w-20 h-20 rounded-full bg-[#2d2d2d] backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 hover:bg-[#2d2d2d]/90 shadow-lg"
+      >
+        <Check className="w-7 h-7 text-white" strokeWidth={2} />
+      </button>
+      <span className="text-white text-[10px] text-center">Done</span>
+    </div>
+  </div>
+)}
     </>
   );
 }

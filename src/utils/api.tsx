@@ -211,42 +211,55 @@ async uploadProfilePhoto(file: File) {
   return avatarUrlWithTimestamp;
 }
 
-  // Workouts - Save directly to Supabase
-  async createWorkout(workout: {
-    userId: string;
-    type: string;
-    duration: number;
-    distance?: number;
-    date: string;
-    notes?: string;
-    photo?: string;
-    leagueId?: string;
-  }) {
-    console.log("🔵 API Client: Creating workout with token:", this.accessToken ? "✅ Present" : "❌ Missing");
-    console.log("🔵 API Client: Workout data:", workout);
+async createWorkout(workout: {
+  userId: string;
+  type: string;
+  duration: number;
+  distance?: number;
+  date: string;
+  notes?: string;
+  photo?: string;
+  leagueId?: string;
+}) {
+  console.log("🔵 API Client: Creating workout with token:", this.accessToken ? "✅ Present" : "❌ Missing");
+  console.log("🔵 API Client: Workout data:", workout);
+  
+  // Map workout types to local images
+  const workoutImages: Record<string, string> = {
+    'Running': '/workout/workout-run.jpg',
+    'Cycling': '/workout/workout-cycling.jpg',
+    'Swimming': '/workout/workout-swimming.jpg',
+    'Yoga': '/workout/workout-yoga.jpg',
+    'HIIT': '/workout/workout-hiit.jpg',
+    'Strength training': '/workout/workout-strength.jpg',
+    'Other': '/workout/workout-other.jpg',
+    'Team Sports': '/workout/workout-team.jpg',
+  };
+  
+  const photoUrl = workout.photo || workoutImages[workout.type] || '/workout/workout-default.jpg';
+  
+  const { data, error } = await this.supabase
+    .from('workouts')
+    .insert({
+      user_id: workout.userId,
+      type: workout.type,
+      duration_min: workout.duration,
+      distance_km: workout.distance || 0,
+      performed_at: workout.date,
+      notes: workout.notes,
+      photo_url: photoUrl,
+    })
+    .select()
+    .single();
     
-    const { data, error } = await this.supabase
-      .from('workouts')
-      .insert({
-        user_id: workout.userId,
-        type: workout.type,
-        duration_min: workout.duration,
-        distance_km: workout.distance || 0,
-        performed_at: workout.date,
-        notes: workout.notes,
-        photo_url: workout.photo,
-      })
-      .select()
-      .single();
-      
-    if (error) {
-      console.error("🔴 Supabase error creating workout:", error);
-      throw new Error(error.message);
-    }
-    
-    console.log("✅ Workout created:", data);
-    return data;
+  if (error) {
+    console.error("🔴 Supabase error creating workout:", error);
+    throw new Error(error.message);
   }
+  
+  console.log("✅ Workout created with image:", data);
+  return data;
+}
 
     async updateWorkoutPhoto(workoutId: string, file: File) {
     console.log('🔵 API Client: Uploading workout photo');
