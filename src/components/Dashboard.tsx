@@ -60,6 +60,7 @@ const trainingPlan = {
 export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagues, onProfile, onSignOut, onActivityFeed, onTrainingPlans, onChat, onDealFinder, onBrandedStore, isLoginBackground }: DashboardProps) {
   const { accessToken, justSignedUp, clearJustSignedUp, user } = useAuth();
   const { leagues, profile, currentLeague, refreshLeagues, refreshProfile, createWorkout, refreshTrigger } = useApp();
+    const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
   
   // Tutorial state - show if user just signed up
   const [showTutorial, setShowTutorial] = useState(false);
@@ -446,7 +447,7 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
     loadChat();
   }, [currentLeague, accessToken, setChatMessages]);
 
-  // Use leagues as chat list
+    // Use leagues as chat list
   useEffect(() => {
     setLeagueChats(leagues.map(league => ({
       id: league.id,
@@ -465,6 +466,13 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
     }
   }, [activeModal, setProfileScreen, setSelectedPhotoFile]);
   
+  // Reset editing state when modal closes
+  useEffect(() => {
+    if (!activeModal) {
+      setEditingWorkoutId(null);
+    }
+  }, [activeModal]);
+  
   const teamChats: any[] = [];
 
   // ✅ Use custom hooks for handlers and timers
@@ -473,7 +481,6 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
     handleSlideMove: (e, ref) => handlers.handleSlideMove(e, ref),
     handleSlideEnd: handlers.handleSlideEnd
   }, sliderRef);
-
   // Destructure handlers for easy access
   const {
     handleFileSelect,
@@ -620,23 +627,13 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
         />
       )}
 
-      {/* Planned Workout Circle - Bottom Right Corner - Hide when modal is open OR when used as login background */}
-      {!activeModal && !isLoginBackground && (
-        <PlannedWorkoutCircle 
-          plannedWorkout={plannedWorkout}
-          onOpenPlanner={() => setActiveModal('todaysActivity')} 
-        />
-      )}
-
-      {/* Expand View Toggle - Always visible above Today button - Hide when used as login background */}
-      {!activeModal && !isLoginBackground && (
-        <ExpandViewToggle
-          isExpanded={hideUtilityButtons}
-          onToggle={() => setHideUtilityButtons(!hideUtilityButtons)}
-          animationsPaused={animationsPaused}
-          onAnimationToggle={() => setAnimationsPaused(!animationsPaused)}
-        />
-      )}
+          {/* Expand View Toggle - Always visible above Today button - Hide when used as login background */}
+{!activeModal && !isLoginBackground && (
+  <ExpandViewToggle
+    isExpanded={hideUtilityButtons}
+    onToggle={() => setHideUtilityButtons(!hideUtilityButtons)}
+  />
+)}
 
       {/* Circular Pop-up Modals */}
       {activeModal && (
@@ -685,31 +682,52 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
               />
             )}
 
-            {/* Log Workout Modal */}
-            {activeModal === 'log' && (
-              <LogWorkoutModal
-                modalStep={modalStep}
-                setModalStep={setModalStep}
-                sports={sports}
-                selectedSport={selectedSport}
-                setSelectedSport={setSelectedSport}
-                logDistance={logDistance}
-                setLogDistance={setLogDistance}
-                logHours={logHours}
-                setLogHours={setLogHours}
-                logMinutes={logMinutes}
-                setLogMinutes={setLogMinutes}
-                logNotes={logNotes}
-                setLogNotes={setLogNotes}
-                workoutPhoto={workoutPhoto}
-                setWorkoutPhoto={setWorkoutPhoto}
-                showPhotoUpload={showPhotoUpload}
-                setShowPhotoUpload={setShowPhotoUpload}
-                fileInputRef={fileInputRef}
-                handleFileSelect={handleFileSelect}
-                onClose={closeModal}
-              />
-            )}
+                     {/* Log Workout Modal */}
+          {activeModal === 'log' && (
+            <LogWorkoutModal
+              modalStep={modalStep}
+              setModalStep={setModalStep}
+              sports={sports}
+              selectedSport={selectedSport}
+              setSelectedSport={setSelectedSport}
+              logDistance={logDistance}
+              setLogDistance={setLogDistance}
+              logHours={logHours}
+              setLogHours={setLogHours}
+              logMinutes={logMinutes}
+              setLogMinutes={setLogMinutes}
+              logNotes={logNotes}
+              setLogNotes={setLogNotes}
+              workoutPhoto={workoutPhoto}
+              setWorkoutPhoto={setWorkoutPhoto}
+              showPhotoUpload={showPhotoUpload}
+              setShowPhotoUpload={setShowPhotoUpload}
+              fileInputRef={fileInputRef}
+              handleFileSelect={handleFileSelect}
+              editingWorkoutId={editingWorkoutId}
+              onUpdate={async (workoutId, data) => {
+                if (!accessToken) {
+                  toast.error('Not authenticated');
+                  return;
+                }
+                const api = new APIClient(accessToken);
+                await api.updateWorkout(workoutId, data);
+                
+                // Refresh activities list
+                const workouts = await api.getUserWorkouts();
+                const transformedActivities = transformActivityUserNames(workouts);
+                setActivities(transformedActivities);
+                
+                // Refresh profile
+                await refreshProfile();
+                
+                setEditingWorkoutId(null);
+                toast.success('Workout updated!');
+                closeModal();
+              }}
+              onClose={closeModal}
+            />
+          )}
 
             {/* Leaderboard Modal */}
             {activeModal === 'leaderboard' && (
@@ -819,26 +837,53 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
               />
             )}
 
-            {/* Activity Detail Modal */}
-            {activeModal === 'activityDetail' && selectedActivity && (
-              <ActivityDetailModal
-                activity={selectedActivity}
-                commentText={commentText}
-                setCommentText={setCommentText}
-                onReaction={handleReaction}
-                onComment={handleComment}
-                onBack={closeModal}
-                onEdit={(activity) => {
-                  console.log('Edit activity:', activity);
-                  toast.success('Edit feature coming soon!');
-                }}
-                onDelete={(activityId) => {
-                  console.log('Delete activity:', activityId);
-                  toast.success('Delete feature coming soon!');
-                }}
-              />
-            )}
-
+         {/* Activity Detail Modal */}
+          {activeModal === 'activityDetail' && selectedActivity && (
+            <ActivityDetailModal
+              activity={selectedActivity}
+              commentText={commentText}
+              setCommentText={setCommentText}
+              onReaction={handleReaction}
+              onComment={handleComment}
+              onBack={closeModal}
+              currentUserId={user?.id}
+              onEdit={(activity) => {
+                // Pre-fill the log workout form with existing data
+                setEditingWorkoutId(activity.id); // ADD THIS LINE
+                setSelectedSport(activity.sport || null);
+                setLogDistance(activity.distance?.toString() || '');
+                setLogHours(Math.floor((activity.duration || 0) / 60).toString());
+                setLogMinutes(((activity.duration || 0) % 60).toString());
+                setLogNotes(activity.notes || '');
+                setModalStep(1);
+                setActiveModal('log');
+                toast.info('Edit mode - update your workout');
+              }}
+              onDelete={async (activityId) => {
+                try {
+                  if (!accessToken) {
+                    toast.error('Not authenticated');
+                    return;
+                  }
+                  
+                  const api = new APIClient(accessToken);
+                  await api.deleteWorkout(activityId);
+                  
+                  // Refresh activities list
+                  const workouts = await api.getUserWorkouts();
+                  const transformedActivities = transformActivityUserNames(workouts);
+                  setActivities(transformedActivities);
+                  
+                  toast.success('Workout deleted');
+                  closeModal();
+                } catch (error) {
+                  console.error('Failed to delete workout:', error);
+                  toast.error('Failed to delete workout');
+                }
+              }}
+            />
+          )}
+            
             {/* Chat Modal */}
             {activeModal === 'chat' && (
               <ChatModal

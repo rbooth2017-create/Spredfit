@@ -24,6 +24,7 @@ interface LogWorkoutModalProps {
   setLogNotes: (notes: string) => void;
   showPhotoUpload: boolean;
   setShowPhotoUpload: (show: boolean) => void;
+    editingWorkoutId?: string | null;  // ADD THIS
   onClose: () => void;
 }
 
@@ -43,6 +44,8 @@ function LogWorkoutModalComponent({
   setLogNotes,
   showPhotoUpload,
   setShowPhotoUpload,
+    editingWorkoutId,  // ADD THIS
+  onUpdate,  // ADD THIS
   onClose,
 }: LogWorkoutModalProps) {
   const { createWorkout, currentLeague, refreshActivities } = useApp();
@@ -260,19 +263,28 @@ function LogWorkoutModalComponent({
             </div>
             <div className="flex flex-col items-center gap-1.5">
               <button
-                onClick={async () => {
+                                onClick={async () => {
                   try {
                     const totalMinutes = (parseInt(logHours) || 0) * 60 + (parseInt(logMinutes) || 0);
-                    await createWorkout({
+                    const workoutData = {
                       type: selectedSport!,
                       duration: totalMinutes,
                       distance: parseFloat(logDistance) || 0,
                       date: new Date().toISOString(),
                       notes: logNotes,
                       leagueId: currentLeague?.id,
-                    });
-                    toast.success('Workout Logged!');
-                    refreshActivities(); // Trigger dashboard activity refresh
+                    };
+                    
+                    if (editingWorkoutId && onUpdate) {
+                      // Update existing workout
+                      await onUpdate(editingWorkoutId, workoutData);
+                    } else {
+                      // Create new workout
+                      await createWorkout(workoutData);
+                    }
+                    
+                    toast.success(editingWorkoutId ? 'Workout Updated!' : 'Workout Logged!');
+                    refreshActivities();
                     setModalStep(5);
                   } catch (error) {
                     console.error("Failed to save workout:", error);

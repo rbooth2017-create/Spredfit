@@ -42,6 +42,7 @@ interface ActivityDetailModalProps {
   onBack: () => void;
   onEdit?: (activity: Activity) => void;
   onDelete?: (activityId: string) => void;
+  currentUserId?: string;
 }
 
 function ActivityDetailModalComponent({
@@ -53,6 +54,7 @@ function ActivityDetailModalComponent({
   onBack,
   onEdit,
   onDelete,
+  currentUserId,
 }: ActivityDetailModalProps) {
   return (
     <>
@@ -215,7 +217,7 @@ function ActivityDetailModalComponent({
       <div className="fixed bottom-8 right-4 z-[60]" onClick={(e) => e.stopPropagation()}>
         <div className="flex flex-col gap-3">
           {/* Edit/Delete buttons - only for user's own workouts */}
-          {activity.userName === 'You' && activity.type === 'workout' && onEdit && onDelete && (
+          {activity.userId === currentUserId && activity.type === 'workout' && onEdit && onDelete && (
             <>
               <div className="flex flex-col items-center gap-1.5">
                 <button
@@ -231,7 +233,6 @@ function ActivityDetailModalComponent({
                   onClick={() => {
                     if (confirm('Delete this workout?')) {
                       onDelete(activity.id);
-                      toast.success('Workout deleted');
                     }
                   }}
                   className="w-20 h-20 rounded-full bg-[#2d2d2d] hover:bg-[#2d2d2d]/90 flex items-center justify-center shadow-lg transition-all border border-white/20"

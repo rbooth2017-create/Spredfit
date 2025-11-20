@@ -95,16 +95,8 @@ function DashboardHeaderComponent({ onModalOpen }: DashboardHeaderProps) {
         </div>
       </div>
       
-      {/* Share App and Coffee buttons - right aligned */}
+      {/* Share App button - right aligned */}
       <div className="flex flex-col items-end gap-1">
-        <button
-          onClick={() => onModalOpen('coffee')}
-          className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-full hover:bg-white/10 transition-all min-w-[50px]"
-        >
-          <Coffee className="w-5 h-5 text-white" strokeWidth={2} />
-          <span className="text-[9px] text-white text-center leading-tight">Buy Me<br/>A Coffee</span>
-        </button>
-        
         <button
           onClick={handleShareApp}
           className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-full hover:bg-white/10 transition-all min-w-[50px]"
@@ -116,6 +108,7 @@ function DashboardHeaderComponent({ onModalOpen }: DashboardHeaderProps) {
     </div>
   );
 }
+
 
 export const DashboardHeader = memo(DashboardHeaderComponent);
 
@@ -132,14 +125,12 @@ function ActivityCarouselComponent({
   getSportIcon,
   isExpanded,
 }: ActivityCarouselProps) {
-  // When expanded, use larger sizes. When not expanded, use default sizes
-  const circleSize = isExpanded 
-    ? "w-[85vw] min-[400px]:w-[420px] min-[420px]:w-[450px] sm:w-[480px] md:w-[510px] lg:w-[540px] h-[85vw] min-[400px]:h-[420px] min-[420px]:h-[450px] sm:h-[480px] md:h-[510px] lg:h-[540px]"
-    : "w-[65vw] min-[400px]:w-[320px] min-[420px]:w-[350px] sm:w-[380px] md:w-[400px] lg:w-[420px] h-[65vw] min-[400px]:h-[320px] min-[420px]:h-[350px] sm:h-[380px] md:h-[400px] lg:h-[420px]";
+  // Make the circle bigger permanently - removed the conditional sizing
+  const circleSize = "w-[100vw] min-[400px]:w-[420px] min-[420px]:w-[450px] sm:w-[480px] md:w-[510px] lg:w-[540px] h-[100vw] min-[400px]:h-[420px] min-[420px]:h-[450px] sm:h-[480px] md:h-[510px] lg:h-[540px]";
     
   return (
-    <div className={`absolute left-0 right-0 -translate-y-1/2 z-10 px-4 transition-all duration-700 ease-in-out ${isExpanded ? 'top-[40%]' : 'top-[40%]'}`}>
-      <div className={`max-w-md mx-auto flex justify-center transition-all duration-700 ease-in-out ${isExpanded ? '' : 'ml-8'}`}>
+    <div className={`absolute left-0 right-0 -translate-y-1/2 z-10 px-4 transition-all duration-700 ease-in-out top-[40%]`}>
+      <div className={`max-w-md mx-auto flex justify-center transition-all duration-700 ease-in-out`}>
         <div className="relative">
           {/* Fixed circle with cycling content inside - optimized for SE and larger phones */}
           <div className={`${circleSize} rounded-full border-[3px] border-white/20 relative overflow-hidden transition-all duration-700 ease-in-out`} data-tutorial="activity-carousel">
@@ -182,7 +173,7 @@ function ActivityCarouselComponent({
                       className={`${circleSize} flex-shrink-0 flex flex-col items-center justify-center text-center px-6 snap-center cursor-pointer transition-all duration-700 ease-in-out relative`}
                       onClick={() => onActivityClick(activity)}
                     >
-                      {/* Background Image at 5% opacity */}
+                      {/* Background Image at 10% opacity */}
                       {activity.photo && (
                         <div 
                           className="absolute inset-0"
@@ -281,42 +272,18 @@ function MainActionCardsComponent({ onModalOpen }: MainActionCardsProps) {
   return (
     <div className="absolute bottom-8 left-0 right-0 z-[80] pointer-events-none">
       <div className="max-w-md mx-auto px-4">
-        <div className="grid grid-cols-2 gap-3 w-fit pointer-events-auto">
-          <div className="flex flex-col items-center gap-2">
-            <button
-              onClick={() => onModalOpen('start')}
-              className="w-20 h-20 rounded-full bg-[#2d2d2d] flex items-center justify-center transition-all shadow-none relative overflow-hidden"
-              data-tutorial="record-button"
-            >
-              <div className="absolute inset-0 bg-[#2d2d2d]" />
-              <Play className="w-7 h-7 relative z-10 mix-blend-lighten" strokeWidth={2} style={{ color: 'white' }} />
-            </button>
-            <span className="text-xs text-[#eef0ed]">Record</span>
-          </div>
-
-          <div className="flex flex-col items-center gap-2">
-            <button
-              onClick={() => onModalOpen('log')}
-              className="w-20 h-20 rounded-full bg-[#2d2d2d] flex items-center justify-center transition-all shadow-none relative overflow-hidden"
-              data-tutorial="log-button"
-            >
-              <div className="absolute inset-0 bg-[#2d2d2d]" />
-              <PenLine className="w-7 h-7 relative z-10 mix-blend-lighten" strokeWidth={2} style={{ color: 'white' }} />
-            </button>
-            <span className="text-xs text-[#eef0ed]">Log</span>
-          </div>
-
+        <div className="grid grid-cols-4 gap-3 w-fit pointer-events-auto">
+          {/* Single Row - Board, Leagues, Record, Log */}
           <div className="flex flex-col items-center gap-2">
             <button
               onClick={() => {
                 console.log('🏆 Leaderboard button clicked!');
                 onModalOpen('leaderboard');
               }}
-              className="w-20 h-20 rounded-full bg-[#2d2d2d] flex items-center justify-center transition-all shadow-none relative overflow-hidden"
+              className="w-20 h-20 rounded-full bg-transparent border-2 border-white/40 flex items-center justify-center transition-all shadow-none relative overflow-hidden"
               data-tutorial="leaderboard-button"
             >
-              <div className="absolute inset-0 bg-[#2d2d2d]" />
-              <Trophy className="w-7 h-7 relative z-10 mix-blend-lighten" strokeWidth={2} style={{ color: 'white' }} />
+              <Trophy className="w-7 h-7 text-white" strokeWidth={2} />
             </button>
             <span className="text-xs text-[#eef0ed]">Board</span>
           </div>
@@ -327,20 +294,40 @@ function MainActionCardsComponent({ onModalOpen }: MainActionCardsProps) {
                 console.log('👥 Leagues button clicked!');
                 onModalOpen('leagues');
               }}
-              className="w-20 h-20 rounded-full bg-[#2d2d2d] flex items-center justify-center transition-all shadow-none relative overflow-hidden"
+              className="w-20 h-20 rounded-full bg-transparent border-2 border-white/40 flex items-center justify-center transition-all shadow-none relative overflow-hidden"
               data-tutorial="leagues-button"
             >
-              <div className="absolute inset-0 bg-[#2d2d2d]" />
-              <Users className="w-7 h-7 relative z-10 mix-blend-lighten" strokeWidth={2} style={{ color: 'white' }} />
+              <Users className="w-7 h-7 text-white" strokeWidth={2} />
             </button>
             <span className="text-xs text-[#eef0ed]">Leagues</span>
+          </div>
+
+          <div className="flex flex-col items-center gap-2">
+            <button
+              onClick={() => onModalOpen('start')}
+              className="w-20 h-20 rounded-full bg-transparent border-2 border-white/40 flex items-center justify-center transition-all shadow-none relative overflow-hidden"
+              data-tutorial="record-button"
+            >
+              <Play className="w-7 h-7 text-white" strokeWidth={2} />
+            </button>
+            <span className="text-xs text-[#eef0ed]">Record</span>
+          </div>
+
+          <div className="flex flex-col items-center gap-2">
+            <button
+              onClick={() => onModalOpen('log')}
+              className="w-20 h-20 rounded-full bg-transparent border-2 border-white/40 flex items-center justify-center transition-all shadow-none relative overflow-hidden"
+              data-tutorial="log-button"
+            >
+              <PenLine className="w-7 h-7 text-white" strokeWidth={2} />
+            </button>
+            <span className="text-xs text-[#eef0ed]">Log</span>
           </div>
         </div>
       </div>
     </div>
   );
 }
-
 export const MainActionCards = memo(MainActionCardsComponent);
 
 /**
