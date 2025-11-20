@@ -21,6 +21,9 @@ interface TodaysActivityModalProps {
  * Displays today's planned workout activity with background image
  */
 function TodaysActivityModalComponent({ activity }: TodaysActivityModalProps) {
+  console.log('🖼️ TodaysActivityModal - activity:', activity);
+  console.log('🖼️ Photo URL:', activity?.photo);
+
   if (!activity) {
     return (
       <div className="w-96 h-96 rounded-full bg-transparent border-2 border-white/40 flex items-center justify-center p-8 shadow-2xl overflow-hidden">

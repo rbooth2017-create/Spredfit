@@ -231,7 +231,7 @@ async createWorkout(workout: {
     'Swimming': '/workout/workout-swimming.png',
     'Yoga': '/workout/workout-yoga.png',
     'HIIT': '/workout/workout-hiit.png',
-    'Strength training': '/workout/workout-strength.png',
+    'Strength': '/workout/workout-strength.png',
     'Other': '/workout/workout-other.png',
     'Team Sports': '/workout/workout-team.png',
   };

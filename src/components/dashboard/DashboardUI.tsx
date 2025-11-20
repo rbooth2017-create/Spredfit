@@ -182,6 +182,19 @@ function ActivityCarouselComponent({
                       className={`${circleSize} flex-shrink-0 flex flex-col items-center justify-center text-center px-6 snap-center cursor-pointer transition-all duration-700 ease-in-out relative`}
                       onClick={() => onActivityClick(activity)}
                     >
+                      {/* Background Image at 5% opacity */}
+                      {activity.photo && (
+                        <div 
+                          className="absolute inset-0"
+                          style={{
+                            backgroundImage: `url(${activity.photo})`,
+                            backgroundSize: 'cover',
+                            backgroundPosition: 'center',
+                            opacity: 0.1
+                          }}
+                        />
+                      )}
+                      
                       {/* Content */}
                       <div className="relative z-10">
                         <div className="mb-2">
