@@ -59,7 +59,7 @@ const trainingPlan = {
 
 export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagues, onProfile, onSignOut, onActivityFeed, onTrainingPlans, onChat, onDealFinder, onBrandedStore, isLoginBackground }: DashboardProps) {
   const { accessToken, justSignedUp, clearJustSignedUp, user } = useAuth();
-  const { leagues, profile, currentLeague, refreshLeagues, refreshProfile, createWorkout } = useApp();
+  const { leagues, profile, currentLeague, refreshLeagues, refreshProfile, createWorkout, refreshTrigger } = useApp();
   
   // Tutorial state - show if user just signed up
   const [showTutorial, setShowTutorial] = useState(false);
@@ -425,7 +425,7 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
       }
     }
     loadActivities();
-  }, [accessToken, setActivities]);
+  }, [accessToken, setActivities, refreshTrigger]);
   
   // Load chat when league changes
   useEffect(() => {

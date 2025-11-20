@@ -68,7 +68,7 @@ function AppContent() {
 
   console.log('🔵 App.tsx: user state:', user);
 
-  const { createWorkout, currentLeague, joinLeague } = useApp();
+const { createWorkout, currentLeague, joinLeague, refreshProfile, refreshActivities } = useApp();
   
   const [currentScreen, setCurrentScreen] = useState<Screen>("dashboard");
   const [previousScreen, setPreviousScreen] = useState<Screen>("dashboard");
@@ -723,45 +723,51 @@ const handleSignup = async () => {
             setEditingWorkoutId(null);
             setCurrentScreen(editingWorkoutId ? "profile" : "logworkout");
           }}
-          onSave={async (data: WorkoutData) => {
-            if (editingWorkoutId) {
-              console.log("Edit workout not implemented yet");
-              toast.error("Edit feature coming soon!");
-              setEditingWorkoutId(null);
-              setCurrentScreen("dashboard");
-            } else {
-              try {
-                console.log("=== SAVING MANUAL WORKOUT ===");
-                console.log("Workout data:", data);
-                
-                await createWorkout({
-                  type: data.sport,
-                  duration: data.duration,
-                  distance: data.distance || 0,
-                  date: data.date || new Date().toISOString(),
-                  notes: data.notes,
-                  leagueId: currentLeague?.id || undefined,
-                });
-                
-                toast.success("Workout logged!", {
-                  description: `${data.sport} workout saved successfully`,
-                });
-                
-                setCurrentScreen("uploadworkoutphoto");
-              } catch (error) {
-                console.error("Failed to save workout:", error);
-                toast.error("Failed to save workout", {
-                  description: error instanceof Error ? error.message : "Please try again",
-                });
-              }
+                 onSave={async (data: WorkoutData) => {
+          if (editingWorkoutId) {
+            console.log("Edit workout not implemented yet");
+            toast.error("Edit feature coming soon!");
+            setEditingWorkoutId(null);
+            setCurrentScreen("dashboard");
+          } else {
+            try {
+              console.log("=== SAVING MANUAL WORKOUT ===");
+              console.log("Workout data:", data);
+              
+              await createWorkout({
+                type: data.sport,
+                duration: data.duration,
+                distance: data.distance || 0,
+                date: data.date || new Date().toISOString(),
+                notes: data.notes,
+                leagueId: currentLeague?.id || undefined,
+              });
+              
+              toast.success("Workout logged!", {
+                description: `${data.sport} workout saved successfully`,
+              });
+              
+              // Refresh profile data to update activities
+              await refreshProfile();
+              refreshActivities(); // Trigger dashboard activity refresh
+              
+              setCurrentScreen("uploadworkoutphoto"); 
+            } catch (error) {
+              console.error("Failed to save workout:", error);
+              toast.error("Failed to save workout", {
+                description: error instanceof Error ? error.message : "Please try again",
+              });
             }
-          }}
+          }
+        }}
           initialData={undefined}
           isEditing={editingWorkoutId !== null}
         />
       </>
     );
   }
+
+  
 
   if (currentScreen === "uploadphoto") {
     return (

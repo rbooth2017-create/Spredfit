@@ -62,6 +62,8 @@ interface AppContextType {
   };
   refreshProfile: () => Promise<void>;
   refreshLeagues: () => Promise<void>;
+    refreshActivities: () => void;
+  refreshTrigger: number;
   setCurrentLeague: (league: League | null) => void;
   setAppSettings: (settings: { units?: 'metric' | 'imperial'; notifications?: boolean; privateProfile?: boolean }) => Promise<void>;
   createWorkout: (workout: any) => Promise<any>;
@@ -87,6 +89,8 @@ const AppContext = createContext<AppContextType>({
   },
   refreshProfile: async () => {},
   refreshLeagues: async () => {},
+    refreshActivities: () => {},
+  refreshTrigger: 0,
   setCurrentLeague: () => {},
   setAppSettings: async () => {},
   createWorkout: async () => {},
@@ -106,6 +110,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [activities, setActivities] = useState<Activity[]>([]);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshTrigger, setRefreshTrigger] = useState(0);
+    const refreshActivities = useCallback(() => {
+    setRefreshTrigger(prev => prev + 1);
+  }, []);
 
   const api = useMemo(() => new APIClient(accessToken), [accessToken]);
 
@@ -252,6 +260,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     getLeagueFeed,
     reactToActivity,
     getUserReactions,
+    refreshActivities,
+    refreshTrigger,
   }), [
     profile,
     leagues,
@@ -270,6 +280,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
     getUserReactions,
     setAppSettings,
     appSettings,
+      refreshActivities,  // ADD THIS
+  refreshTrigger,     // ADD THIS
   ]);
 
   return (
