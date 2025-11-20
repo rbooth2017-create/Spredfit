@@ -94,7 +94,7 @@ const { createWorkout, currentLeague, joinLeague, refreshProfile, refreshActivit
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [signupName, setSignupName] = useState("");
-  const [signupUsername, setSignupUsername] = useState("");  // ADD THIS LINE
+  const [signupUsername, setSignupUsername] = useState("");
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [showSignupPassword, setShowSignupPassword] = useState(false);
@@ -105,7 +105,6 @@ const { createWorkout, currentLeague, joinLeague, refreshProfile, refreshActivit
       try {
         console.log('🔵 Auto-joining league with code:', code);
         
-        // Call your join league API
         await joinLeague(code);
         
         toast.success("Joined league!", {
@@ -113,7 +112,6 @@ const { createWorkout, currentLeague, joinLeague, refreshProfile, refreshActivit
           duration: 5000,
         });
         
-        // Navigate to leagues view after a short delay
         setTimeout(() => {
           setCurrentScreen('leagues');
         }, 1000);
@@ -126,7 +124,6 @@ const { createWorkout, currentLeague, joinLeague, refreshProfile, refreshActivit
       }
     };
 
-    // Check for league code in URL when component mounts or user changes
     const urlParams = new URLSearchParams(window.location.search);
     const leagueCode = urlParams.get('code');
     
@@ -134,13 +131,10 @@ const { createWorkout, currentLeague, joinLeague, refreshProfile, refreshActivit
       console.log('🔵 League code detected in URL:', leagueCode);
       
       if (user) {
-        // User is logged in, join immediately
         console.log('🔵 User is logged in, auto-joining league...');
         handleAutoJoinLeague(leagueCode);
-        // Clean up URL
         window.history.replaceState({}, '', window.location.pathname);
       } else {
-        // User not logged in, store code for after login
         console.log('🔵 User not logged in, storing code for after login');
         sessionStorage.setItem('pendingLeagueCode', leagueCode);
         toast.info("Please log in to join the league", {
@@ -151,7 +145,6 @@ const { createWorkout, currentLeague, joinLeague, refreshProfile, refreshActivit
     }
   }, [user, joinLeague]);
 
-  // Handle post-login auto-join
   useEffect(() => {
     if (user) {
       const pendingCode = sessionStorage.getItem('pendingLeagueCode');
@@ -167,7 +160,6 @@ const { createWorkout, currentLeague, joinLeague, refreshProfile, refreshActivit
               duration: 5000,
             });
             
-            // Navigate to leagues
             setTimeout(() => {
               setCurrentScreen('leagues');
             }, 1000);
@@ -230,7 +222,7 @@ const handleSignup = async () => {
       description: "Let's start your fitness journey!",
     });
     setSignupName("");
-    setSignupUsername("");  // ADD THIS LINE
+    setSignupUsername("");
     setSignupEmail("");
     setSignupPassword("");
     setDisclaimerAccepted(false);
@@ -427,7 +419,7 @@ const handleSignup = async () => {
                     <p className="text-white/70 text-sm">Start your fitness journey today!</p>
                   </div>
                   
-                                    <div className="space-y-3 w-full">
+                  <div className="space-y-3 w-full">
                     <input
                       type="text"
                       placeholder="Full Name"
@@ -480,7 +472,7 @@ const handleSignup = async () => {
           </motion.div>
           
           <div className="fixed bottom-0 left-0 right-0 z-[60] flex justify-end pointer-events-none">
-            <div className="max-w-[440px] w-full mx-auto px-4 pb-8 pointer-events-auto">
+            <div className="w-full mx-auto px-4 pb-8 pointer-events-auto">
               <div className="flex justify-end">
                 <div className="flex flex-col gap-3">
                   {authView === "login" ? (
@@ -723,52 +715,49 @@ const handleSignup = async () => {
             setEditingWorkoutId(null);
             setCurrentScreen(editingWorkoutId ? "profile" : "logworkout");
           }}
-                 onSave={async (data: WorkoutData) => {
-          if (editingWorkoutId) {
-            console.log("Edit workout not implemented yet");
-            toast.error("Edit feature coming soon!");
-            setEditingWorkoutId(null);
-            setCurrentScreen("dashboard");
-          } else {
-            try {
-              console.log("=== SAVING MANUAL WORKOUT ===");
-              console.log("Workout data:", data);
+          onSave={async (data: WorkoutData) => {
+            if (editingWorkoutId) {
+              console.log("Edit workout not implemented yet");
+              toast.error("Edit feature coming soon!");
+              setEditingWorkoutId(null);
+              setCurrentScreen("dashboard");
+            } else {
+              try {
+                console.log("=== SAVING MANUAL WORKOUT ===");
+                console.log("Workout data:", data);
+                
+                await createWorkout({
+                  type: data.sport,
+                  duration: data.duration,
+                  distance: data.distance || 0,
+                  date: data.date || new Date().toISOString(),
+                  notes: data.notes,
+                  leagueId: currentLeague?.id || undefined,
+                });
+                
+                toast.success("Workout logged!", {
+                  description: `${data.sport} workout saved successfully`,
+                });
+                
+                await refreshProfile();
+                refreshActivities();
+                
+                setCurrentScreen("uploadworkoutphoto");
               
-              await createWorkout({
-                type: data.sport,
-                duration: data.duration,
-                distance: data.distance || 0,
-                date: data.date || new Date().toISOString(),
-                notes: data.notes,
-                leagueId: currentLeague?.id || undefined,
-              });
-              
-                     toast.success("Workout logged!", {
-            description: `${data.sport} workout saved successfully`,
-          });
-          
-          // Refresh profile data to update activities
-          await refreshProfile();
-          refreshActivities(); // Trigger dashboard activity refresh
-          
-          setCurrentScreen("uploadworkoutphoto");
-            
-            } catch (error) {
-              console.error("Failed to save workout:", error);
-              toast.error("Failed to save workout", {
-                description: error instanceof Error ? error.message : "Please try again",
-              });
+              } catch (error) {
+                console.error("Failed to save workout:", error);
+                toast.error("Failed to save workout", {
+                  description: error instanceof Error ? error.message : "Please try again",
+                });
+              }
             }
-          }
-        }}
+          }}
           initialData={undefined}
           isEditing={editingWorkoutId !== null}
         />
       </>
     );
   }
-
-  
 
   if (currentScreen === "uploadphoto") {
     return (
@@ -1066,16 +1055,12 @@ export default function App() {
   }, []);
   
   return (
-    <>
-      <div className="w-full max-w-[440px] h-screen relative mx-auto">
-        <AuthProvider>
-          <AppProvider>
-            <ModalProvider>
-              <AppContent />
-            </ModalProvider>
-          </AppProvider>
-        </AuthProvider>
-      </div>
-    </>
+    <AuthProvider>
+      <AppProvider>
+        <ModalProvider>
+          <AppContent />
+        </ModalProvider>
+      </AppProvider>
+    </AuthProvider>
   );
 }
