@@ -743,15 +743,16 @@ const handleSignup = async () => {
                 leagueId: currentLeague?.id || undefined,
               });
               
-              toast.success("Workout logged!", {
-                description: `${data.sport} workout saved successfully`,
-              });
-              
-              // Refresh profile data to update activities
-              await refreshProfile();
-              refreshActivities(); // Trigger dashboard activity refresh
-              
-              setCurrentScreen("uploadworkoutphoto"); 
+                     toast.success("Workout logged!", {
+            description: `${data.sport} workout saved successfully`,
+          });
+          
+          // Refresh profile data to update activities
+          await refreshProfile();
+          refreshActivities(); // Trigger dashboard activity refresh
+          
+          setCurrentScreen("uploadworkoutphoto");
+            
             } catch (error) {
               console.error("Failed to save workout:", error);
               toast.error("Failed to save workout", {

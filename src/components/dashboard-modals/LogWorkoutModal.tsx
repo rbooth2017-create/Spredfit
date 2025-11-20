@@ -45,7 +45,7 @@ function LogWorkoutModalComponent({
   setShowPhotoUpload,
   onClose,
 }: LogWorkoutModalProps) {
-  const { createWorkout, currentLeague } = useApp();
+  const { createWorkout, currentLeague, refreshActivities } = useApp();
 
   return (
     <>
@@ -272,6 +272,7 @@ function LogWorkoutModalComponent({
                       leagueId: currentLeague?.id,
                     });
                     toast.success('Workout Logged!');
+                    refreshActivities(); // Trigger dashboard activity refresh
                     setModalStep(5);
                   } catch (error) {
                     console.error("Failed to save workout:", error);
