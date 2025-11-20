@@ -32,7 +32,7 @@ import { AppProvider, useApp } from "./utils/AppContext";
 import { ModalProvider } from "./utils/ModalContext";
 import { registerServiceWorker, addPWAMetaTags } from "./utils/pwa";
 import { initializeNativeApp, isNativeApp } from "./utils/native";
-import { AnimatedBackground } from "./components/AnimatedBackground";
+import { AnimatedBackground } from "./components/dashboard/AnimatedBackground";
 import { PWAInstall } from "./components/PWAInstall";
 
 console.log("🟠🟠🟠 APP.TSX FILE LOADED - Top level");
@@ -1066,8 +1066,8 @@ export default function App() {
   }, []);
   
   return (
-    <div className="min-h-screen w-full flex items-center justify-center">
-      <div className="w-full max-w-[440px] min-h-screen relative">
+    <>
+      <div className="w-full max-w-[440px] h-screen relative mx-auto">
         <AuthProvider>
           <AppProvider>
             <ModalProvider>
@@ -1076,6 +1076,6 @@ export default function App() {
           </AppProvider>
         </AuthProvider>
       </div>
-    </div>
+    </>
   );
 }

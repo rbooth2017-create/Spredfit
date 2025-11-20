@@ -349,6 +349,27 @@ html {
   }
 }
 
+/* Full-screen background support - Add this at the end of globals.css */
+html, body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+
+#root {
+  position: relative;
+  min-height: 100vh;
+  overflow-x: visible !important; /* Override the iOS fix for background */
+}
+
+/* Allow fixed positioned elements to escape #root container */
+body {
+  position: relative;
+  overflow-x: visible;
+}
+
 /* ===================================
    iOS Mobile PWA Optimizations
    =================================== */
