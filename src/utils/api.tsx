@@ -226,14 +226,14 @@ async createWorkout(workout: {
   
   // Map workout types to local images
   const workoutImages: Record<string, string> = {
-    'Running': '/workout/workout-run.jpg',
-    'Cycling': '/workout/workout-cycling.jpg',
-    'Swimming': '/workout/workout-swimming.jpg',
-    'Yoga': '/workout/workout-yoga.jpg',
-    'HIIT': '/workout/workout-hiit.jpg',
-    'Strength training': '/workout/workout-strength.jpg',
-    'Other': '/workout/workout-other.jpg',
-    'Team Sports': '/workout/workout-team.jpg',
+    'Running': '/workout/workout-run.png',
+    'Cycling': '/workout/workout-cycling.png',
+    'Swimming': '/workout/workout-swimming.png',
+    'Yoga': '/workout/workout-yoga.png',
+    'HIIT': '/workout/workout-hiit.png',
+    'Strength training': '/workout/workout-strength.png',
+    'Other': '/workout/workout-other.png',
+    'Team Sports': '/workout/workout-team.png',
   };
   
   const photoUrl = workout.photo || workoutImages[workout.type] || '/workout/workout-default.jpg';
