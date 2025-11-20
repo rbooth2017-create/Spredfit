@@ -94,6 +94,7 @@ function AppContent() {
   const [showLoginPassword, setShowLoginPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
   const [signupName, setSignupName] = useState("");
+  const [signupUsername, setSignupUsername] = useState("");  // ADD THIS LINE
   const [signupEmail, setSignupEmail] = useState("");
   const [signupPassword, setSignupPassword] = useState("");
   const [showSignupPassword, setShowSignupPassword] = useState(false);
@@ -216,31 +217,32 @@ function AppContent() {
     }
   };
 
-  const handleSignup = async () => {
-    if (!signupName || !signupEmail || !signupPassword) {
-      toast.error("Please fill in all fields");
-      return;
-    }
-    
-    setAuthLoading2(true);
-    try {
-      await signUp(signupEmail, signupPassword, signupName);
-      toast.success("Account created!", {
-        description: "Let's start your fitness journey!",
-      });
-      setSignupName("");
-      setSignupEmail("");
-      setSignupPassword("");
-      setDisclaimerAccepted(false);
-      setDisclaimerChecked(false);
-    } catch (error: any) {
-      toast.error("Signup failed", {
-        description: error.message || "Please try again",
-      });
-    } finally {
-      setAuthLoading2(false);
-    }
-  };
+const handleSignup = async () => {
+  if (!signupName || !signupUsername || !signupEmail || !signupPassword) {
+    toast.error("Please fill in all fields");
+    return;
+  }
+  
+  setAuthLoading2(true);
+  try {
+    await signUp(signupEmail, signupPassword, signupName, signupUsername);
+    toast.success("Account created!", {
+      description: "Let's start your fitness journey!",
+    });
+    setSignupName("");
+    setSignupUsername("");  // ADD THIS LINE
+    setSignupEmail("");
+    setSignupPassword("");
+    setDisclaimerAccepted(false);
+    setDisclaimerChecked(false);
+  } catch (error: any) {
+    toast.error("Signup failed", {
+      description: error.message || "Please try again",
+    });
+  } finally {
+    setAuthLoading2(false);
+  }
+};
   
   const handleLogout = async () => {
     console.log('🔴 handleLogout called from SettingsModal');
@@ -425,12 +427,20 @@ function AppContent() {
                     <p className="text-white/70 text-sm">Start your fitness journey today!</p>
                   </div>
                   
-                  <div className="space-y-3 w-full">
+                                    <div className="space-y-3 w-full">
                     <input
                       type="text"
-                      placeholder="Name"
+                      placeholder="Full Name"
                       value={signupName}
                       onChange={(e) => setSignupName(e.target.value)}
+                      className="w-full h-10 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 text-white placeholder:text-white/40 text-sm focus:outline-none focus:border-white/40"
+                    />
+                    
+                    <input
+                      type="text"
+                      placeholder="Username"
+                      value={signupUsername}
+                      onChange={(e) => setSignupUsername(e.target.value)}
                       className="w-full h-10 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 text-white placeholder:text-white/40 text-sm focus:outline-none focus:border-white/40"
                     />
                     

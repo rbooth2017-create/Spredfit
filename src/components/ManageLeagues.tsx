@@ -245,16 +245,14 @@ export function ManageLeagues({
     );
   };
 
-    const handleShareLeague = async (league: ManagedLeague) => {
+  const handleShareLeague = async (league: ManagedLeague) => {
     const shareUrl = `https://www.spredfit.com/join/${league.leagueCode}`;
-    const shareText = `Join my league "${league.name}" on SPREDfit!\n\n${shareUrl}\n\nLeague Code: ${league.leagueCode}`;
+    const shareText = `Join "${league.name}" on SPREDfit! ${shareUrl} Code: ${league.leagueCode}`;
     
     if (navigator.share) {
       try {
         await navigator.share({
-          title: `Join ${league.name}`,
           text: shareText,
-          url: shareUrl
         });
       } catch (err) {
         if ((err as Error).name !== 'AbortError') {

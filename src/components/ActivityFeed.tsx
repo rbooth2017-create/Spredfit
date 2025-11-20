@@ -9,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 import { Textarea } from "./ui/textarea";
 import { getSportIcon, getSportGradient } from "./sportIcons";
 import { FloatingContent } from "./FloatingContent";
+import { getUserDisplayName } from '../utils/auth';
 
 interface ActivityFeedProps {
   onBack: () => void;

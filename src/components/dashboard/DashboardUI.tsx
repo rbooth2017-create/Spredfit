@@ -1,4 +1,3 @@
-
 import { useAuth } from "../../utils/auth";
 import { memo } from "react";
 import {
@@ -10,7 +9,7 @@ import {
   MessageCircle,
   Sparkles,
   Coffee,
-  Download,
+  Share2,
   Play,
   PenLine,
   Trophy,
@@ -26,7 +25,6 @@ import {
 } from "lucide-react";
 import { toast } from "sonner@2.0.3";
 import logo from "figma:asset/acd126c619660e3932cb554ee937e18cc6986211.png";
-import { usePWAInstall } from "../PWAInstall";
 
 // Types
 interface DashboardHeaderProps {
@@ -55,18 +53,36 @@ interface NavigationSidebarProps {
  * 
  * Renders the top header section with:
  * - User name (right aligned)
- * - Coffee and Add to Home Screen buttons
+ * - Coffee and Share App buttons
  */
 function DashboardHeaderComponent({ onModalOpen }: DashboardHeaderProps) {
   const { user } = useAuth();
-  const { isPWAInstallable, promptInstall } = usePWAInstall();
 
-  const handleAddToHome = async () => {
-    if (isPWAInstallable) {
-      await promptInstall();
+  const handleShareApp = async () => {
+    const shareData = {
+      text: 'Join my fitness league',
+      url: 'https://www.spredfit.com'
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        toast.success('Shared successfully!');
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          console.error('Error sharing:', err);
+          toast.error('Failed to share');
+        }
+      }
     } else {
-      // Show a helpful message if not installable
-      toast.info('App is already installed or not installable in this browser');
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(`Join my fitness league\n\nhttps://www.spredfit.com`);
+        toast.success('Link copied to clipboard!');
+      } catch (err) {
+        console.error('Error copying:', err);
+        toast.error('Failed to copy link');
+      }
     }
   };
 
@@ -75,11 +91,11 @@ function DashboardHeaderComponent({ onModalOpen }: DashboardHeaderProps) {
       {/* User Name - right aligned */}
       <div className="flex items-center justify-end mb-3">
         <div>
-          <h1 className="text-2xl text-[#eef0ed]">{user?.name || 'User'}</h1>
+          <h1 className="text-2xl text-[#eef0ed]">{user?.username || 'User'}</h1>
         </div>
       </div>
       
-      {/* Add to Home Screen and Coffee buttons - right aligned */}
+      {/* Share App and Coffee buttons - right aligned */}
       <div className="flex flex-col items-end gap-1">
         <button
           onClick={() => onModalOpen('coffee')}
@@ -90,11 +106,11 @@ function DashboardHeaderComponent({ onModalOpen }: DashboardHeaderProps) {
         </button>
         
         <button
-          onClick={handleAddToHome}
+          onClick={handleShareApp}
           className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-full hover:bg-white/10 transition-all min-w-[50px]"
         >
-          <Download className="w-5 h-5 text-white" strokeWidth={2} />
-          <span className="text-[9px] text-white text-center leading-tight">Add to<br/>Home</span>
+          <Share2 className="w-5 h-5 text-white" strokeWidth={2} />
+          <span className="text-[9px] text-white text-center leading-tight">Share<br/>App</span>
         </button>
       </div>
     </div>

@@ -32,6 +32,7 @@ import { CoffeeModal } from "./dashboard-modals/CoffeeModal";
 import { TodaysActivityModal } from "./dashboard-modals/TodaysActivityModal";
 import { PlannedWorkoutDetailModal } from "./dashboard-modals/PlannedWorkoutDetailModal";
 
+
 // Dashboard Component - Main application view
 interface DashboardProps {
   onLogWorkout?: () => void;
@@ -238,137 +239,162 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
     return R * c;
   };
 
-            // GPS tracking effect
-      useEffect(() => {
-        if (gpsSearching && modalStep === 2) {
-          console.log('📍 Starting GPS search...');
-          
-          if ('geolocation' in navigator) {
-            // First, explicitly request permission
-            if ('permissions' in navigator) {
-              navigator.permissions.query({ name: 'geolocation' }).then((result) => {
-                console.log('📍 Geolocation permission status:', result.state);
-                
-                if (result.state === 'denied') {
-                  toast.error('Location Access Denied', {
-                    description: 'Please enable location in your browser settings',
-                    duration: 5000
-                  });
-                  setGpsSearching(false);
-                  setGpsConnected(false);
-                  setModalStep(3);
-                  return;
-                }
-              });
-            }
+  // Transform activities to use display names instead of emails
+  const transformActivityUserNames = (activities: any[]) => {
+    return activities.map(activity => {
+      // If the userName contains @, it's an email - extract first part
+      if (activity.userName?.includes('@')) {
+        const emailPrefix = activity.userName.split('@')[0];
+        // Remove numbers and special characters, capitalize first letter
+        const cleanName = emailPrefix.replace(/[0-9._-]/g, '');
+        return {
+          ...activity,
+          userName: cleanName.charAt(0).toUpperCase() + cleanName.slice(1)
+        };
+      }
+      // If it's a full name, extract just the first name
+      if (activity.userName?.includes(' ')) {
+        return {
+          ...activity,
+          userName: activity.userName.split(' ')[0]
+        };
+      }
+      // Otherwise return as-is
+      return activity;
+    });
+  };
+
+  // GPS tracking effect
+  useEffect(() => {
+    if (gpsSearching && modalStep === 2) {
+      console.log('📍 Starting GPS search...');
       
-            let hasConnected = false;
+      if ('geolocation' in navigator) {
+        // First, explicitly request permission
+        if ('permissions' in navigator) {
+          navigator.permissions.query({ name: 'geolocation' }).then((result) => {
+            console.log('📍 Geolocation permission status:', result.state);
             
-            // Minimum 2 second search animation
-            const minSearchTimer = setTimeout(() => {
-              if (hasConnected) {
-                setGpsSearching(false);
-                setModalStep(3);
-              }
-            }, 2000);
-      
-            // Request current position first to trigger permission prompt
-            navigator.geolocation.getCurrentPosition(
-              (position) => {
-                console.log('📍 Initial GPS position received:', position);
-                
-                if (!hasConnected) {
-                  hasConnected = true;
-                  setGpsPositions([position]);
-                  setLastPosition(position);
-                  setGpsConnected(true);
-                  
-                  console.log('📍 GPS connected, waiting for minimum search time...');
-                  
-                  toast.success('GPS Connected!', {
-                    description: `Accuracy: ${position.coords.accuracy.toFixed(0)}m`
-                  });
-                }
-              },
-              (error) => {
-                console.error('❌ GPS error:', error);
-                clearTimeout(minSearchTimer);
-                
-                let errorMessage = 'Unable to access location';
-                let errorTitle = 'GPS Unavailable';
-                
-                if (error.code === 1) {
-                  errorTitle = 'Location Permission Denied';
-                  errorMessage = 'Please enable location access in your device settings';
-                } else if (error.code === 2) {
-                  errorMessage = 'Location unavailable - make sure GPS is enabled';
-                } else if (error.code === 3) {
-                  errorMessage = 'Location request timeout - try again';
-                }
-                
-                toast.error(errorTitle, {
-                  description: errorMessage,
-                  duration: 5000
-                });
-                setGpsSearching(false);
-                setGpsConnected(false);
-                setModalStep(3);
-              },
-              {
-                enableHighAccuracy: true,
-                timeout: 15000,
-                maximumAge: 0
-              }
-            );
-      
-            // Then start continuous watching
-            const watchId = navigator.geolocation.watchPosition(
-              (position) => {
-                console.log('📍 GPS position update:', position);
-                
-                if (!hasConnected) {
-                  hasConnected = true;
-                  setGpsPositions([position]);
-                  setLastPosition(position);
-                  setGpsConnected(true);
-                  
-                  console.log('📍 GPS connected, waiting for minimum search time...');
-                  
-                  toast.success('GPS Connected!', {
-                    description: `Accuracy: ${position.coords.accuracy.toFixed(0)}m`
-                  });
-                } else {
-                  setGpsPositions(prev => [...prev, position]);
-                }
-              },
-              (error) => {
-                console.error('❌ GPS watch error:', error);
-              },
-              {
-                enableHighAccuracy: true,
-                timeout: 15000,
-                maximumAge: 0
-              }
-            );
-            setGpsWatchId(watchId);
-      
-            return () => {
-              clearTimeout(minSearchTimer);
-            };
-          } else {
-            toast.error('GPS not supported on this device');
+            if (result.state === 'denied') {
+              toast.error('Location Access Denied', {
+                description: 'Please enable location in your browser settings',
+                duration: 5000
+              });
+              setGpsSearching(false);
+              setGpsConnected(false);
+              setModalStep(3);
+              return;
+            }
+          });
+        }
+  
+        let hasConnected = false;
+        
+        // Minimum 2 second search animation
+        const minSearchTimer = setTimeout(() => {
+          if (hasConnected) {
             setGpsSearching(false);
             setModalStep(3);
           }
-        }
-      
-        return () => {
-          if (gpsWatchId !== null) {
-            navigator.geolocation.clearWatch(gpsWatchId);
-            setGpsWatchId(null);
+        }, 2000);
+  
+        // Request current position first to trigger permission prompt
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            console.log('📍 Initial GPS position received:', position);
+            
+            if (!hasConnected) {
+              hasConnected = true;
+              setGpsPositions([position]);
+              setLastPosition(position);
+              setGpsConnected(true);
+              
+              console.log('📍 GPS connected, waiting for minimum search time...');
+              
+              toast.success('GPS Connected!', {
+                description: `Accuracy: ${position.coords.accuracy.toFixed(0)}m`
+              });
+            }
+          },
+          (error) => {
+            console.error('❌ GPS error:', error);
+            clearTimeout(minSearchTimer);
+            
+            let errorMessage = 'Unable to access location';
+            let errorTitle = 'GPS Unavailable';
+            
+            if (error.code === 1) {
+              errorTitle = 'Location Permission Denied';
+              errorMessage = 'Please enable location access in your device settings';
+            } else if (error.code === 2) {
+              errorMessage = 'Location unavailable - make sure GPS is enabled';
+            } else if (error.code === 3) {
+              errorMessage = 'Location request timeout - try again';
+            }
+            
+            toast.error(errorTitle, {
+              description: errorMessage,
+              duration: 5000
+            });
+            setGpsSearching(false);
+            setGpsConnected(false);
+            setModalStep(3);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0
           }
+        );
+  
+        // Then start continuous watching
+        const watchId = navigator.geolocation.watchPosition(
+          (position) => {
+            console.log('📍 GPS position update:', position);
+            
+            if (!hasConnected) {
+              hasConnected = true;
+              setGpsPositions([position]);
+              setLastPosition(position);
+              setGpsConnected(true);
+              
+              console.log('📍 GPS connected, waiting for minimum search time...');
+              
+              toast.success('GPS Connected!', {
+                description: `Accuracy: ${position.coords.accuracy.toFixed(0)}m`
+              });
+            } else {
+              setGpsPositions(prev => [...prev, position]);
+            }
+          },
+          (error) => {
+            console.error('❌ GPS watch error:', error);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 15000,
+            maximumAge: 0
+          }
+        );
+        setGpsWatchId(watchId);
+  
+        return () => {
+          clearTimeout(minSearchTimer);
         };
-      }, [gpsSearching, modalStep]);
+      } else {
+        toast.error('GPS not supported on this device');
+        setGpsSearching(false);
+        setModalStep(3);
+      }
+    }
+  
+    return () => {
+      if (gpsWatchId !== null) {
+        navigator.geolocation.clearWatch(gpsWatchId);
+        setGpsWatchId(null);
+      }
+    };
+  }, [gpsSearching, modalStep]);
 
   // Update recorded pace
   useEffect(() => {
@@ -390,7 +416,9 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
       try {
         const api = new APIClient(accessToken);
         const workouts = await api.getUserWorkouts();
-        setActivities(workouts);
+        // Transform activities to show first names only
+        const transformedActivities = transformActivityUserNames(workouts);
+        setActivities(transformedActivities);
       } catch (error) {
         console.error('Failed to load workouts:', error);
         setActivities([]);
@@ -501,7 +529,8 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
       if (accessToken) {
         const api = new APIClient(accessToken);
         const workouts = await api.getUserWorkouts();
-        setActivities(workouts);
+        const transformedActivities = transformActivityUserNames(workouts);
+        setActivities(transformedActivities);
       }
     } catch (error) {
       console.error('❌ Failed to save workout:', error);

@@ -117,7 +117,7 @@ export class APIClient {
     const totalHours = Math.round((totalMinutes / 60) * 10) / 10;
 
     console.log('✅ Profile fetched:', {
-      name: profileData.full_name,
+      name: profileData.username,
       totalWorkouts,
       totalHours,
       totalDistance: Math.round(totalDistance * 10) / 10,
@@ -127,7 +127,7 @@ export class APIClient {
     return {
       id: userData.user.id,
       email: userData.user.email,
-      name: profileData.full_name || profileData.username || userData.user.email?.split('@')[0],
+      name: profileData.username || userData.user.email?.split('@')[0],
       username: profileData.username,
       avatar_url: profileData.avatar_url,
       totalWorkouts,
@@ -278,7 +278,7 @@ async uploadProfilePhoto(file: File) {
     const userIds = [...new Set(data.map(w => w.user_id))];
     const { data: profilesData } = await this.supabase
       .from('profiles')
-      .select('id, full_name, username, avatar_url')
+      .select('id, username, avatar_url')
       .in('id', userIds);
     
     const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
@@ -286,7 +286,7 @@ async uploadProfilePhoto(file: File) {
     // Transform to match Activity interface
     return data.map((workout: any) => {
       const profile = profilesMap.get(workout.user_id);
-      const userName = profile?.full_name || profile?.username || 'Unknown User';
+      const userName = profile?.username || 'Unknown User';
       
       return {
         id: workout.id,
@@ -565,7 +565,7 @@ async uploadProfilePhoto(file: File) {
       .from('league_memberships')
       .select(`
         user_id,
-        profiles!inner(full_name, username, avatar_url)
+        profiles!inner(username, avatar_url)
       `)
       .eq('league_id', leagueId);
       
@@ -588,7 +588,7 @@ async uploadProfilePhoto(file: File) {
         
         return {
           userId: member.user_id,
-          name: member.profiles?.full_name || member.profiles?.username || 'Unknown',
+         name: member.profiles?.username || 'Unknown',
           avatar: member.profiles?.avatar_url,
           totalMinutes,
           totalDistance,
@@ -640,7 +640,7 @@ async uploadProfilePhoto(file: File) {
     // Get profiles
     const { data: profiles } = await this.supabase
       .from('profiles')
-      .select('id, full_name, username, avatar_url')
+      .select('id, username, avatar_url')
       .in('id', memberIds);
       
     const profilesMap = new Map(profiles?.map(p => [p.id, p]) || []);
@@ -648,7 +648,7 @@ async uploadProfilePhoto(file: File) {
     // Transform to activity format
     return workouts.map((workout: any) => {
       const profile = profilesMap.get(workout.user_id);
-      const userName = profile?.full_name || profile?.username || 'Unknown User';
+      const userName = profile?.username || 'Unknown User';
       
       return {
         id: workout.id,

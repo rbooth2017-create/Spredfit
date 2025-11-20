@@ -53,17 +53,40 @@ app.get("/make-server-6eb09999/health", (c) => {
 // Sign up
 app.post("/make-server-6eb09999/auth/signup", async (c) => {
   try {
-    const { email, password, name } = await c.req.json();
+    const { email, password, name, username } = await c.req.json();
     
-    if (!email || !password || !name) {
-      return c.json({ error: "Email, password, and name are required" }, 400);
+    if (!email || !password || !name || !username) {
+      return c.json({ error: "Email, password, name, and username are required" }, 400);
+    }
+
+    // Check if username is already taken in KV store
+    const allUsers = await kv.getByPrefix(`user:`);
+    const usernameTaken = allUsers.some((u: any) => u.username?.toLowerCase() === username.toLowerCase());
+    
+    if (usernameTaken) {
+      return c.json({ error: "Username already taken" }, 400);
+    }
+
+    // Check if username is already taken in Supabase profiles table
+    const { data: existingProfile } = await supabase
+      .from('profiles')
+      .select('username')
+      .eq('username', username.toLowerCase())
+      .maybeSingle();
+
+    if (existingProfile) {
+      return c.json({ error: "Username already taken" }, 400);
     }
 
     // Create user with Supabase Auth
     const { data: authData, error: authError } = await supabase.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // Auto-confirm since email server not configured
+      email_confirm: true,
+      user_metadata: {
+        full_name: name,
+        username: username,
+      }
     });
 
     if (authError) {
@@ -71,12 +94,30 @@ app.post("/make-server-6eb09999/auth/signup", async (c) => {
       return c.json({ error: authError.message }, 400);
     }
 
-    // Create user profile
     const userId = authData.user.id;
+
+// UPSERT into Supabase profiles table (update if exists, insert if not)
+const { error: profileError } = await supabase
+  .from('profiles')
+  .upsert({
+    id: userId,
+    full_name: name,
+    username: username.toLowerCase(),
+    created_at: new Date().toISOString(),
+  }, {
+    onConflict: 'id'
+  });
+
+if (profileError) {
+  console.log(`❌ Profile creation error: ${profileError.message}`);
+  console.log(`❌ Full error:`, JSON.stringify(profileError));
+}
+    // Create user profile in KV store
     const userProfile = {
       id: userId,
       email,
       name,
+      username,
       totalWorkouts: 0,
       totalMinutes: 0,
       totalDistance: 0,
@@ -286,7 +327,7 @@ app.post("/make-server-6eb09999/workouts", async (c) => {
       userId: user.id,
       userName: profile?.name || "Unknown",
       type,
-      sport: type,  // Add explicit sport field
+      sport: type,
       duration,
       distance: distance || 0,
       date: workout.date,
@@ -306,7 +347,6 @@ app.post("/make-server-6eb09999/workouts", async (c) => {
       const leagueFeedKey = `league_feed:${leagueId}`;
       const feed = await kv.get(leagueFeedKey) || [];
       feed.unshift(activityId);
-      // Keep only last 100 activities
       if (feed.length > 100) feed.length = 100;
       await kv.set(leagueFeedKey, feed);
     }
@@ -414,7 +454,6 @@ app.get("/make-server-6eb09999/leagues/:leagueId", async (c) => {
       return c.json({ error: "League not found" }, 404);
     }
 
-    // Check if user is member
     if (!league.members.includes(user.id)) {
       return c.json({ error: "Not a member of this league" }, 403);
     }
@@ -426,7 +465,7 @@ app.get("/make-server-6eb09999/leagues/:leagueId", async (c) => {
   }
 });
 
-// Join league (by invite code or ID)
+// Join league
 app.post("/make-server-6eb09999/leagues/:leagueId/join", async (c) => {
   const user = await getUserFromToken(c.req.header('Authorization'));
   if (!user) {
@@ -441,13 +480,11 @@ app.post("/make-server-6eb09999/leagues/:leagueId/join", async (c) => {
       return c.json({ error: "League not found" }, 404);
     }
 
-    // Add user to league
     if (!league.members.includes(user.id)) {
       league.members.push(user.id);
       await kv.set(leagueId, league);
     }
 
-    // Add league to user's leagues
     const profile = await kv.get(`user:${user.id}`);
     if (profile) {
       profile.leagues = profile.leagues || [];
@@ -479,16 +516,13 @@ app.get("/make-server-6eb09999/leagues/:leagueId/leaderboard", async (c) => {
       return c.json({ error: "League not found" }, 404);
     }
 
-    // Check if user is member
     if (!league.members.includes(user.id)) {
       return c.json({ error: "Not a member of this league" }, 403);
     }
 
-    // Get all workouts for this league
     const allWorkouts = await kv.getByPrefix(`workout:`);
     const leagueWorkouts = allWorkouts.filter((w: any) => w.leagueId === leagueId);
 
-    // Calculate stats per user
     const userStats = new Map();
     for (const workout of leagueWorkouts) {
       const stats = userStats.get(workout.userId) || {
@@ -503,7 +537,6 @@ app.get("/make-server-6eb09999/leagues/:leagueId/leaderboard", async (c) => {
       userStats.set(workout.userId, stats);
     }
 
-    // Get user profiles and build leaderboard
     const leaderboard = [];
     for (const [userId, stats] of userStats) {
       const profile = await kv.get(`user:${userId}`);
@@ -516,7 +549,6 @@ app.get("/make-server-6eb09999/leagues/:leagueId/leaderboard", async (c) => {
       }
     }
 
-    // Sort by total minutes
     leaderboard.sort((a, b) => b.totalMinutes - a.totalMinutes);
 
     return c.json(leaderboard);
@@ -545,7 +577,6 @@ app.get("/make-server-6eb09999/leagues/:leagueId/feed", async (c) => {
       return c.json({ error: "League not found" }, 404);
     }
 
-    // Check if user is member
     if (!league.members.includes(user.id)) {
       return c.json({ error: "Not a member of this league" }, 403);
     }
@@ -577,20 +608,16 @@ app.post("/make-server-6eb09999/activities/:activityId/react", async (c) => {
       return c.json({ error: "Activity not found" }, 404);
     }
 
-    // Get user's previous reaction
     const userReactionKey = `reaction:${activityId}:${user.id}`;
     const previousReaction = await kv.get(userReactionKey);
 
-    // Remove previous reaction if exists
     if (previousReaction) {
       activity.reactions[previousReaction] = Math.max(0, activity.reactions[previousReaction] - 1);
     }
 
-    // If clicking same reaction, remove it (toggle off)
     if (previousReaction === reactionType) {
       await kv.del(userReactionKey);
     } else {
-      // Add new reaction
       activity.reactions[reactionType] = (activity.reactions[reactionType] || 0) + 1;
       await kv.set(userReactionKey, reactionType);
     }
@@ -698,7 +725,6 @@ app.post("/make-server-6eb09999/leagues/:leagueId/chat", async (c) => {
     const messages = await kv.get(chatKey) || [];
     messages.push(chatMessage);
     
-    // Keep only last 500 messages
     if (messages.length > 500) {
       messages.splice(0, messages.length - 500);
     }
@@ -718,7 +744,6 @@ app.post("/make-server-6eb09999/leagues/:leagueId/chat", async (c) => {
 
 const PROFILE_PHOTOS_BUCKET = 'make-6eb09999-profile-photos';
 
-// Ensure bucket exists before upload
 async function ensureBucketExists() {
   try {
     const { data: buckets } = await supabase.storage.listBuckets();
@@ -728,7 +753,7 @@ async function ensureBucketExists() {
       console.log(`Creating bucket: ${PROFILE_PHOTOS_BUCKET}`);
       const { error } = await supabase.storage.createBucket(PROFILE_PHOTOS_BUCKET, {
         public: false,
-        fileSizeLimit: 5242880, // 5MB
+        fileSizeLimit: 5242880,
       });
       if (error) {
         console.error(`Failed to create bucket: ${error.message}`);
@@ -749,7 +774,6 @@ app.post("/make-server-6eb09999/user/profile/photo", async (c) => {
   }
 
   try {
-    // Ensure bucket exists before upload
     await ensureBucketExists();
 
     const formData = await c.req.formData();
@@ -759,11 +783,9 @@ app.post("/make-server-6eb09999/user/profile/photo", async (c) => {
       return c.json({ error: "No file provided" }, 400);
     }
 
-    // Create unique filename
     const fileExt = file.name.split('.').pop();
     const fileName = `${user.id}/${Date.now()}.${fileExt}`;
 
-    // Upload to Supabase Storage
     const arrayBuffer = await file.arrayBuffer();
     const { data: uploadData, error: uploadError } = await supabase.storage
       .from(PROFILE_PHOTOS_BUCKET)
@@ -777,20 +799,18 @@ app.post("/make-server-6eb09999/user/profile/photo", async (c) => {
       return c.json({ error: uploadError.message }, 500);
     }
 
-    // Get signed URL (valid for 1 year)
     const { data: signedUrlData } = await supabase.storage
       .from(PROFILE_PHOTOS_BUCKET)
-      .createSignedUrl(fileName, 31536000); // 1 year
+      .createSignedUrl(fileName, 31536000);
 
     if (!signedUrlData) {
       return c.json({ error: "Failed to create signed URL" }, 500);
     }
 
-    // Update user profile with photo URL
     const profile = await kv.get(`user:${user.id}`);
     if (profile) {
       profile.photoUrl = signedUrlData.signedUrl;
-      profile.photoPath = fileName; // Store path for potential deletion
+      profile.photoPath = fileName;
       await kv.set(`user:${user.id}`, profile);
     }
 

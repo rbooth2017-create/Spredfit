@@ -7,9 +7,11 @@ import { Dumbbell } from 'lucide-react';
 
 export function AuthScreen() {
   const [isSignUp, setIsSignUp] = useState(false);
+  console.log('🟣 AuthScreen: isSignUp =', isSignUp, 'username state =', username);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const { signIn, signUp } = useAuth();
@@ -26,7 +28,17 @@ export function AuthScreen() {
           setLoading(false);
           return;
         }
-        await signUp(email, password, name);
+        if (!username) {
+          setError('Username is required');
+          setLoading(false);
+          return;
+        }
+        if (!/^[a-z0-9]+$/.test(username)) {
+          setError('Username can only contain lowercase letters and numbers');
+          setLoading(false);
+          return;
+        }
+        await signUp(email, password, name, username);
       } else {
         await signIn(email, password);
       }
@@ -40,7 +52,6 @@ export function AuthScreen() {
   return (
     <div className="min-h-screen bg-[#0a1628] flex items-center justify-center p-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 mb-4">
             <Dumbbell className="w-10 h-10 text-white" />
@@ -49,7 +60,6 @@ export function AuthScreen() {
           <p className="text-slate-400">Ready to crush it?</p>
         </div>
 
-        {/* Auth Form */}
         <div className="bg-slate-800/50 rounded-2xl p-8 backdrop-blur-sm border border-slate-700">
           <h2 className="text-2xl text-white mb-6 text-center">
             {isSignUp ? 'Create Account' : 'Welcome Back'}
@@ -57,18 +67,34 @@ export function AuthScreen() {
 
           <form onSubmit={handleSubmit} className="space-y-4">
             {isSignUp && (
-              <div>
-                <Label htmlFor="name" className="text-slate-300">Name</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  className="bg-slate-900 border-slate-600 text-white"
-                  placeholder="Your name"
-                  required={isSignUp}
-                />
-              </div>
+              <>
+                <div>
+                  <Label htmlFor="name" className="text-slate-300">Username</Label>
+                  <Input
+                    id="name"
+                    type="text"
+                    value={name}
+                    onChange={(e) => setName(e.target.value)}
+                    className="bg-slate-900 border-slate-600 text-white"
+                    placeholder="User Name"
+                    required={isSignUp}
+                  />
+                </div>
+                
+                <div>
+                  <Label htmlFor="username" className="text-slate-300">Username</Label>
+                  <Input
+                    id="username"
+                    type="text"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9]/g, ''))}
+                    className="bg-slate-900 border-slate-600 text-white"
+                    placeholder="johnsmith"
+                    required={isSignUp}
+                  />
+                  <p className="text-slate-500 text-xs mt-1">Lowercase letters and numbers only</p>
+                </div>
+              </>
             )}
 
             <div>
@@ -117,6 +143,8 @@ export function AuthScreen() {
               onClick={() => {
                 setIsSignUp(!isSignUp);
                 setError('');
+                setName('');
+                setUsername('');
               }}
               className="text-emerald-400 hover:text-emerald-300 text-sm"
             >
