@@ -336,7 +336,7 @@ html {
 }
 
 .background-fade {
-  animation: backgroundFade 95s ease-in-out infinite;
+  animation: backgroundFade 5s ease-in-out infinite;
 }
 
 /* Fade In Animation for Dashboard Load */
