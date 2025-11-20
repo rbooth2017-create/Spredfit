@@ -73,6 +73,7 @@ interface AppContextType {
   getLeagueFeed: (leagueId: string) => Promise<any>;
   reactToActivity: (activityId: string, reactionType: string) => Promise<any>;
   getUserReactions: (activityIds: string[]) => Promise<any>;
+    updateWorkoutPhoto: (workoutId: string, file: File) => Promise<string>;
 }
 
 const AppContext = createContext<AppContextType>({
@@ -100,6 +101,7 @@ const AppContext = createContext<AppContextType>({
   getLeagueFeed: async () => {},
   reactToActivity: async () => {},
   getUserReactions: async () => {},
+    updateWorkoutPhoto: async () => '',
 });
 
 export function AppProvider({ children }: { children: ReactNode }) {
@@ -157,6 +159,11 @@ export function AppProvider({ children }: { children: ReactNode }) {
     await refreshProfile();
     return result;
   }, [accessToken, user, api, refreshProfile]);
+
+    const updateWorkoutPhoto = useCallback(async (workoutId: string, file: File) => {
+    if (!accessToken) throw new Error('Not authenticated');
+    return await api.updateWorkoutPhoto(workoutId, file);
+  }, [accessToken, api]);
 
   const createLeague = useCallback(async (leagueData: {
     name: string;
@@ -282,6 +289,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     appSettings,
       refreshActivities,  // ADD THIS
   refreshTrigger,     // ADD THIS
+    updateWorkoutPhoto,
   ]);
 
   return (

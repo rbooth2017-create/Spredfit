@@ -74,6 +74,7 @@ const { createWorkout, currentLeague, joinLeague, refreshProfile, refreshActivit
   const [previousScreen, setPreviousScreen] = useState<Screen>("dashboard");
   const [selectedSport, setSelectedSport] = useState<string>("Running");
   const [editingWorkoutId, setEditingWorkoutId] = useState<number | null>(null);
+    const [lastWorkoutId, setLastWorkoutId] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<SelectedUser | null>(null);
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [selectedConversation, setSelectedConversation] = useState<{
@@ -726,23 +727,25 @@ const handleSignup = async () => {
                 console.log("=== SAVING MANUAL WORKOUT ===");
                 console.log("Workout data:", data);
                 
-                await createWorkout({
-                  type: data.sport,
-                  duration: data.duration,
-                  distance: data.distance || 0,
-                  date: data.date || new Date().toISOString(),
-                  notes: data.notes,
-                  leagueId: currentLeague?.id || undefined,
-                });
-                
-                toast.success("Workout logged!", {
-                  description: `${data.sport} workout saved successfully`,
-                });
-                
-                await refreshProfile();
-                refreshActivities();
-                
-                setCurrentScreen("uploadworkoutphoto");
+                             const result = await createWorkout({
+                type: data.sport,
+                duration: data.duration,
+                distance: data.distance || 0,
+                date: data.date || new Date().toISOString(),
+                notes: data.notes,
+                leagueId: currentLeague?.id || undefined,
+              });
+              
+              setLastWorkoutId(result.id); // ← ADD THIS LINE
+              
+              toast.success("Workout logged!", {
+                description: `${data.sport} workout saved successfully`,
+              });
+              
+              await refreshProfile();
+              refreshActivities();
+              
+              setCurrentScreen("uploadworkoutphoto");
               
               } catch (error) {
                 console.error("Failed to save workout:", error);
@@ -771,13 +774,15 @@ const handleSignup = async () => {
     );
   }
 
-  if (currentScreen === "uploadworkoutphoto") {
+    if (currentScreen === "uploadworkoutphoto") {
     return (
       <>
         <AnimatedBackground dimmed={true} />
         <UploadWorkoutPhoto
+          workoutId={lastWorkoutId} // ← ADD THIS LINE
           onBack={() => setCurrentScreen("workoutdetail")}
           onSkip={() => {
+            setLastWorkoutId(null); // ← ADD THIS LINE
             setSelectedUser({
               id: 1,
               name: "Sarah Chen",

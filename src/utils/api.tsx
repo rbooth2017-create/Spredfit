@@ -248,6 +248,59 @@ async uploadProfilePhoto(file: File) {
     return data;
   }
 
+    async updateWorkoutPhoto(workoutId: string, file: File) {
+    console.log('🔵 API Client: Uploading workout photo');
+    
+    const { data: userData, error: userError } = await this.supabase.auth.getUser();
+    if (userError || !userData.user) {
+      throw new Error('Not authenticated');
+    }
+  
+    const fileExt = file.name.split('.').pop();
+    const fileName = `${userData.user.id}/workouts/${workoutId}.${fileExt}`;
+    
+    console.log('📤 Uploading workout photo:', fileName);
+  
+    // Upload to Supabase storage
+    const { error: uploadError } = await this.supabase.storage
+      .from('workout-media')
+      .upload(fileName, file, {
+        upsert: true,
+        contentType: file.type,
+      });
+  
+    if (uploadError) {
+      console.error('❌ Upload error:', uploadError);
+      throw uploadError;
+    }
+  
+    // Get public URL
+    const { data: urlData } = this.supabase.storage
+      .from('workout-media')
+      .getPublicUrl(fileName);
+  
+    if (!urlData?.publicUrl) {
+      throw new Error('Failed to get public URL');
+    }
+  
+    const photoUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+    console.log('🔗 Public URL:', photoUrl);
+  
+    // Update workout with photo URL
+    const { error: updateError } = await this.supabase
+      .from('workouts')
+      .update({ photo_url: photoUrl })
+      .eq('id', workoutId);
+  
+    if (updateError) {
+      console.error('❌ Workout update error:', updateError);
+      throw updateError;
+    }
+  
+    console.log('✅ Workout photo uploaded successfully');
+    return photoUrl;
+  }
+
   async getUserWorkouts() {
     console.log("🔵 API Client: Fetching user workouts");
     

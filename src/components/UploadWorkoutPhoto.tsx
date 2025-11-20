@@ -1,21 +1,27 @@
 import { useState } from "react";
 import { Button } from "./ui/button";
-import { ArrowLeft, Upload, Camera, Check, X } from "lucide-react";
+import { Upload, Camera, Check, X } from "lucide-react";
 import { FloatingContent } from "./FloatingContent";
+import { useApp } from "../utils/AppContext";
+import { toast } from "sonner@2.0.3";
 
 interface UploadWorkoutPhotoProps {
+  workoutId: string | null;
   onBack: () => void;
   onSkip: () => void;
   workoutSport: string;
 }
 
-export function UploadWorkoutPhoto({ onBack, onSkip, workoutSport }: UploadWorkoutPhotoProps) {
+export function UploadWorkoutPhoto({ workoutId, onBack, onSkip, workoutSport }: UploadWorkoutPhotoProps) {
+  const { updateWorkoutPhoto } = useApp();
   const [selectedPhoto, setSelectedPhoto] = useState<string | null>(null);
-  const [uploaded, setUploaded] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      setSelectedFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
         setSelectedPhoto(reader.result as string);
@@ -24,11 +30,29 @@ export function UploadWorkoutPhoto({ onBack, onSkip, workoutSport }: UploadWorko
     }
   };
 
-  const handleSave = () => {
-    setUploaded(true);
-    setTimeout(() => {
-      onSkip();
-    }, 1500);
+  const handleSave = async () => {
+    if (!selectedFile || !workoutId) {
+      toast.error("No photo selected");
+      return;
+    }
+
+    setUploading(true);
+    try {
+      await updateWorkoutPhoto(workoutId, selectedFile);
+      toast.success("Photo uploaded!", {
+        description: "Your workout photo has been saved",
+      });
+      setTimeout(() => {
+        onSkip();
+      }, 1000);
+    } catch (error) {
+      console.error("Failed to upload photo:", error);
+      toast.error("Upload failed", {
+        description: error instanceof Error ? error.message : "Please try again",
+      });
+    } finally {
+      setUploading(false);
+    }
   };
 
   return (
@@ -51,15 +75,6 @@ export function UploadWorkoutPhoto({ onBack, onSkip, workoutSport }: UploadWorko
             </Button>
           </div>
         </div>
-
-        {uploaded && (
-          <div className="mb-4 p-3 rounded-full bg-white/20 backdrop-blur-sm border border-white/20">
-            <div className="flex items-center justify-center gap-2 text-white">
-              <Check className="w-4 h-4" />
-              <p className="text-sm">Photo uploaded successfully!</p>
-            </div>
-          </div>
-        )}
 
         {/* Photo Preview Card */}
         <div className="mb-6">
@@ -106,17 +121,27 @@ export function UploadWorkoutPhoto({ onBack, onSkip, workoutSport }: UploadWorko
             onChange={handleFileSelect}
           />
 
-          <div className="p-6 bg-white/20 backdrop-blur-sm rounded-3xl border border-white/20 cursor-pointer hover:bg-white/30 transition-colors">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-full bg-[#2d332d]/80 flex items-center justify-center">
-                <Camera className="w-6 h-6 text-white" />
-              </div>
-              <div>
-                <p className="text-white">Take a photo</p>
-                <p className="text-sm text-white/70">Use your camera</p>
+          <label htmlFor="camera-upload">
+            <div className="p-6 bg-white/20 backdrop-blur-sm rounded-3xl border border-white/20 cursor-pointer hover:bg-white/30 transition-colors">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-[#2d332d]/80 flex items-center justify-center">
+                  <Camera className="w-6 h-6 text-white" />
+                </div>
+                <div>
+                  <p className="text-white">Take a photo</p>
+                  <p className="text-sm text-white/70">Use your camera</p>
+                </div>
               </div>
             </div>
-          </div>
+          </label>
+          <input
+            id="camera-upload"
+            type="file"
+            accept="image/*"
+            capture="environment"
+            className="hidden"
+            onChange={handleFileSelect}
+          />
         </div>
 
         {/* Action Buttons */}
@@ -124,9 +149,10 @@ export function UploadWorkoutPhoto({ onBack, onSkip, workoutSport }: UploadWorko
           {selectedPhoto && (
             <Button
               onClick={handleSave}
-              className="w-full h-12 bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white rounded-full shadow-none border border-white/20"
+              disabled={uploading}
+              className="w-full h-12 bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white rounded-full shadow-none border border-white/20 disabled:opacity-50"
             >
-              Save Photo
+              {uploading ? "Uploading..." : "Save Photo"}
             </Button>
           )}
           <Button
