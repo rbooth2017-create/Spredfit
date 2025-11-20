@@ -888,13 +888,11 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
             )}
 
             {/* Todays Activity Modal */}
-            {activeModal === 'todaysActivity' && (
-              <TodaysActivityModal
-                plannedWorkout={plannedWorkout}
-                setPlannedWorkout={setPlannedWorkout}
-                onClose={closeModal}
-              />
-            )}
+{activeModal === 'todaysActivity' && (
+  <TodaysActivityModal
+    activity={activities.length > 0 ? activities[0] : null}
+  />
+)}
 
             {/* Planned Workout Detail Modal */}
             {activeModal === 'plannedWorkoutDetail' && (
