@@ -126,7 +126,7 @@ function ActivityCarouselComponent({
   isExpanded,
 }: ActivityCarouselProps) {
   // Make the circle bigger permanently - removed the conditional sizing
-  const circleSize = "w-[100vw] min-[400px]:w-[420px] min-[420px]:w-[450px] sm:w-[480px] md:w-[510px] lg:w-[540px] h-[100vw] min-[400px]:h-[420px] min-[420px]:h-[450px] sm:h-[480px] md:h-[510px] lg:h-[540px]";
+  const circleSize = "w-[1vw] min-[400px]:w-[420px] min-[420px]:w-[450px] sm:w-[480px] md:w-[510px] lg:w-[540px] h-[100vw] min-[400px]:h-[420px] min-[420px]:h-[450px] sm:h-[480px] md:h-[510px] lg:h-[540px]";
     
   return (
     <div className={`absolute left-0 right-0 -translate-y-1/2 z-10 px-4 transition-all duration-700 ease-in-out top-[40%]`}>
