@@ -1,10 +1,21 @@
-import { memo } from "react";
+import { memo, useState, useEffect } from "react";
 import { UserCircle, Users, Trophy, Calendar } from "lucide-react";
+import { useAuth } from "../../utils/auth";
+import { APIClient } from "../../utils/api";
 
 interface League {
   name: string;
   rank: number;
   totalMembers: number;
+  id: string;
+}
+
+interface LeaderboardEntry {
+  userId: string;
+  name: string;
+  totalHours: number;
+  rank: number;
+  isCurrentUser: boolean;
 }
 
 interface LeaderboardModalProps {
@@ -30,6 +41,33 @@ function LeaderboardModalComponent({
   leaderboardPeriod,
   setLeaderboardPeriod,
 }: LeaderboardModalProps) {
+  const { accessToken } = useAuth();
+  const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Fetch leaderboard data when league or period changes
+  useEffect(() => {
+    async function loadLeaderboard() {
+      if (!selectedLeague || !accessToken || modalStep !== 2) {
+        return;
+      }
+
+      setIsLoading(true);
+      try {
+        const api = new APIClient(accessToken);
+        const data = await api.getLeagueLeaderboard(selectedLeague.id, leaderboardPeriod);
+        setLeaderboardData(data);
+      } catch (error) {
+        console.error('Failed to load leaderboard:', error);
+        setLeaderboardData([]);
+      } finally {
+        setIsLoading(false);
+      }
+    }
+
+    loadLeaderboard();
+  }, [selectedLeague?.id, leaderboardPeriod, accessToken, modalStep]);
+
   return (
     <>
       {/* Modal Content */}
@@ -66,50 +104,31 @@ function LeaderboardModalComponent({
               {leaderboardView === 'individual' ? 'Individual' : 'Team'} • {leaderboardPeriod === 'total' ? 'All Time' : 'This Week'}
             </p>
             <div className="space-y-2 w-full max-h-44 overflow-y-auto scrollbar-hide mb-4">
-              {leaderboardView === 'individual' ? (
-                // Individual leaderboard
-                [
-                  { name: 'Sarah C.', time: leaderboardPeriod === 'total' ? '12.5h' : '8.2h', rank: 1 },
-                  { name: 'You', time: leaderboardPeriod === 'total' ? '11.2h' : '7.5h', rank: selectedLeague.rank },
-                  { name: 'Marcus J.', time: leaderboardPeriod === 'total' ? '10.8h' : '6.9h', rank: 3 },
-                  { name: 'Emily R.', time: leaderboardPeriod === 'total' ? '9.5h' : '5.8h', rank: 4 },
-                  { name: 'David K.', time: leaderboardPeriod === 'total' ? '8.3h' : '4.2h', rank: 5 },
-                ].map((member) => (
-                  <div
-                    key={`individual-${member.name}`}
-                    className={`flex items-center justify-between p-2 rounded-full ${
-                      member.name === 'You' ? 'bg-[#7a8872]' : 'bg-[#2d332d]/60 backdrop-blur-sm border border-white/10'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-white/70 text-xs w-5">#{member.rank}</span>
-                      <span className="text-white text-sm">{member.name}</span>
+              {isLoading ? (
+                <p className="text-white/50 text-xs">Loading...</p>
+              ) : leaderboardView === 'individual' ? (
+                // Individual leaderboard - REAL DATA
+                leaderboardData.length > 0 ? (
+                  leaderboardData.map((member) => (
+                    <div
+                      key={member.userId}
+                      className={`flex items-center justify-between p-2 rounded-full ${
+                        member.isCurrentUser ? 'bg-[#7a8872]' : 'bg-[#2d332d]/60 backdrop-blur-sm border border-white/10'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-white/70 text-xs w-5">#{member.rank}</span>
+                        <span className="text-white text-sm">{member.isCurrentUser ? 'You' : member.name}</span>
+                      </div>
+                      <span className="text-white text-sm">{member.totalHours.toFixed(1)}h</span>
                     </div>
-                    <span className="text-white text-sm">{member.time}</span>
-                  </div>
-                ))
+                  ))
+                ) : (
+                  <p className="text-white/50 text-xs italic">No workouts yet in this league</p>
+                )
               ) : (
-                // Team leaderboard
-                [
-                  { name: 'Thunder Squad', time: leaderboardPeriod === 'total' ? '45.2h' : '28.5h', rank: 1 },
-                  { name: 'Your Team', time: leaderboardPeriod === 'total' ? '38.7h' : '24.1h', rank: 2 },
-                  { name: 'Lightning Crew', time: leaderboardPeriod === 'total' ? '35.4h' : '22.3h', rank: 3 },
-                  { name: 'Storm Chasers', time: leaderboardPeriod === 'total' ? '32.1h' : '19.8h', rank: 4 },
-                  { name: 'Wind Runners', time: leaderboardPeriod === 'total' ? '28.9h' : '17.2h', rank: 5 },
-                ].map((team) => (
-                  <div
-                    key={`team-${team.rank}`}
-                    className={`flex items-center justify-between p-2 rounded-full ${
-                      team.name === 'Your Team' ? 'bg-[#7a8872]' : 'bg-[#2d332d]/60 backdrop-blur-sm border border-white/10'
-                    }`}
-                  >
-                    <div className="flex items-center gap-2">
-                      <span className="text-white/70 text-xs w-5">#{team.rank}</span>
-                      <span className="text-white text-sm">{team.name}</span>
-                    </div>
-                    <span className="text-white text-sm">{team.time}</span>
-                  </div>
-                ))
+                // Team leaderboard - Coming soon
+                <p className="text-white/50 text-xs italic">Team leaderboard coming soon!</p>
               )}
             </div>
             <button
@@ -188,5 +207,4 @@ function LeaderboardModalComponent({
   );
 }
 
-// ✅ Memoize to prevent unnecessary re-renders
 export const LeaderboardModal = memo(LeaderboardModalComponent);

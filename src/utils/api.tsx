@@ -13,7 +13,7 @@ export class APIClient {
   private supabase: SupabaseClient;
   private accessToken: string | null;
 
-    constructor(accessToken: string | null = null) {
+  constructor(accessToken: string | null = null) {
     this.accessToken = accessToken;
     
     if (accessToken) {
@@ -85,7 +85,7 @@ export class APIClient {
         .from('workouts')
         .select('created_at')
         .eq('user_id', user.id)
-       .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false });
       let streak = 0;
       if (streakData && streakData.length > 0) {
         const today = new Date();
@@ -95,7 +95,7 @@ export class APIClient {
         let foundGap = false;
         
         for (const workout of streakData) {
-           const workoutDate = new Date(workout.created_at);
+          const workoutDate = new Date(workout.created_at);
           workoutDate.setHours(0, 0, 0, 0);
           
           const daysDiff = Math.floor((currentDate.getTime() - workoutDate.getTime()) / (1000 * 60 * 60 * 24));
@@ -244,7 +244,7 @@ export class APIClient {
 
       // Generate stock image URL based on workout type
       const sportType = workout.type.toLowerCase().replace(/\s+/g, '-');
-      const photoUrl = `/workout/workout-${sportType}.png`;
+      const photoUrl = `${window.location.origin}/workout/workout-${sportType}.png`;
       console.log('🔵 Generated photo URL:', photoUrl);
 
       const { data, error } = await this.supabase
@@ -288,7 +288,7 @@ export class APIClient {
         .from('workouts')
         .select(`
           *,
-            profiles!workouts_user_id_fkey (
+          profiles!workouts_user_id_fkey (
             username,
             avatar_url
           )
@@ -346,15 +346,16 @@ export class APIClient {
       const sportType = workoutData.type.toLowerCase().replace(/\s+/g, '-');
       photoUrl = `/workout/workout-${sportType}.png`;
     }
-const { data, error } = await this.supabase
-  .from('workouts')
-  .update({
-    type: workoutData.type,
-    duration_min: workoutData.duration,
-    distance_km: workoutData.distance,
-    notes: workoutData.notes,
-    photo_url: photoUrl,
-  })
+    
+    const { data, error } = await this.supabase
+      .from('workouts')
+      .update({
+        type: workoutData.type,
+        duration_min: workoutData.duration,
+        distance_km: workoutData.distance,
+        notes: workoutData.notes,
+        photo_url: photoUrl,
+      })
       .eq('id', workoutId)
       .select()
       .single();
@@ -370,7 +371,7 @@ const { data, error } = await this.supabase
         .from('league_memberships')
         .select(`
           user_id,
-            profiles!league_memberships_user_id_fkey (
+          profiles!league_memberships_user_id_fkey (
             id,
             username,
             avatar_url
@@ -409,6 +410,7 @@ const { data, error } = await this.supabase
             id,
             name,
             league_code,
+            owner_id,
             created_at
           )
         `)
@@ -422,10 +424,11 @@ const { data, error } = await this.supabase
       const leagues = await Promise.all(
         (leagueMembers || []).map(async (lm: any) => {
           const members = await this.getLeagueMembers(lm.leagues.id);
-                    return {
+          return {
             id: lm.leagues.id,
             name: lm.leagues.name,
             leagueCode: lm.leagues.league_code,
+            ownerId: lm.leagues.owner_id,
             members,
             created_at: lm.leagues.created_at
           };
@@ -439,52 +442,185 @@ const { data, error } = await this.supabase
     }
   }
 
- async createLeague(league: {
-  name: string;
-  leagueCode: string;
-}) {
-  console.log('🔵 API Client: Creating league');
-  try {
-    const { data: { user } } = await this.supabase.auth.getUser();
-    
-    if (!user) {
-      throw new Error('No user found');
+    async getLeagueLeaderboard(leagueId: string, period: 'total' | 'weekly' = 'total') {
+    console.log('🔵 API Client: Fetching league leaderboard');
+    try {
+      const { data: { user } } = await this.supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('No user found');
+      }
+  
+      // Get league members
+      const { data: members, error: membersError } = await this.supabase
+        .from('league_memberships')
+        .select(`
+          user_id,
+            profiles!league_memberships_user_id_fkey (
+            id,
+            username
+          )
+        `)
+        .eq('league_id', leagueId);
+  
+      if (membersError) throw membersError;
+  
+      // Calculate date filter for weekly
+      let dateFilter = null;
+      if (period === 'weekly') {
+        const weekAgo = new Date();
+        weekAgo.setDate(weekAgo.getDate() - 7);
+        dateFilter = weekAgo.toISOString();
+      }
+  
+      // Get workouts for each member
+      const leaderboardData = await Promise.all(
+        (members || []).map(async (member: any) => {
+          let query = this.supabase
+            .from('workouts')
+            .select('duration_min')
+            .eq('user_id', member.user_id);
+          
+          if (dateFilter) {
+            query = query.gte('created_at', dateFilter);
+          }
+  
+          const { data: workouts } = await query;
+          
+          const totalMinutes = workouts?.reduce((sum, w) => sum + (w.duration_min || 0), 0) || 0;
+          const totalHours = totalMinutes / 60;
+  
+          return {
+            userId: member.user_id,
+            name: member.profiles?.username || 'User',
+            totalHours: totalHours,
+            isCurrentUser: member.user_id === user.id
+          };
+        })
+      );
+  
+      // Sort by total hours descending
+      leaderboardData.sort((a, b) => b.totalHours - a.totalHours);
+  
+      // Add ranks
+      const rankedData = leaderboardData.map((item, index) => ({
+        ...item,
+        rank: index + 1
+      }));
+  
+      console.log('✅ Leaderboard fetched:', rankedData);
+      return rankedData;
+    } catch (error) {
+      console.error('❌ Failed to fetch leaderboard:', error);
+      throw error;
     }
-
-    // Create league
-    const { data: newLeague, error: leagueError } = await this.supabase
-      .from('leagues')
-      .insert([
-        {
-          name: league.name,
-          league_code: league.leagueCode,
-          owner_id: user.id,  // ✅ This is required by the RLS policy!
-        },
-      ])
-      .select()
-      .single();
-
-    if (leagueError) throw leagueError;
-
-    // Add creator as member
-    const { error: memberError } = await this.supabase
-      .from('league_memberships')
-      .insert([
-        {
-          league_id: newLeague.id,
-          user_id: user.id,
-        },
-      ]);
-
-    if (memberError) throw memberError;
-
-    console.log('✅ League created:', newLeague);
-    return newLeague;
-  } catch (error) {
-    console.error('❌ Failed to create league:', error);
-    throw error;
   }
-}
+
+  async createLeague(leagueData: {
+    name: string;
+    description?: string;
+    startDate?: string;
+    endDate?: string;
+    isPrivate?: boolean;
+    allowedSports?: string[];
+    allowTeams?: boolean;
+    allowDoubleUp?: boolean;
+    allowBonusHours?: boolean;
+    allowStealthMode?: boolean;
+  }) {
+    console.log('🔵 API Client: Creating league');
+    try {
+      const { data: { user } } = await this.supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('No user found');
+      }
+
+      // Generate league code
+      const leagueCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+      // Create league
+      const { data: newLeague, error: leagueError } = await this.supabase
+        .from('leagues')
+        .insert([
+          {
+            name: leagueData.name,
+            description: leagueData.description,
+            league_code: leagueCode,
+            owner_id: user.id,
+            start_date: leagueData.startDate,
+            end_date: leagueData.endDate,
+            is_private: leagueData.isPrivate || false,
+            allowed_sports: leagueData.allowedSports,
+            allow_teams: leagueData.allowTeams || false,
+            allow_double_up: leagueData.allowDoubleUp || false,
+            allow_bonus_hours: leagueData.allowBonusHours || false,
+            allow_stealth_mode: leagueData.allowStealthMode || false,
+          },
+        ])
+        .select()
+        .single();
+
+      if (leagueError) throw leagueError;
+
+      // Add creator as member
+      const { error: memberError } = await this.supabase
+        .from('league_memberships')
+        .insert([
+          {
+            league_id: newLeague.id,
+            user_id: user.id,
+          },
+        ]);
+
+      if (memberError) throw memberError;
+
+      console.log('✅ League created:', newLeague);
+      return newLeague;
+    } catch (error) {
+      console.error('❌ Failed to create league:', error);
+      throw error;
+    }
+  }
+
+  async joinLeague(leagueCode: string) {
+    console.log('🔵 API Client: Joining league');
+    try {
+      const { data: { user } } = await this.supabase.auth.getUser();
+      
+      if (!user) {
+        throw new Error('No user found');
+      }
+
+      // Find league by code
+      const { data: league, error: findError } = await this.supabase
+        .from('leagues')
+        .select('id')
+        .eq('league_code', leagueCode)
+        .single();
+
+      if (findError) throw findError;
+      if (!league) throw new Error('League not found');
+
+      // Add user as member
+      const { error: joinError } = await this.supabase
+        .from('league_memberships')
+        .insert([
+          {
+            league_id: league.id,
+            user_id: user.id,
+          },
+        ]);
+
+      if (joinError) throw joinError;
+
+      console.log('✅ Joined league');
+      return league;
+    } catch (error) {
+      console.error('❌ Failed to join league:', error);
+      throw error;
+    }
+  }
 
   async getLeagueChat(leagueId: string) {
     console.log('🔵 API Client: Fetching league chat');
@@ -519,6 +655,103 @@ const { data, error } = await this.supabase
       throw error;
     }
   }
+
+async deleteLeague(leagueId: string) {
+  console.log('🔵 API Client: Deleting league');
+  try {
+    const { data: { user } } = await this.supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('No user found');
+    }
+
+    // Delete league (cascading will handle league_memberships)
+    const { error } = await this.supabase
+      .from('leagues')
+      .delete()
+      .eq('id', leagueId)
+      .eq('owner_id', user.id); // Extra safety: only owner can delete
+
+    if (error) throw error;
+
+    console.log('✅ League deleted');
+  } catch (error) {
+    console.error('❌ Failed to delete league:', error);
+    throw error;
+  }
+}
+
+async leaveLeague(leagueId: string) {
+  console.log('🔵 API Client: Leaving league');
+  try {
+    const { data: { user } } = await this.supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('No user found');
+    }
+
+    // Remove user from league_memberships
+    const { error } = await this.supabase
+      .from('league_memberships')
+      .delete()
+      .eq('league_id', leagueId)
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+
+    console.log('✅ Left league');
+  } catch (error) {
+    console.error('❌ Failed to leave league:', error);
+    throw error;
+  }
+}
+
+async getAllVisibleWorkouts() {
+    console.log('🔵 API Client: Fetching all visible workouts');
+    const { data: { user } } = await this.supabase.auth.getUser();
+    try {
+    if (!user) {
+      throw new Error('No user found');
+    }
+
+    // This will get ALL workouts that the RLS policy allows (own + league members)
+    const { data: workouts, error } = await this.supabase
+      .from('workouts')
+      .select(`
+        *,
+        profiles!workouts_user_id_fkey (
+          username,
+          avatar_url
+        )
+      `)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    console.log('✅ All visible workouts fetched:', workouts);
+
+    // Transform to match Activity interface
+    return workouts.map((workout: any) => ({
+      id: workout.id,
+      userId: workout.user_id,
+      userName: workout.profiles?.username || 'User',
+      userAvatar: workout.profiles?.avatar_url || '',
+      sport: workout.type,
+      duration: workout.duration_min,
+      distance: workout.distance_km,
+      time: new Date(workout.created_at).toLocaleString(),
+      date: workout.created_at,
+      notes: workout.notes,
+      photo: workout.photo_url,
+      likes: 0,
+      comments: [],
+      type: 'workout' as const
+    }));
+  } catch (error) {
+    console.error('❌ Failed to fetch workouts:', error);
+    throw error;
+  }
+}
 
   async sendChatMessage(leagueId: string, message: string) {
     console.log('🔵 API Client: Sending chat message');

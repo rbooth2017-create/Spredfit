@@ -1,5 +1,5 @@
 import { memo, useEffect } from "react";
-import { Users, Trophy, ArrowLeft, Check, EyeOff, Star, Share2, Copy, Settings, Trash2 } from "lucide-react";
+import { Users, Trophy, ArrowLeft, Check, EyeOff, Star, Share2, Copy, Settings, Trash2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "../../utils/AppContext";
 import { useAuth } from "../../utils/auth";
@@ -40,6 +40,7 @@ interface League {
   id: string;
   isManager?: boolean;
   code?: string;
+  ownerId?: string;
 }
 
 interface Sport {
@@ -110,25 +111,44 @@ function LeaguesModalComponent({
   setDoubleUpActivated,
   onClose,
 }: LeaguesModalProps) {
-  const { createLeague, refreshLeagues } = useApp();
-  const { accessToken } = useAuth();
+const { createLeague, refreshLeagues } = useApp();
+const { accessToken, profile } = useAuth();
 
-  // Fetch league code when viewing a league
-  useEffect(() => {
-    async function fetchLeagueCode() {
-      if (!selectedLeague || !accessToken || modalStep !== 2) return;
-      
-      try {
-        const api = new APIClient(accessToken);
-        const code = await api.getLeagueCode(selectedLeague.id);
-        console.log('📋 Fetched league code:', code);
-        setSelectedLeague({ ...selectedLeague, code });
-      } catch (error) {
-        console.error('Failed to fetch league code:', error);
+// Fetch league code when viewing a league
+useEffect(() => {
+  if (!selectedLeague || modalStep !== 2) return;
+  
+  // The league code is already available in the userLeagues array
+  const league = userLeagues.find(l => l.id === selectedLeague.id);
+  if (league?.code && !selectedLeague.code) {
+    setSelectedLeague({ ...selectedLeague, code: league.code });
+  }
+}, [selectedLeague?.id, userLeagues, modalStep]);
+
+const handleLeaveLeague = async (leagueId: string) => {
+  if (window.confirm('Are you sure you want to leave this league?')) {
+    try {
+      if (!accessToken) {
+        toast.error('Authentication required');
+        return;
       }
+      
+      const api = new APIClient(accessToken);
+      await api.leaveLeague(leagueId);
+      
+      toast.success('Left League', {
+        description: 'You have left the league',
+      });
+      
+      await refreshLeagues();
+    } catch (error) {
+      console.error('Failed to leave league:', error);
+      toast.error('Failed to leave league', {
+        description: error instanceof Error ? error.message : 'Please try again',
+      });
     }
-    fetchLeagueCode();
-  }, [selectedLeague?.id, accessToken, modalStep]);
+  }
+};
 
   const handleCreateLeague = async () => {
     if (!newLeagueName.trim()) {
@@ -144,7 +164,7 @@ function LeaguesModalComponent({
         stealthMode, 
         doubleUp 
       });
-      
+     
       // Calculate dates based on duration
       const startDate = new Date().toISOString();
       let endDate = new Date();
@@ -233,13 +253,13 @@ function LeaguesModalComponent({
         {/* Step 2: League Details */}
         {modalStep === 2 && selectedLeague && (
           <div className="flex flex-col items-center text-center w-full px-4">
-            <p className="text-white text-sm mb-1">{selectedLeague.name}</p>
-            <p className="text-white/70 text-xs mb-2">Your Rank: #{selectedLeague.rank}</p>
+            <p className="text-white text-[20px] mb-4">{selectedLeague.name}</p>
+            <p className="text-white/70 text-s mb-2">Your Rank: #{selectedLeague.rank}</p>
             {selectedLeague.code && (
-              <p className="text-white/50 text-[10px] mb-4">Code: {selectedLeague.code}</p>
+              <p className="text-white/50 text-[30px] mb-4">Code: {selectedLeague.code}</p>
             )}
             <div className="space-y-2 w-full max-h-44 overflow-y-auto scrollbar-hide mb-4">
-              <p className="text-white/50 text-xs italic">Leaderboard coming soon!</p>
+              
             </div>
             <button
               onClick={() => setModalStep(1)}
@@ -391,7 +411,7 @@ function LeaguesModalComponent({
 
         {/* Step 6: Manage Leagues */}
         {modalStep === 6 && (() => {
-          const managedLeagues = userLeagues.filter(league => league.isManager);
+          const managedLeagues = userLeagues;
           return (
             <div className="flex flex-col items-center text-center w-full h-full p-6">
               <p className="text-white text-sm mb-4 flex-shrink-0">Manage Leagues</p>
@@ -464,46 +484,55 @@ function LeaguesModalComponent({
                         </button>
                         <button
                           onClick={() => {
-                            // TODO: Navigate to Manage Teams screen
                             toast.info('Manage Teams', {
                               description: 'Team management coming soon!',
                             });
                           }}
-                          className="px-3 py-1.5 rounded-full bg-blue-500/20 backdrop-blur-sm text-blue-200 text-[10px] border border-blue-400/30 hover:bg-blue-500/30 transition-all flex items-center gap-1"
+                        className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm text-white text-[10px] border border-white/20 hover:bg-white/20 transition-all flex items-center gap-1"
                         >
                           <Users className="w-3 h-3" strokeWidth={2} />
                           Teams
                         </button>
-                        <button
-                          onClick={async () => {
-                            if (window.confirm(`Are you sure you want to delete "${league.name}"?\n\nThis action cannot be undone.`)) {
-                              try {
-                                if (!accessToken) {
-                                  toast.error('Authentication required');
-                                  return;
+                        {league.ownerId === profile?.id ? (
+                          <button
+                            onClick={async () => {
+                              if (window.confirm(`Are you sure you want to delete "${league.name}"?\n\nThis action cannot be undone.`)) {
+                                try {
+                                  if (!accessToken) {
+                                    toast.error('Authentication required');
+                                    return;
+                                  }
+                                  
+                                  const api = new APIClient(accessToken);
+                                  await api.deleteLeague(league.id);
+                                  
+                                  toast.success('League Deleted', {
+                                    description: `"${league.name}" has been deleted`,
+                                  });
+                                  
+                                  await refreshLeagues();
+                                } catch (error) {
+                                  console.error('Failed to delete league:', error);
+                                  toast.error('Failed to delete league', {
+                                    description: error instanceof Error ? error.message : 'Please try again',
+                                  });
                                 }
-                                
-                                const api = new APIClient(accessToken);
-                                await api.deleteLeague(league.id);
-                                
-                                toast.success('League Deleted', {
-                                  description: `"${league.name}" has been deleted`,
-                                });
-                                
-                                await refreshLeagues();
-                              } catch (error) {
-                                console.error('Failed to delete league:', error);
-                                toast.error('Failed to delete league', {
-                                  description: error instanceof Error ? error.message : 'Please try again',
-                                });
                               }
-                            }
-                          }}
-                          className="px-3 py-1.5 rounded-full bg-red-500/20 backdrop-blur-sm text-red-200 text-[10px] border border-red-400/30 hover:bg-red-500/30 transition-all flex items-center gap-1"
-                        >
-                          <Trash2 className="w-3 h-3" strokeWidth={2} />
-                          Delete
-                        </button>
+                            }}
+                            className="px-3 py-1.5 rounded-full bg-red-500/20 backdrop-blur-sm text-red-200 text-[10px] border border-red-400/30 hover:bg-red-500/30 transition-all flex items-center gap-1"
+                          >
+                            <Trash2 className="w-3 h-3" strokeWidth={2} />
+                            Delete
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleLeaveLeague(league.id)}
+                           className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm text-white text-[10px] border border-white/20 hover:bg-white/20 transition-all flex items-center gap-1"
+                          >
+                            <LogOut className="w-3 h-3" strokeWidth={2} />
+                            Leave
+                          </button>
+                        )}
                       </div>
                     </div>
                   ))

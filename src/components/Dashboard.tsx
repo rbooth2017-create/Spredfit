@@ -202,7 +202,7 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
   console.log('🔍 BEFORE useMemo - leagues:', leagues);
   console.log('🔍 BEFORE useMemo - profile:', profile);
 
-  const userLeagues = useMemo(() => {
+    const userLeagues = useMemo(() => {
     const currentUserId = profile?.id;
     
     return leagues.map((league, index) => ({
@@ -211,7 +211,8 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
       totalMembers: league.members?.length || 0,
       id: league.id,
       isManager: league.createdBy === currentUserId,
-      code: league.leagueCode
+      code: league.leagueCode,
+      ownerId: league.ownerId  // ADD THIS LINE
     }));
   }, [leagues, profile]);
   
@@ -416,7 +417,7 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
       }
       try {
         const api = new APIClient(accessToken);
-        const workouts = await api.getUserWorkouts();
+        const workouts = await api.getAllVisibleWorkouts();
         // Transform activities to show first names only
         const transformedActivities = transformActivityUserNames(workouts);
         setActivities(transformedActivities);
@@ -535,7 +536,7 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
       // Reload activities
       if (accessToken) {
         const api = new APIClient(accessToken);
-        const workouts = await api.getUserWorkouts();
+        const workouts = await api.getAllVisibleWorkouts();
         const transformedActivities = transformActivityUserNames(workouts);
         setActivities(transformedActivities);
       }
@@ -706,7 +707,7 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
                 await api.updateWorkout(workoutId, data);
                 
                 // Refresh activities list
-                const workouts = await api.getUserWorkouts();
+                const workouts = await api.getAllVisibleWorkouts();
                 const transformedActivities = transformActivityUserNames(workouts);
                 setActivities(transformedActivities);
                 
@@ -862,7 +863,7 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
                   await api.deleteWorkout(activityId);
                   
                   // Refresh activities list
-                  const workouts = await api.getUserWorkouts();
+                  const workouts = await api.getAllVisibleWorkouts();
                   const transformedActivities = transformActivityUserNames(workouts);
                   setActivities(transformedActivities);
                   
