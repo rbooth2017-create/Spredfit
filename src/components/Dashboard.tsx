@@ -4,9 +4,25 @@ import { useApp } from "../utils/AppContext";
 import { useDashboardState } from "../hooks/useDashboardState";
 import { APIClient } from "../utils/api";
 import { toast } from "sonner";
-import { PersonStanding, Bike, Waves, Dumbbell, Heart, Zap, Users, MoreHorizontal, Activity, Trophy } from "lucide-react";
+import {
+  PersonStanding,
+  Bike,
+  Waves,
+  Dumbbell,
+  Heart,
+  Zap,
+  Users,
+  MoreHorizontal,
+  Activity,
+  Trophy,
+} from "lucide-react";
 import { AnimatedBackground } from "./dashboard/AnimatedBackground";
-import { DashboardHeader, ActivityCarousel, MainActionCards, NavigationSidebar } from "./dashboard/DashboardUI";
+import {
+  DashboardHeader,
+  ActivityCarousel,
+  MainActionCards,
+  NavigationSidebar,
+} from "./dashboard/DashboardUI";
 import { WorkoutPhotoModal } from "./dashboard/WorkoutPhotoModal";
 import { ExternalModalButtons } from "./dashboard/ExternalModalButtons";
 import { PlannedWorkoutCircle } from "./dashboard/PlannedWorkoutCircle";
@@ -24,14 +40,16 @@ import { LeaguesModal } from "./dashboard-modals/LeaguesModal";
 import { ProfileModal } from "./dashboard-modals/ProfileModal";
 import { SettingsModal } from "./dashboard-modals/SettingsModal";
 import { MetricsModal } from "./dashboard-modals/MetricsModal";
-import { ActivityFeedModal, ActivityFeedExternalButtons } from "./dashboard-modals/ActivityFeedModal";
+import {
+  ActivityFeedModal,
+  ActivityFeedExternalButtons,
+} from "./dashboard-modals/ActivityFeedModal";
 import { ActivityDetailModal } from "./dashboard-modals/ActivityDetailModal";
 import { ChatModal } from "./dashboard-modals/ChatModal";
 import { TrainingPlansModal } from "./dashboard-modals/TrainingPlansModal";
 import { CoffeeModal } from "./dashboard-modals/CoffeeModal";
 import { TodaysActivityModal } from "./dashboard-modals/TodaysActivityModal";
 import { PlannedWorkoutDetailModal } from "./dashboard-modals/PlannedWorkoutDetailModal";
-
 
 // Dashboard Component - Main application view
 interface DashboardProps {
@@ -54,14 +72,35 @@ const trainingPlan = {
   name: "Marathon Prep",
   completed: 7,
   total: 12,
-  nextWorkout: "Long Run"
+  nextWorkout: "Long Run",
 };
 
-export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagues, onProfile, onSignOut, onActivityFeed, onTrainingPlans, onChat, onDealFinder, onBrandedStore, isLoginBackground }: DashboardProps) {
+export function Dashboard({
+  onLogWorkout,
+  onStartWorkout,
+  onLeaderboard,
+  onLeagues,
+  onProfile,
+  onSignOut,
+  onActivityFeed,
+  onTrainingPlans,
+  onChat,
+  onDealFinder,
+  onBrandedStore,
+  isLoginBackground,
+}: DashboardProps) {
   const { accessToken, justSignedUp, clearJustSignedUp, user } = useAuth();
-  const { leagues, profile, currentLeague, refreshLeagues, refreshProfile, createWorkout, refreshTrigger } = useApp();
-    const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
-  
+  const {
+    leagues,
+    profile,
+    currentLeague,
+    refreshLeagues,
+    refreshProfile,
+    createWorkout,
+    refreshTrigger,
+  } = useApp();
+  const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
+
   // Tutorial state - show if user just signed up
   const [showTutorial, setShowTutorial] = useState(false);
 
@@ -71,124 +110,203 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
       setShowTutorial(true);
     }
   }, [justSignedUp]);
-  
+
   // ✅ USE THE CUSTOM HOOK - All state in one place!
   const state = useDashboardState();
-  
+
   // ✅ Destructure for easier use (backward compatibility)
   const {
     // Modal
-    activeModal, openModal, closeModal, setActiveModal,
-    achievementIndex, setAchievementIndex,
-    leagueIndex, setLeagueIndex,
-    modalStep, setModalStep,
-    
+    activeModal,
+    openModal,
+    closeModal,
+    setActiveModal,
+    achievementIndex,
+    setAchievementIndex,
+    leagueIndex,
+    setLeagueIndex,
+    modalStep,
+    setModalStep,
+
     // PWA Install
-    deferredPrompt, setDeferredPrompt,
-    showInstallButton, setShowInstallButton,
-    
+    deferredPrompt,
+    setDeferredPrompt,
+    showInstallButton,
+    setShowInstallButton,
+
     // Coffee menu
-    showCoffeeMenu, setShowCoffeeMenu,
-    
+    showCoffeeMenu,
+    setShowCoffeeMenu,
+
     // Activity
-    selectedActivity, setSelectedActivity,
-    commentText, setCommentText,
-    activities, setActivities,
-    activityFilter, setActivityFilter,
-    
+    selectedActivity,
+    setSelectedActivity,
+    commentText,
+    setCommentText,
+    activities,
+    setActivities,
+    activityFilter,
+    setActivityFilter,
+
     // Settings
-    settingsScreen, setSettingsScreen,
-    userName, setUserName,
-    userEmail, setUserEmail,
-    notificationsEnabled, setNotificationsEnabled,
-    privateProfile, setPrivateProfile,
-    distanceUnit, setDistanceUnit,
-    weightUnit, setWeightUnit,
-    connectedApps, setConnectedApps,
-    
+    settingsScreen,
+    setSettingsScreen,
+    userName,
+    setUserName,
+    userEmail,
+    setUserEmail,
+    notificationsEnabled,
+    setNotificationsEnabled,
+    privateProfile,
+    setPrivateProfile,
+    distanceUnit,
+    setDistanceUnit,
+    weightUnit,
+    setWeightUnit,
+    connectedApps,
+    setConnectedApps,
+
     // Profile
-    profileScreen, setProfileScreen,
-    selectedPhotoFile, setSelectedPhotoFile,
-    isUploadingPhoto, setIsUploadingPhoto,
-    
+    profileScreen,
+    setProfileScreen,
+    selectedPhotoFile,
+    setSelectedPhotoFile,
+    isUploadingPhoto,
+    setIsUploadingPhoto,
+
     // Leagues
-    selectedLeague, setSelectedLeague,
-    newLeagueName, setNewLeagueName,
-    joinLeagueCode, setJoinLeagueCode,
-    createdLeagueCode, setCreatedLeagueCode,
-    allowTeams, setAllowTeams,
-    isPrivate, setIsPrivate,
-    stealthMode, setStealthMode,
-    doubleUp, setDoubleUp,
-    duration, setDuration,
-    selectedLeagueSports, setSelectedLeagueSports,
-    stealthActivated, setStealthActivated,
-    doubleUpActivated, setDoubleUpActivated,
-    
+    selectedLeague,
+    setSelectedLeague,
+    newLeagueName,
+    setNewLeagueName,
+    joinLeagueCode,
+    setJoinLeagueCode,
+    createdLeagueCode,
+    setCreatedLeagueCode,
+    allowTeams,
+    setAllowTeams,
+    isPrivate,
+    setIsPrivate,
+    stealthMode,
+    setStealthMode,
+    doubleUp,
+    setDoubleUp,
+    duration,
+    setDuration,
+    selectedLeagueSports,
+    setSelectedLeagueSports,
+    stealthActivated,
+    setStealthActivated,
+    doubleUpActivated,
+    setDoubleUpActivated,
+
     // Leaderboard
-    leaderboardView, setLeaderboardView,
-    leaderboardPeriod, setLeaderboardPeriod,
-    
+    leaderboardView,
+    setLeaderboardView,
+    leaderboardPeriod,
+    setLeaderboardPeriod,
+
     // Chat
-    chatFilter, setChatFilter,
-    selectedChat, setSelectedChat,
-    messageText, setMessageText,
-    leagueChats, setLeagueChats,
-    chatMessages, setChatMessages,
-    
+    chatFilter,
+    setChatFilter,
+    selectedChat,
+    setSelectedChat,
+    messageText,
+    setMessageText,
+    leagueChats,
+    setLeagueChats,
+    chatMessages,
+    setChatMessages,
+
     // Workout - Log
-    selectedSport, setSelectedSport,
-    logDistance, setLogDistance,
-    logHours, setLogHours,
-    logMinutes, setLogMinutes,
-    logNotes, setLogNotes,
-    workoutPhoto, setWorkoutPhoto,
-    showPhotoUpload, setShowPhotoUpload,
-    
+    selectedSport,
+    setSelectedSport,
+    logDistance,
+    setLogDistance,
+    logHours,
+    setLogHours,
+    logMinutes,
+    setLogMinutes,
+    logNotes,
+    setLogNotes,
+    workoutPhoto,
+    setWorkoutPhoto,
+    showPhotoUpload,
+    setShowPhotoUpload,
+
     // Workout - Active
-    isWorkoutRunning, setIsWorkoutRunning,
-    workoutTime, setWorkoutTime,
-    workoutDistance, setWorkoutDistance,
-    gpsSearching, setGpsSearching,
-    gpsConnected, setGpsConnected,
-    recordedDistance, setRecordedDistance,
-    recordedPace, setRecordedPace,
-    
+    isWorkoutRunning,
+    setIsWorkoutRunning,
+    workoutTime,
+    setWorkoutTime,
+    workoutDistance,
+    setWorkoutDistance,
+    gpsSearching,
+    setGpsSearching,
+    gpsConnected,
+    setGpsConnected,
+    recordedDistance,
+    setRecordedDistance,
+    recordedPace,
+    setRecordedPace,
+
     // Lock screen
-    showLockScreen, setShowLockScreen,
-    isLocked, setIsLocked,
-    slidePosition, setSlidePosition,
-    isDragging, setIsDragging,
-    
+    showLockScreen,
+    setShowLockScreen,
+    isLocked,
+    setIsLocked,
+    slidePosition,
+    setSlidePosition,
+    isDragging,
+    setIsDragging,
+
     // Training Plans
-    showPlanPrompt, setShowPlanPrompt,
-    planPrompt, setPlanPrompt,
-    hasGeneratedPlan, setHasGeneratedPlan,
-    planAge, setPlanAge,
-    planFitness, setPlanFitness,
-    planTimePerWeek, setPlanTimePerWeek,
-    planGoals, setPlanGoals,
-    planInjuries, setPlanInjuries,
-    
+    showPlanPrompt,
+    setShowPlanPrompt,
+    planPrompt,
+    setPlanPrompt,
+    hasGeneratedPlan,
+    setHasGeneratedPlan,
+    planAge,
+    setPlanAge,
+    planFitness,
+    setPlanFitness,
+    planTimePerWeek,
+    setPlanTimePerWeek,
+    planGoals,
+    setPlanGoals,
+    planInjuries,
+    setPlanInjuries,
+
     // Manual workout creation
-    manualWorkoutStep, setManualWorkoutStep,
-    manualWorkoutSport, setManualWorkoutSport,
-    manualWorkoutDistance, setManualWorkoutDistance,
-    manualWorkoutHours, setManualWorkoutHours,
-    manualWorkoutMinutes, setManualWorkoutMinutes,
-    manualWorkoutNotes, setManualWorkoutNotes,
-    
+    manualWorkoutStep,
+    setManualWorkoutStep,
+    manualWorkoutSport,
+    setManualWorkoutSport,
+    manualWorkoutDistance,
+    setManualWorkoutDistance,
+    manualWorkoutHours,
+    setManualWorkoutHours,
+    manualWorkoutMinutes,
+    setManualWorkoutMinutes,
+    manualWorkoutNotes,
+    setManualWorkoutNotes,
+
     // Planned workout
-    plannedWorkout, setPlannedWorkout,
-    
+    plannedWorkout,
+    setPlannedWorkout,
+
     // Carousel
-    currentCarouselIndex, setCurrentCarouselIndex,
-    
+    currentCarouselIndex,
+    setCurrentCarouselIndex,
+
     // UI toggle
-    hideUtilityButtons, setHideUtilityButtons,
-    animationsPaused, setAnimationsPaused,
+    hideUtilityButtons,
+    setHideUtilityButtons,
+    animationsPaused,
+    setAnimationsPaused,
   } = state;
-  
+
   // Refs that aren't in the hook
   const sliderRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -196,15 +314,16 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
   // GPS tracking state
   const [gpsWatchId, setGpsWatchId] = useState<number | null>(null);
   const [gpsPositions, setGpsPositions] = useState<GeolocationPosition[]>([]);
-  const [lastPosition, setLastPosition] = useState<GeolocationPosition | null>(null);
+  const [lastPosition, setLastPosition] =
+    useState<GeolocationPosition | null>(null);
 
   // League states (using leagues from context)
-  console.log('🔍 BEFORE useMemo - leagues:', leagues);
-  console.log('🔍 BEFORE useMemo - profile:', profile);
+  console.log("🔍 BEFORE useMemo - leagues:", leagues);
+  console.log("🔍 BEFORE useMemo - profile:", profile);
 
-    const userLeagues = useMemo(() => {
+  const userLeagues = useMemo(() => {
     const currentUserId = profile?.id;
-    
+
     return leagues.map((league, index) => ({
       name: league.name,
       rank: index + 1,
@@ -212,53 +331,64 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
       id: league.id,
       isManager: league.createdBy === currentUserId,
       code: league.leagueCode,
-      ownerId: league.ownerId  // ADD THIS LINE
+      ownerId: league.ownerId, // ADD THIS LINE
     }));
   }, [leagues, profile]);
-  
+
   // Available sports
-  const sports = useMemo(() => [
-    { name: 'Running', icon: PersonStanding },
-    { name: 'Cycling', icon: Bike },
-    { name: 'Swimming', icon: Waves },
-    { name: 'Strength', icon: Dumbbell },
-    { name: 'Yoga', icon: Heart },
-    { name: 'HIIT', icon: Zap },
-    { name: 'Team Sports', icon: Users },
-    { name: 'Other', icon: MoreHorizontal },
-  ], []);
+  const sports = useMemo(
+    () => [
+      { name: "Running", icon: PersonStanding },
+      { name: "Cycling", icon: Bike },
+      { name: "Swimming", icon: Waves },
+      { name: "Strength", icon: Dumbbell },
+      { name: "Yoga", icon: Heart },
+      { name: "HIIT", icon: Zap },
+      { name: "Team Sports", icon: Users },
+      { name: "Other", icon: MoreHorizontal },
+    ],
+    []
+  );
 
   // Calculate distance between two GPS coordinates (Haversine formula)
-  const calculateDistance = (lat1: number, lon1: number, lat2: number, lon2: number): number => {
+  const calculateDistance = (
+    lat1: number,
+    lon1: number,
+    lat2: number,
+    lon2: number
+  ): number => {
     const R = 6371; // Earth's radius in km
-    const dLat = (lat2 - lat1) * Math.PI / 180;
-    const dLon = (lon2 - lon1) * Math.PI / 180;
-    const a = 
-      Math.sin(dLat/2) * Math.sin(dLat/2) +
-      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-      Math.sin(dLon/2) * Math.sin(dLon/2);
-    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLon = ((lon2 - lon1) * Math.PI) / 180;
+    const a =
+      Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+      Math.cos((lat1 * Math.PI) / 180) *
+        Math.cos((lat2 * Math.PI) / 180) *
+        Math.sin(dLon / 2) *
+        Math.sin(dLon / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
     return R * c;
   };
 
   // Transform activities to use display names instead of emails
   const transformActivityUserNames = (activities: any[]) => {
-    return activities.map(activity => {
+    return activities.map((activity) => {
       // If the userName contains @, it's an email - extract first part
-      if (activity.userName?.includes('@')) {
-        const emailPrefix = activity.userName.split('@')[0];
+      if (activity.userName?.includes("@")) {
+        const emailPrefix = activity.userName.split("@")[0];
         // Remove numbers and special characters, capitalize first letter
-        const cleanName = emailPrefix.replace(/[0-9._-]/g, '');
+        const cleanName = emailPrefix.replace(/[0-9._-]/g, "");
         return {
           ...activity,
-          userName: cleanName.charAt(0).toUpperCase() + cleanName.slice(1)
+          userName:
+            cleanName.charAt(0).toUpperCase() + cleanName.slice(1),
         };
       }
       // If it's a full name, extract just the first name
-      if (activity.userName?.includes(' ')) {
+      if (activity.userName?.includes(" ")) {
         return {
           ...activity,
-          userName: activity.userName.split(' ')[0]
+          userName: activity.userName.split(" ")[0],
         };
       }
       // Otherwise return as-is
@@ -266,32 +396,51 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
     });
   };
 
+  // Normalize workout photos so the UI always gets `photo`
+  const normalizeWorkoutPhotos = (items: any[]) => {
+    return items.map((item) => ({
+      ...item,
+      photo:
+        item.photo ||
+        item.photo_url ||
+        (item.type
+          ? `/workouts/workout-${item.type.toLowerCase()}.png`
+          : undefined),
+    }));
+  };
+
   // GPS tracking effect
   useEffect(() => {
     if (gpsSearching && modalStep === 2) {
-      console.log('📍 Starting GPS search...');
-      
-      if ('geolocation' in navigator) {
+      console.log("📍 Starting GPS search...");
+
+      if ("geolocation" in navigator) {
         // First, explicitly request permission
-        if ('permissions' in navigator) {
-          navigator.permissions.query({ name: 'geolocation' }).then((result) => {
-            console.log('📍 Geolocation permission status:', result.state);
-            
-            if (result.state === 'denied') {
-              toast.error('Location Access Denied', {
-                description: 'Please enable location in your browser settings',
-                duration: 5000
-              });
-              setGpsSearching(false);
-              setGpsConnected(false);
-              setModalStep(3);
-              return;
-            }
-          });
+        if ("permissions" in navigator) {
+          navigator.permissions
+            .query({ name: "geolocation" })
+            .then((result) => {
+              console.log(
+                "📍 Geolocation permission status:",
+                result.state
+              );
+
+              if (result.state === "denied") {
+                toast.error("Location Access Denied", {
+                  description:
+                    "Please enable location in your browser settings",
+                  duration: 5000,
+                });
+                setGpsSearching(false);
+                setGpsConnected(false);
+                setModalStep(3);
+                return;
+              }
+            });
         }
-  
+
         let hasConnected = false;
-        
+
         // Minimum 2 second search animation
         const minSearchTimer = setTimeout(() => {
           if (hasConnected) {
@@ -299,44 +448,51 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
             setModalStep(3);
           }
         }, 2000);
-  
+
         // Request current position first to trigger permission prompt
         navigator.geolocation.getCurrentPosition(
           (position) => {
-            console.log('📍 Initial GPS position received:', position);
-            
+            console.log("📍 Initial GPS position received:", position);
+
             if (!hasConnected) {
               hasConnected = true;
               setGpsPositions([position]);
               setLastPosition(position);
               setGpsConnected(true);
-              
-              console.log('📍 GPS connected, waiting for minimum search time...');
-              
-              toast.success('GPS Connected!', {
-                description: `Accuracy: ${position.coords.accuracy.toFixed(0)}m`
+
+              console.log(
+                "📍 GPS connected, waiting for minimum search time..."
+              );
+
+              toast.success("GPS Connected!", {
+                description: `Accuracy: ${position.coords.accuracy.toFixed(
+                  0
+                )}m`,
               });
             }
           },
           (error) => {
-            console.error('❌ GPS error:', error);
+            console.error("❌ GPS error:", error);
             clearTimeout(minSearchTimer);
-            
-            let errorMessage = 'Unable to access location';
-            let errorTitle = 'GPS Unavailable';
-            
+
+            let errorMessage = "Unable to access location";
+            let errorTitle = "GPS Unavailable";
+
             if (error.code === 1) {
-              errorTitle = 'Location Permission Denied';
-              errorMessage = 'Please enable location access in your device settings';
+              errorTitle = "Location Permission Denied";
+              errorMessage =
+                "Please enable location access in your device settings";
             } else if (error.code === 2) {
-              errorMessage = 'Location unavailable - make sure GPS is enabled';
+              errorMessage =
+                "Location unavailable - make sure GPS is enabled";
             } else if (error.code === 3) {
-              errorMessage = 'Location request timeout - try again';
+              errorMessage =
+                "Location request timeout - try again";
             }
-            
+
             toast.error(errorTitle, {
               description: errorMessage,
-              duration: 5000
+              duration: 5000,
             });
             setGpsSearching(false);
             setGpsConnected(false);
@@ -345,51 +501,55 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
           {
             enableHighAccuracy: true,
             timeout: 15000,
-            maximumAge: 0
+            maximumAge: 0,
           }
         );
-  
+
         // Then start continuous watching
         const watchId = navigator.geolocation.watchPosition(
           (position) => {
-            console.log('📍 GPS position update:', position);
-            
+            console.log("📍 GPS position update:", position);
+
             if (!hasConnected) {
               hasConnected = true;
               setGpsPositions([position]);
               setLastPosition(position);
               setGpsConnected(true);
-              
-              console.log('📍 GPS connected, waiting for minimum search time...');
-              
-              toast.success('GPS Connected!', {
-                description: `Accuracy: ${position.coords.accuracy.toFixed(0)}m`
+
+              console.log(
+                "📍 GPS connected, waiting for minimum search time..."
+              );
+
+              toast.success("GPS Connected!", {
+                description: `Accuracy: ${position.coords.accuracy.toFixed(
+                  0
+                )}m`,
               });
             } else {
-              setGpsPositions(prev => [...prev, position]);
+              setGpsPositions((prev) => [...prev, position]);
             }
           },
           (error) => {
-            console.error('❌ GPS watch error:', error);
+            console.error("❌ GPS watch error:", error);
           },
           {
             enableHighAccuracy: true,
             timeout: 15000,
-            maximumAge: 0
+            maximumAge: 0,
           }
         );
         setGpsWatchId(watchId);
-  
+
         return () => {
           clearTimeout(minSearchTimer);
         };
       } else {
-        toast.error('GPS not supported on this device');
+        toast.error("GPS not supported on this device");
         setGpsSearching(false);
         setModalStep(3);
       }
     }
-  
+
     return () => {
       if (gpsWatchId !== null) {
         navigator.geolocation.clearWatch(gpsWatchId);
@@ -404,10 +564,12 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
       const paceMinutes = (workoutTime / 60) / recordedDistance;
       const minutes = Math.floor(paceMinutes);
       const seconds = Math.floor((paceMinutes - minutes) * 60);
-      setRecordedPace(`${minutes}:${seconds.toString().padStart(2, '0')}`);
+      setRecordedPace(
+        `${minutes}:${seconds.toString().padStart(2, "0")}`
+      );
     }
   }, [workoutTime, recordedDistance, setRecordedPace]);
-  
+
   // Load activities when component mounts or when a workout is created
   useEffect(() => {
     async function loadActivities() {
@@ -418,17 +580,18 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
       try {
         const api = new APIClient(accessToken);
         const workouts = await api.getAllVisibleWorkouts();
-        // Transform activities to show first names only
-        const transformedActivities = transformActivityUserNames(workouts);
+        const withPhotos = normalizeWorkoutPhotos(workouts);
+        const transformedActivities =
+          transformActivityUserNames(withPhotos);
         setActivities(transformedActivities);
       } catch (error) {
-        console.error('Failed to load workouts:', error);
+        console.error("Failed to load workouts:", error);
         setActivities([]);
       }
     }
     loadActivities();
   }, [accessToken, setActivities, refreshTrigger]);
-  
+
   // Load chat when league changes
   useEffect(() => {
     async function loadChat() {
@@ -441,47 +604,53 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
         const data = await api.getLeagueChat(currentLeague.id);
         setChatMessages(data);
       } catch (error) {
-        console.error('Failed to load chat:', error);
+        console.error("Failed to load chat:", error);
         setChatMessages([]);
       }
     }
     loadChat();
   }, [currentLeague, accessToken, setChatMessages]);
 
-    // Use leagues as chat list
+  // Use leagues as chat list
   useEffect(() => {
-    setLeagueChats(leagues.map(league => ({
-      id: league.id,
-      name: league.name,
-      lastMessage: '',
-      time: '',
-      unread: 0
-    })));
+    setLeagueChats(
+      leagues.map((league) => ({
+        id: league.id,
+        name: league.name,
+        lastMessage: "",
+        time: "",
+        unread: 0,
+      }))
+    );
   }, [leagues, setLeagueChats]);
 
   // Reset profile screen when opening profile modal
   useEffect(() => {
-    if (activeModal === 'profile') {
-      setProfileScreen('view');
+    if (activeModal === "profile") {
+      setProfileScreen("view");
       setSelectedPhotoFile(null);
     }
   }, [activeModal, setProfileScreen, setSelectedPhotoFile]);
-  
+
   // Reset editing state when modal closes
   useEffect(() => {
     if (!activeModal) {
       setEditingWorkoutId(null);
     }
   }, [activeModal]);
-  
+
   const teamChats: any[] = [];
 
   // ✅ Use custom hooks for handlers and timers
   const handlers = useDashboardHandlers(state);
-  useWorkoutTimer(state, {
-    handleSlideMove: (e, ref) => handlers.handleSlideMove(e, ref),
-    handleSlideEnd: handlers.handleSlideEnd
-  }, sliderRef);
+  useWorkoutTimer(
+    state,
+    {
+      handleSlideMove: (e, ref) => handlers.handleSlideMove(e, ref),
+      handleSlideEnd: handlers.handleSlideEnd,
+    },
+    sliderRef
+  );
   // Destructure handlers for easy access
   const {
     handleFileSelect,
@@ -498,13 +667,13 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
   // Override handleCompleteWorkout to save to Supabase
   const handleCompleteWorkout = async () => {
     if (!user || !selectedSport) {
-      toast.error('Cannot save workout');
+      toast.error("Cannot save workout");
       return;
     }
 
     try {
-      console.log('💾 Saving workout to Supabase...');
-      
+      console.log("💾 Saving workout to Supabase...");
+
       // Stop GPS tracking
       if (gpsWatchId !== null) {
         navigator.geolocation.clearWatch(gpsWatchId);
@@ -520,41 +689,47 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
         duration: Math.floor(workoutTime / 60), // Convert seconds to minutes
         distance: gpsConnected ? recordedDistance : 0,
         date: new Date().toISOString(),
-        notes: gpsConnected ? `GPS tracked: ${gpsPositions.length} points` : 'Indoor workout',
+        notes: gpsConnected
+          ? `GPS tracked: ${gpsPositions.length} points`
+          : "Indoor workout",
+        photo_url: `/workouts/workout-${selectedSport.toLowerCase()}.png`,
       });
 
-      toast.success('Workout Saved!', {
+      toast.success("Workout Saved!", {
         description: `${selectedSport} - ${formatTime(workoutTime)}`,
       });
 
       // Move to review step
       setModalStep(4);
-      
+
       // Refresh profile and activities
       await refreshProfile();
-      
+
       // Reload activities
       if (accessToken) {
         const api = new APIClient(accessToken);
         const workouts = await api.getAllVisibleWorkouts();
-        const transformedActivities = transformActivityUserNames(workouts);
+        const withPhotos = normalizeWorkoutPhotos(workouts);
+        const transformedActivities =
+          transformActivityUserNames(withPhotos);
         setActivities(transformedActivities);
       }
     } catch (error) {
-      console.error('❌ Failed to save workout:', error);
-      toast.error('Failed to save workout', {
-        description: error instanceof Error ? error.message : 'Please try again',
+      console.error("❌ Failed to save workout:", error);
+      toast.error("Failed to save workout", {
+        description:
+          error instanceof Error ? error.message : "Please try again",
       });
     }
   };
 
   // Reset GPS data when modal closes
   useEffect(() => {
-    if (activeModal !== 'start') {
+    if (activeModal !== "start") {
       setGpsPositions([]);
       setLastPosition(null);
       setRecordedDistance(0);
-      setRecordedPace('0:00');
+      setRecordedPace("0:00");
       if (gpsWatchId !== null) {
         navigator.geolocation.clearWatch(gpsWatchId);
         setGpsWatchId(null);
@@ -565,29 +740,36 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
   // Create cover flow items from league activities
   const getSportIcon = (sport?: string) => {
     switch (sport) {
-      case 'Running': return Activity;
-      case 'Cycling': return Bike;
-      case 'Swimming': return Waves;
-      case 'Strength': return Dumbbell;
-      case 'Yoga': return Heart;
-      case 'HIIT': return Zap;
-      default: return Trophy;
+      case "Running":
+        return Activity;
+      case "Cycling":
+        return Bike;
+      case "Swimming":
+        return Waves;
+      case "Strength":
+        return Dumbbell;
+      case "Yoga":
+        return Heart;
+      case "HIIT":
+        return Zap;
+      default:
+        return Trophy;
     }
   };
-  
+
   return (
     <div className="h-screen w-full overflow-hidden relative">
       {/* Animated Background */}
       <AnimatedBackground animationsPaused={animationsPaused} />
-      
+
       {/* Main Content - Constrained max width for desktop */}
       <div className="relative h-full flex flex-col px-4 pt-6 max-w-[440px] mx-auto">
         {/* Header Component - Smooth fade and slide animation when hiding */}
-        <div 
+        <div
           className={`pointer-events-auto transition-all duration-500 ease-in-out ${
-            hideUtilityButtons 
-              ? 'opacity-0 -translate-y-8 pointer-events-none' 
-              : 'opacity-100 translate-y-0'
+            hideUtilityButtons
+              ? "opacity-0 -translate-y-8 pointer-events-none"
+              : "opacity-100 translate-y-0"
           }`}
         >
           <DashboardHeader onModalOpen={setActiveModal} />
@@ -600,7 +782,7 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
         currentLeague={currentLeague}
         onActivityClick={(activity) => {
           setSelectedActivity(activity);
-          setActiveModal('activityDetail');
+          setActiveModal("activityDetail");
         }}
         getSportIcon={getSportIcon}
         isExpanded={hideUtilityButtons}
@@ -608,35 +790,40 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
 
       {/* Main Action Cards Component - Hide when modal is open OR when used as login background */}
       {!activeModal && !isLoginBackground && (
-        <MainActionCards onModalOpen={(modal) => {
-          console.log('🎯 Opening modal:', modal);
-          setActiveModal(modal);
-          if (modal === 'leaderboard' || modal === 'leagues') {
-            setModalStep(1);
-          }
-        }} />
+        <MainActionCards
+          onModalOpen={(modal) => {
+            console.log("🎯 Opening modal:", modal);
+            setActiveModal(modal);
+            if (modal === "leaderboard" || modal === "leagues") {
+              setModalStep(1);
+            }
+          }}
+        />
       )}
 
       {/* Navigation Sidebar - Vertical stack on right side - Hide when modal is open OR when used as login background */}
       {!activeModal && !isLoginBackground && (
-        <NavigationSidebar 
+        <NavigationSidebar
           onModalOpen={(modal) => {
-            console.log('🎯 Opening modal from sidebar:', modal);
+            console.log("🎯 Opening modal from sidebar:", modal);
             setActiveModal(modal);
-          }} 
+          }}
           hideButtons={hideUtilityButtons}
         />
       )}
 
       {/* Circular Pop-up Modals */}
       {activeModal && (
-        <div 
+        <div
           className="fixed inset-0 z-50 flex items-start pt-16 justify-center bg-black/60 backdrop-blur-sm"
           onClick={closeModal}
         >
-          <div className="relative" onClick={(e) => e.stopPropagation()}>
+          <div
+            className="relative"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Start Workout Modal */}
-            {activeModal === 'start' && (
+            {activeModal === "start" && (
               <StartWorkoutModal
                 modalStep={modalStep}
                 setModalStep={setModalStep}
@@ -669,61 +856,60 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
             )}
 
             {/* About Modal */}
-            {activeModal === 'about' && (
-              <AboutModal
+            {activeModal === "about" && <AboutModal onClose={closeModal} />}
+
+            {/* Log Workout Modal */}
+            {activeModal === "log" && (
+              <LogWorkoutModal
+                modalStep={modalStep}
+                setModalStep={setModalStep}
+                sports={sports}
+                selectedSport={selectedSport}
+                setSelectedSport={setSelectedSport}
+                logDistance={logDistance}
+                setLogDistance={setLogDistance}
+                logHours={logHours}
+                setLogHours={setLogHours}
+                logMinutes={logMinutes}
+                setLogMinutes={setLogMinutes}
+                logNotes={logNotes}
+                setLogNotes={setLogNotes}
+                workoutPhoto={workoutPhoto}
+                setWorkoutPhoto={setWorkoutPhoto}
+                showPhotoUpload={showPhotoUpload}
+                setShowPhotoUpload={setShowPhotoUpload}
+                fileInputRef={fileInputRef}
+                handleFileSelect={handleFileSelect}
+                editingWorkoutId={editingWorkoutId}
+                onUpdate={async (workoutId, data) => {
+                  if (!accessToken) {
+                    toast.error("Not authenticated");
+                    return;
+                  }
+                  const api = new APIClient(accessToken);
+                  await api.updateWorkout(workoutId, data);
+
+                  // Refresh activities list
+                  const workouts = await api.getAllVisibleWorkouts();
+                  const withPhotos =
+                    normalizeWorkoutPhotos(workouts);
+                  const transformedActivities =
+                    transformActivityUserNames(withPhotos);
+                  setActivities(transformedActivities);
+
+                  // Refresh profile
+                  await refreshProfile();
+
+                  setEditingWorkoutId(null);
+                  toast.success("Workout updated!");
+                  closeModal();
+                }}
                 onClose={closeModal}
               />
             )}
 
-                     {/* Log Workout Modal */}
-          {activeModal === 'log' && (
-            <LogWorkoutModal
-              modalStep={modalStep}
-              setModalStep={setModalStep}
-              sports={sports}
-              selectedSport={selectedSport}
-              setSelectedSport={setSelectedSport}
-              logDistance={logDistance}
-              setLogDistance={setLogDistance}
-              logHours={logHours}
-              setLogHours={setLogHours}
-              logMinutes={logMinutes}
-              setLogMinutes={setLogMinutes}
-              logNotes={logNotes}
-              setLogNotes={setLogNotes}
-              workoutPhoto={workoutPhoto}
-              setWorkoutPhoto={setWorkoutPhoto}
-              showPhotoUpload={showPhotoUpload}
-              setShowPhotoUpload={setShowPhotoUpload}
-              fileInputRef={fileInputRef}
-              handleFileSelect={handleFileSelect}
-              editingWorkoutId={editingWorkoutId}
-              onUpdate={async (workoutId, data) => {
-                if (!accessToken) {
-                  toast.error('Not authenticated');
-                  return;
-                }
-                const api = new APIClient(accessToken);
-                await api.updateWorkout(workoutId, data);
-                
-                // Refresh activities list
-                const workouts = await api.getAllVisibleWorkouts();
-                const transformedActivities = transformActivityUserNames(workouts);
-                setActivities(transformedActivities);
-                
-                // Refresh profile
-                await refreshProfile();
-                
-                setEditingWorkoutId(null);
-                toast.success('Workout updated!');
-                closeModal();
-              }}
-              onClose={closeModal}
-            />
-          )}
-
             {/* Leaderboard Modal */}
-            {activeModal === 'leaderboard' && (
+            {activeModal === "leaderboard" && (
               <LeaderboardModal
                 modalStep={modalStep}
                 setModalStep={setModalStep}
@@ -738,7 +924,7 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
             )}
 
             {/* Leagues Modal */}
-            {activeModal === 'leagues' && (
+            {activeModal === "leagues" && (
               <LeaguesModal
                 modalStep={modalStep}
                 setModalStep={setModalStep}
@@ -773,7 +959,7 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
             )}
 
             {/* Profile Modal */}
-            {activeModal === 'profile' && (
+            {activeModal === "profile" && (
               <ProfileModal
                 profile={profile}
                 profileScreen={profileScreen}
@@ -787,7 +973,7 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
             )}
 
             {/* Settings Modal */}
-            {activeModal === 'settings' && (
+            {activeModal === "settings" && (
               <SettingsModal
                 settingsScreen={settingsScreen}
                 setSettingsScreen={setSettingsScreen}
@@ -811,74 +997,90 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
             )}
 
             {/* Metrics Modal */}
-            {activeModal === 'metrics' && (
-              <MetricsModal />
-            )}
+            {activeModal === "metrics" && <MetricsModal />}
 
             {/* Activity Feed Modal */}
-            {activeModal === 'activityFeed' && (
+            {activeModal === "activityFeed" && (
               <ActivityFeedModal
                 activities={activities}
                 activityFilter={activityFilter}
                 setActivityFilter={setActivityFilter}
                 onActivityClick={(activity) => {
                   setSelectedActivity(activity);
-                  setActiveModal('activityDetail');
+                  setActiveModal("activityDetail");
                 }}
                 currentUserId={user?.id}
                 onClose={closeModal}
               />
             )}
 
-         {/* Activity Detail Modal */}
-          {activeModal === 'activityDetail' && selectedActivity && (
-            <ActivityDetailModal
-              activity={selectedActivity}
-              commentText={commentText}
-              setCommentText={setCommentText}
-              onReaction={handleReaction}
-              onComment={handleComment}
-              onBack={closeModal}
-              currentUserId={user?.id}
-              onEdit={(activity) => {
-                // Pre-fill the log workout form with existing data
-                setEditingWorkoutId(activity.id); // ADD THIS LINE
-                setSelectedSport(activity.sport || null);
-                setLogDistance(activity.distance?.toString() || '');
-                setLogHours(Math.floor((activity.duration || 0) / 60).toString());
-                setLogMinutes(((activity.duration || 0) % 60).toString());
-                setLogNotes(activity.notes || '');
-                setModalStep(1);
-                setActiveModal('log');
-                toast.info('Edit mode - update your workout');
-              }}
-              onDelete={async (activityId) => {
-                try {
-                  if (!accessToken) {
-                    toast.error('Not authenticated');
-                    return;
-                  }
-                  
-                  const api = new APIClient(accessToken);
-                  await api.deleteWorkout(activityId);
-                  
-                  // Refresh activities list
-                  const workouts = await api.getAllVisibleWorkouts();
-                  const transformedActivities = transformActivityUserNames(workouts);
-                  setActivities(transformedActivities);
-                  
-                  toast.success('Workout deleted');
-                  closeModal();
-                } catch (error) {
-                  console.error('Failed to delete workout:', error);
-                  toast.error('Failed to delete workout');
-                }
-              }}
-            />
-          )}
-            
+            {/* Activity Detail Modal */}
+            {activeModal === "activityDetail" &&
+              selectedActivity && (
+                <ActivityDetailModal
+                  activity={selectedActivity}
+                  commentText={commentText}
+                  setCommentText={setCommentText}
+                  onReaction={handleReaction}
+                  onComment={handleComment}
+                  onBack={closeModal}
+                  currentUserId={user?.id}
+                  onEdit={(activity) => {
+                    // Pre-fill the log workout form with existing data
+                    setEditingWorkoutId(activity.id);
+                    setSelectedSport(activity.sport || null);
+                    setLogDistance(
+                      activity.distance?.toString() || ""
+                    );
+                    setLogHours(
+                      Math.floor(
+                        (activity.duration || 0) / 60
+                      ).toString()
+                    );
+                    setLogMinutes(
+                      ((activity.duration || 0) % 60).toString()
+                    );
+                    setLogNotes(activity.notes || "");
+                    setModalStep(1);
+                    setActiveModal("log");
+                    toast.info(
+                      "Edit mode - update your workout"
+                    );
+                  }}
+                  onDelete={async (activityId) => {
+                    try {
+                      if (!accessToken) {
+                        toast.error("Not authenticated");
+                        return;
+                      }
+
+                      const api = new APIClient(accessToken);
+                      await api.deleteWorkout(activityId);
+
+                      // Refresh activities list
+                      const workouts =
+                        await api.getAllVisibleWorkouts();
+                      const withPhotos =
+                        normalizeWorkoutPhotos(workouts);
+                      const transformedActivities =
+                        transformActivityUserNames(withPhotos);
+                      setActivities(transformedActivities);
+
+                      toast.success("Workout deleted");
+                      closeModal();
+                    } catch (error) {
+                      console.error(
+                        "Failed to delete workout:",
+                        error
+                      );
+                      toast.error("Failed to delete workout");
+                    }
+                  }}
+                />
+              )}
+
             {/* Chat Modal */}
-            {activeModal === 'chat' && (
+            {activeModal === "chat" && (
               <ChatModal
                 chatFilter={chatFilter}
                 setChatFilter={setChatFilter}
@@ -893,7 +1095,7 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
             )}
 
             {/* Training Plans Modal */}
-            {activeModal === 'trainingPlans' && (
+            {activeModal === "trainingPlans" && (
               <TrainingPlansModal
                 showPlanPrompt={showPlanPrompt}
                 setShowPlanPrompt={setShowPlanPrompt}
@@ -916,7 +1118,7 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
             )}
 
             {/* Coffee Modal */}
-            {activeModal === 'coffee' && (
+            {activeModal === "coffee" && (
               <CoffeeModal
                 showCoffeeMenu={showCoffeeMenu}
                 setShowCoffeeMenu={setShowCoffeeMenu}
@@ -924,16 +1126,15 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
                 onClose={closeModal}
               />
             )}
-
             {/* Todays Activity Modal */}
-{activeModal === 'todaysActivity' && (
-  <TodaysActivityModal
-    activity={activities.length > 0 ? activities[0] : null}
-  />
-)}
+            {activeModal === "todaysActivity" && (
+              <TodaysActivityModal
+                activity={activities.length > 0 ? activities[0] : null}
+              />
+            )}
 
             {/* Planned Workout Detail Modal */}
-            {activeModal === 'plannedWorkoutDetail' && (
+            {activeModal === "plannedWorkoutDetail" && (
               <PlannedWorkoutDetailModal
                 plannedWorkout={plannedWorkout}
                 setPlannedWorkout={setPlannedWorkout}
@@ -943,24 +1144,26 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
           </div>
         </div>
       )}
-      
+
       {/* External Buttons for Activity Feed Modal */}
-      {activeModal === 'activityFeed' && (
+      {activeModal === "activityFeed" && (
         <ActivityFeedExternalButtons
           activityFilter={activityFilter}
           setActivityFilter={setActivityFilter}
         />
       )}
-      
+
       {/* Photo Upload Modal - Circular overlay */}
-      {showPhotoUpload && (activeModal === 'log' && modalStep === 5 || activeModal === 'start' && modalStep === 4) && (
-        <WorkoutPhotoModal
-          workoutPhoto={workoutPhoto}
-          fileInputRef={fileInputRef}
-          onClose={() => setShowPhotoUpload(false)}
-        />
-      )}
-      
+      {showPhotoUpload &&
+        ((activeModal === "log" && modalStep === 5) ||
+          (activeModal === "start" && modalStep === 4)) && (
+          <WorkoutPhotoModal
+            workoutPhoto={workoutPhoto}
+            fileInputRef={fileInputRef}
+            onClose={() => setShowPhotoUpload(false)}
+          />
+        )}
+
       {/* Hidden file input for workout photo */}
       <input
         ref={fileInputRef}
@@ -972,12 +1175,14 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
 
       {/* Tutorial Component */}
       {showTutorial && (
-        <Tutorial 
+        <Tutorial
           onClose={() => {
             setShowTutorial(false);
             clearJustSignedUp();
-            toast.success('Tutorial completed! You\'re ready to go 🎉');
-          }} 
+            toast.success(
+              "Tutorial completed! You're ready to go 🎉"
+            );
+          }}
         />
       )}
     </div>
