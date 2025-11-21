@@ -439,91 +439,52 @@ const { data, error } = await this.supabase
     }
   }
 
-  async createLeague(league: {
-    name: string;
-    leagueCode: string;
-  }) {
-    console.log('🔵 API Client: Creating league');
-    try {
-      const { data: { user } } = await this.supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error('No user found');
-      }
-
-      // Create league
-      const { data: newLeague, error: leagueError } = await this.supabase
-        .from('leagues')
-        .insert([
-          {
-            name: league.name,
-            league_code: league.leagueCode,
-            created_by: user.id,
-          },
-        ])
-        .select()
-        .single();
-
-      if (leagueError) throw leagueError;
-
-      // Add creator as member
-      const { error: memberError } = await this.supabase
-        .from('league_members')
-        .insert([
-          {
-            league_id: newLeague.id,
-            user_id: user.id,
-          },
-        ]);
-
-      if (memberError) throw memberError;
-
-      console.log('✅ League created:', newLeague);
-      return newLeague;
-    } catch (error) {
-      console.error('❌ Failed to create league:', error);
-      throw error;
+ async createLeague(league: {
+  name: string;
+  leagueCode: string;
+}) {
+  console.log('🔵 API Client: Creating league');
+  try {
+    const { data: { user } } = await this.supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('No user found');
     }
+
+    // Create league
+    const { data: newLeague, error: leagueError } = await this.supabase
+      .from('leagues')
+      .insert([
+        {
+          name: league.name,
+          league_code: league.leagueCode,
+          owner_id: user.id,  // ✅ This is required by the RLS policy!
+        },
+      ])
+      .select()
+      .single();
+
+    if (leagueError) throw leagueError;
+
+    // Add creator as member
+    const { error: memberError } = await this.supabase
+      .from('league_memberships')
+      .insert([
+        {
+          league_id: newLeague.id,
+          user_id: user.id,
+        },
+      ]);
+
+    if (memberError) throw memberError;
+
+    console.log('✅ League created:', newLeague);
+    return newLeague;
+  } catch (error) {
+    console.error('❌ Failed to create league:', error);
+    throw error;
   }
-
-  async joinLeague(leagueCode: string) {
-    console.log('🔵 API Client: Joining league');
-    try {
-      const { data: { user } } = await this.supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error('No user found');
-      }
-
-      // Find league by code
-      const { data: league, error: findError } = await this.supabase
-        .from('leagues')
-        .select('id')
-        .eq('league_code', leagueCode)
-        .single();
-
-      if (findError) throw findError;
-      if (!league) throw new Error('League not found');
-
-      // Add user as member
-      const { error: joinError } = await this.supabase
-        .from('league_members')
-        .insert([
-          {
-            league_id: league.id,
-            user_id: user.id,
-          },
-        ]);
-
-      if (joinError) throw joinError;
-
-      console.log('✅ Joined league');
-      return league;
-    } catch (error) {
-      console.error('❌ Failed to join league:', error);
-      throw error;
-    }
-  }
+}
 
   async getLeagueChat(leagueId: string) {
     console.log('🔵 API Client: Fetching league chat');
