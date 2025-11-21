@@ -244,8 +244,8 @@ export class APIClient {
 
       // Generate stock image URL based on workout type
       const sportType = workout.type.toLowerCase().replace(/\s+/g, '-');
-      const photoUrl = `${window.location.origin}/workout/workout-${sportType}.png`;
-      console.log('🔵 Generated photo URL:', photoUrl);
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.spredfit.com';
+      const photoUrl = `${origin}/workout/workout-${sportType}.png`;
 
       const { data, error } = await this.supabase
         .from('workouts')

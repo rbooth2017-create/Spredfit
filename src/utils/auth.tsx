@@ -22,11 +22,12 @@ interface AuthContextType {
   accessToken: string | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string, name: string, username: string) => Promise<void>; // Add username back
+  signUp: (email: string, password: string, name: string, username: string) => Promise<void>;
   signOut: () => Promise<void>;
   refreshSession: () => Promise<void>;
   justSignedUp: boolean;
   clearJustSignedUp: () => void;
+  profile: UserProfile | null;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -36,7 +37,14 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const supabaseUrl = `https://${projectId}.supabase.co`;
 console.log("🟠 auth.tsx: Supabase URL", supabaseUrl);
 
-const supabase = createClient(supabaseUrl, publicAnonKey);
+const supabase = createClient(supabaseUrl, publicAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: false,
+    storage: typeof window !== 'undefined' ? window.localStorage : undefined
+  }
+});
 
 /* ---------- utility functions ---------- */
 
@@ -64,6 +72,7 @@ export function getUserDisplayName(user: any): string {
 
   return 'User';
 }
+
 /* ---------- provider ---------- */
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -122,6 +131,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     return () => {
       subscription.unsubscribe();
+    };
+  }, []);
+
+  // Handle app resume from background
+  useEffect(() => {
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState === 'visible') {
+        console.log('🔄 App resumed, refreshing session...');
+        try {
+          const { data: { session } } = await supabase.auth.getSession();
+          if (session?.user) {
+            console.log('✅ Session found on resume, restoring user');
+            await populateUserFromSession(session);
+          } else {
+            console.log('❌ No session found on resume');
+          }
+        } catch (error) {
+          console.error('❌ Error refreshing session on resume:', error);
+        }
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
     };
   }, []);
 
@@ -194,7 +229,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /* ---------- SIGN IN ---------- */
 
-  const signIn = async (email: string, password: string, rememberMe: boolean = false) => {
+  const signIn = async (email: string, password: string, rememberMe: boolean = true) => {
     console.log("🟢 auth.tsx: signIn called");
     console.log("   → email:", email);
     console.log("   → password length:", password?.length ?? 0);
@@ -231,46 +266,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   /* ---------- SIGN UP ---------- */
 
-const signUp = async (email: string, password: string, name: string, username: string) => {
-  console.log("🟠 auth.tsx: signUp called with", { email, name, username });
+  const signUp = async (email: string, password: string, name: string, username: string) => {
+    console.log("🟠 auth.tsx: signUp called with", { email, name, username });
 
-  try {
-    const response = await fetch(
-      `${supabaseUrl}/functions/v1/make-server-6eb09999/auth/signup`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${publicAnonKey}`,
-        },
-        body: JSON.stringify({ 
-          email, 
-          password, 
-          name,
-          username 
-        }),
+    try {
+      const response = await fetch(
+        `${supabaseUrl}/functions/v1/make-server-6eb09999/auth/signup`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${publicAnonKey}`,
+          },
+          body: JSON.stringify({ 
+            email, 
+            password, 
+            name,
+            username 
+          }),
+        }
+      );
+
+      console.log("🟠 auth.tsx: signUp response status", response.status);
+
+      const payload = await response.json().catch(() => null);
+      console.log("🟠 auth.tsx: signUp response payload", payload);
+
+      if (!response.ok) {
+        const message =
+          (payload && (payload.error || payload.message)) ||
+          "Failed to sign up";
+        throw new Error(message);
       }
-    );
 
-    console.log("🟠 auth.tsx: signUp response status", response.status);
-
-    const payload = await response.json().catch(() => null);
-    console.log("🟠 auth.tsx: signUp response payload", payload);
-
-    if (!response.ok) {
-      const message =
-        (payload && (payload.error || payload.message)) ||
-        "Failed to sign up";
-      throw new Error(message);
+      await signIn(email, password);
+      setJustSignedUp(true);
+    } catch (err: any) {
+      console.error("🔴 auth.tsx: signUp exception", err);
+      throw err;
     }
-
-    await signIn(email, password);
-    setJustSignedUp(true);
-  } catch (err: any) {
-    console.error("🔴 auth.tsx: signUp exception", err);
-    throw err;
-  }
-};
+  };
 
   /* ---------- SIGN OUT ---------- */
 
@@ -337,6 +372,7 @@ const signUp = async (email: string, password: string, name: string, username: s
     refreshSession,
     justSignedUp,
     clearJustSignedUp,
+    profile: user,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
