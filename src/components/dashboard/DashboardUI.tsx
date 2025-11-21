@@ -272,7 +272,7 @@ function MainActionCardsComponent({ onModalOpen }: MainActionCardsProps) {
   return (
     <div className="absolute bottom-8 left-0 right-0 z-[80] pointer-events-none">
       <div className="max-w-md mx-auto px-4">
-        <div className="grid grid-cols-4 gap-3 w-fit pointer-events-auto">
+        <div className="grid grid-cols-4 gap-3 w-fit pointer-events-auto mx-auto">
           {/* Single Row - Board, Leagues, Record, Log */}
           <div className="flex flex-col items-center gap-2">
             <button

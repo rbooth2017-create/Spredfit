@@ -627,14 +627,6 @@ export function Dashboard({ onLogWorkout, onStartWorkout, onLeaderboard, onLeagu
         />
       )}
 
-          {/* Expand View Toggle - Always visible above Today button - Hide when used as login background */}
-{!activeModal && !isLoginBackground && (
-  <ExpandViewToggle
-    isExpanded={hideUtilityButtons}
-    onToggle={() => setHideUtilityButtons(!hideUtilityButtons)}
-  />
-)}
-
       {/* Circular Pop-up Modals */}
       {activeModal && (
         <div 

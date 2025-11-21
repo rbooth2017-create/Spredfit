@@ -7,6 +7,8 @@ interface ExpandViewToggleProps {
 }
 
 function ExpandViewToggleComponent({ isExpanded, onToggle }: ExpandViewToggleProps) {
+  console.log('🔘 ExpandViewToggle rendering, isExpanded:', isExpanded);
+  
   return (
     <div className="absolute bottom-[140px] left-4 z-[100]">
       <button

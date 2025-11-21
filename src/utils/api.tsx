@@ -13,19 +13,22 @@ export class APIClient {
   private supabase: SupabaseClient;
   private accessToken: string | null;
 
-  constructor(accessToken: string | null = null) {
+    constructor(accessToken: string | null = null) {
     this.accessToken = accessToken;
-    this.supabase = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: false,
-        autoRefreshToken: false,
-      },
-      global: {
-        headers: accessToken
-          ? { Authorization: `Bearer ${accessToken}` }
-          : {},
-      },
-    });
+    
+    if (accessToken) {
+      // Use the existing supabase client with the token
+      this.supabase = createClient(supabaseUrl, supabaseAnonKey, {
+        global: {
+          headers: {
+            Authorization: `Bearer ${accessToken}`
+          }
+        }
+      });
+    } else {
+      // No token, create basic client
+      this.supabase = createClient(supabaseUrl, supabaseAnonKey);
+    }
   }
 
   private async request(endpoint: string, options: RequestInit = {}) {
@@ -252,7 +255,6 @@ export class APIClient {
             type: workout.type,
             duration_min: workout.duration,
             distance_km: workout.distance,
-            date: workout.date,
             notes: workout.notes,
             photo_url: photoUrl,
           },
