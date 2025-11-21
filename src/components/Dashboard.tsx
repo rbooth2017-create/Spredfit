@@ -331,7 +331,7 @@ export function Dashboard({
       id: league.id,
       isManager: league.createdBy === currentUserId,
       code: league.leagueCode,
-      ownerId: league.ownerId, // ADD THIS LINE
+      ownerId: league.ownerId,
     }));
   }, [leagues, profile]);
 
@@ -396,18 +396,53 @@ export function Dashboard({
     });
   };
 
+  // Get the default workout image path for a given sport
+// Get the correct workout image path
+const getWorkoutImagePath = (sport?: string) => {
+  if (!sport) return undefined;
+
+  const key = sport.toLowerCase();
+
+  // File is EXACTLY: public/workout/Workout-run.png
+  if (key === "running") {
+    return "/workout/Workout-run.png";
+  }
+
+  // Slug map for other sports
+  const slugMap: Record<string, string> = {
+    cycling: "cycling",
+    swimming: "swimming",
+    yoga: "yoga",
+    hiit: "hiit",
+    "team sports": "team-sports",
+    strength: "strength",
+    other: "other",
+  };
+
+  const slug = slugMap[key] ?? key.replace(/\s+/g, "-");
+
+  return `/workout/workout-${slug}.png`;
+};
+
+
+
   // Normalize workout photos so the UI always gets `photo`
-  const normalizeWorkoutPhotos = (items: any[]) => {
-    return items.map((item) => ({
-      ...item,
-      photo:
+const normalizeWorkoutPhotos = (items: any[]) => {
+  return items.map((item) => {
+    let photo;
+
+    if (item.type === "Running") {
+      photo = getWorkoutImagePath("Running"); // ALWAYS correct run image
+    } else {
+      photo =
         item.photo ||
         item.photo_url ||
-        (item.type
-          ? `/workouts/workout-${item.type.toLowerCase()}.png`
-          : undefined),
-    }));
-  };
+        getWorkoutImagePath(item.type);
+    }
+
+    return { ...item, photo };
+  });
+};
 
   // GPS tracking effect
   useEffect(() => {
@@ -581,6 +616,7 @@ export function Dashboard({
         const api = new APIClient(accessToken);
         const workouts = await api.getAllVisibleWorkouts();
         const withPhotos = normalizeWorkoutPhotos(workouts);
+        console.log("🖼 Normalized workouts", withPhotos);
         const transformedActivities =
           transformActivityUserNames(withPhotos);
         setActivities(transformedActivities);
@@ -686,13 +722,13 @@ export function Dashboard({
       // Save workout to Supabase
       await createWorkout({
         type: selectedSport,
-        duration: Math.floor(workoutTime / 60), // Convert seconds to minutes
+        duration: Math.floor(workoutTime / 60), // seconds -> minutes
         distance: gpsConnected ? recordedDistance : 0,
         date: new Date().toISOString(),
         notes: gpsConnected
           ? `GPS tracked: ${gpsPositions.length} points`
           : "Indoor workout",
-        photo_url: `/workouts/workout-${selectedSport.toLowerCase()}.png`,
+        photo_url: getWorkoutImagePath(selectedSport),
       });
 
       toast.success("Workout Saved!", {
@@ -1126,6 +1162,7 @@ export function Dashboard({
                 onClose={closeModal}
               />
             )}
+
             {/* Todays Activity Modal */}
             {activeModal === "todaysActivity" && (
               <TodaysActivityModal
