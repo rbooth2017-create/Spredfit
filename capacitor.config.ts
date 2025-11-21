@@ -3,7 +3,7 @@ import { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'com.spredfit.app',
   appName: 'SPREDfit',
-  webDir: 'dist', // Change to 'build' if that's your build directory
+  webDir: 'build'
   server: {
     androidScheme: 'https',
     iosScheme: 'capacitor',

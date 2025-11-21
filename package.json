@@ -3,12 +3,14 @@
       "version": "0.1.0",
       "private": true,
       "dependencies": {
+            "@capacitor/android": "^7.4.4",
             "@capacitor/app": "*",
             "@capacitor/camera": "*",
             "@capacitor/cli": "*",
             "@capacitor/core": "*",
-            "@capacitor/geolocation": "*",
+            "@capacitor/geolocation": "^7.1.5",
             "@capacitor/haptics": "*",
+            "@capacitor/ios": "^7.4.4",
             "@capacitor/keyboard": "*",
             "@capacitor/network": "*",
             "@capacitor/push-notifications": "*",
@@ -66,6 +68,7 @@
             "@types/node": "^20.10.0",
             "@vitejs/plugin-react-swc": "^3.10.2",
             "supabase": "^2.58.5",
+            "typescript": "^5.9.3",
             "vite": "6.3.5"
       },
       "scripts": {
