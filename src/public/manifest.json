@@ -4,7 +4,7 @@
   "description": "Join friends and compete to move more each month. Track workouts, join leagues, and stay motivated together.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f5f1ed",
+  "background_color": "#2d2d2d",
   "theme_color": "#2d332d",
   "orientation": "portrait-primary",
   "icons": [
