@@ -1,5 +1,6 @@
-import { memo } from "react";
-import { Navigation, Check, Camera, Play, Pause, Activity, Lock, Unlock, ChevronRight, ChevronLeft, Square } from "lucide-react";
+import { memo, useEffect } from "react";
+import { Navigation, Check, Camera, Play, Pause, Activity, Lock, Unlock, ChevronRight, ChevronLeft, Square, Wifi, WifiOff, AlertCircle } from "lucide-react";
+import { toast } from "sonner";
 
 interface Sport {
   name: string;
@@ -65,6 +66,88 @@ function StartWorkoutModalComponent({
   toggleLock,
   onClose,
 }: StartWorkoutModalProps) {
+
+  // Real GPS acquisition when searching starts
+  useEffect(() => {
+    if (!gpsSearching || !selectedSport) return;
+
+    const needsGPS = ['Running', 'Cycling', 'Swimming', 'Team Sports'].includes(selectedSport);
+    
+    if (!needsGPS) {
+      setGpsSearching(false);
+      setModalStep(3);
+      return;
+    }
+
+    // Check if GPS is available
+    if (!navigator.geolocation) {
+      toast.error("GPS Not Available", {
+        description: "Your device doesn't support GPS tracking. Starting without GPS.",
+        duration: 3000,
+      });
+      setGpsSearching(false);
+      setGpsConnected(false);
+      setModalStep(3);
+      return;
+    }
+
+    // Request GPS position
+    const requestGPS = async () => {
+      try {
+        await new Promise((resolve, reject) => {
+          navigator.geolocation.getCurrentPosition(
+            (position) => {
+              const accuracy = position.coords.accuracy;
+              toast.success("📍 GPS Locked", {
+                description: `Accuracy: ±${accuracy.toFixed(0)}m`,
+                duration: 2000,
+              });
+              setGpsConnected(true);
+              setGpsSearching(false);
+              resolve(position);
+              
+              // Wait a moment to show success, then start workout
+              setTimeout(() => {
+                setModalStep(3);
+              }, 1500);
+            },
+            (error) => {
+              setGpsSearching(false);
+              
+              if (error.code === error.PERMISSION_DENIED) {
+                toast.error("GPS Permission Denied", {
+                  description: "Please enable location access in your browser settings",
+                  duration: 4000,
+                });
+              } else if (error.code === error.TIMEOUT) {
+                toast.error("GPS Timeout", {
+                  description: "Unable to get GPS signal. Move outdoors or skip GPS.",
+                  duration: 4000,
+                });
+              } else {
+                toast.error("GPS Error", {
+                  description: "Unable to access GPS. You can start without it.",
+                  duration: 3000,
+                });
+              }
+              reject(error);
+            },
+            {
+              enableHighAccuracy: true,
+              timeout: 15000, // Wait up to 15 seconds
+              maximumAge: 0
+            }
+          );
+        });
+      } catch (error) {
+        // GPS failed, but don't auto-start - let user decide
+        console.error('GPS error:', error);
+      }
+    };
+
+    requestGPS();
+  }, [gpsSearching, selectedSport, setGpsConnected, setGpsSearching, setModalStep]);
+
   return (
     <>
       {/* Modal Content */}
@@ -101,7 +184,7 @@ function StartWorkoutModalComponent({
           </div>
         )}
 
-        {/* Step 2: GPS Searching */}
+        {/* Step 2: GPS Searching - REAL GPS ACQUISITION */}
         {modalStep === 2 && selectedSport && gpsSearching && (
           <div className="flex flex-col items-center text-center space-y-6">
             <p className="text-white/70 text-xs">{selectedSport}</p>
@@ -111,16 +194,61 @@ function StartWorkoutModalComponent({
               </div>
               <div className="absolute -inset-4 border-2 border-white/20 rounded-full animate-ping" style={{ animationDuration: '2s' }}></div>
             </div>
-            <p className="text-white text-sm">Searching for GPS signal...</p>
+            <div>
+              <p className="text-white text-sm mb-1">Acquiring GPS Signal...</p>
+              <p className="text-white/50 text-xs">Move outdoors for better signal</p>
+            </div>
             <button
               onClick={() => {
                 setGpsSearching(false);
                 setGpsConnected(false);
                 setModalStep(3);
+                toast.info("Starting without GPS", {
+                  description: "Distance will be simulated",
+                  duration: 2000,
+                });
               }}
               className="px-6 py-2 rounded-full bg-white/10 backdrop-blur-sm text-white text-xs border border-white/20 hover:bg-white/20 transition-all"
             >
-              Skip GPS
+              Skip and Start Anyway
+            </button>
+          </div>
+        )}
+
+        {/* Step 2b: GPS Connected Success */}
+        {modalStep === 2 && selectedSport && !gpsSearching && gpsConnected && (
+          <div className="flex flex-col items-center text-center space-y-6">
+            <p className="text-white/70 text-xs">{selectedSport}</p>
+            <div className="relative">
+              <div className="w-24 h-24 rounded-full bg-green-500/20 backdrop-blur-sm border-2 border-green-400/50 flex items-center justify-center">
+                <Navigation className="w-12 h-12 text-green-400" strokeWidth={2} />
+              </div>
+            </div>
+            <div>
+              <p className="text-white text-sm mb-1">GPS Connected!</p>
+              <p className="text-green-400 text-xs">Starting workout...</p>
+            </div>
+          </div>
+        )}
+
+        {/* Step 2c: GPS Failed */}
+        {modalStep === 2 && selectedSport && !gpsSearching && !gpsConnected && (
+          <div className="flex flex-col items-center text-center space-y-6">
+            <p className="text-white/70 text-xs">{selectedSport}</p>
+            <div className="relative">
+              <div className="w-24 h-24 rounded-full bg-red-500/20 backdrop-blur-sm border-2 border-red-400/50 flex items-center justify-center">
+                <WifiOff className="w-12 h-12 text-red-400" strokeWidth={2} />
+              </div>
+            </div>
+            <div>
+              <p className="text-white text-sm mb-1">GPS Unavailable</p>
+              <p className="text-white/50 text-xs">You can still start with simulated tracking</p>
+            </div>
+            <button
+              onClick={() => setModalStep(3)}
+              className="px-6 py-2 rounded-full bg-white/10 backdrop-blur-sm text-white text-xs border border-white/20 hover:bg-white/20 transition-all"
+            >
+              Start Workout
             </button>
           </div>
         )}
@@ -148,6 +276,21 @@ function StartWorkoutModalComponent({
                 </div>
               </div>
             )}
+
+            {/* GPS Status Indicator */}
+            <div className="flex items-center gap-2 mb-2">
+              {gpsConnected ? (
+                <>
+                  <Navigation className="w-3 h-3 text-green-400" />
+                  <span className="text-green-400 text-[10px]">GPS Active</span>
+                </>
+              ) : (
+                <>
+                  <WifiOff className="w-3 h-3 text-white/50" />
+                  <span className="text-white/50 text-[10px]">Simulated Tracking</span>
+                </>
+              )}
+            </div>
 
             {/* Lock Screen Widget Button */}
             <div className="mb-2">
@@ -265,9 +408,13 @@ function StartWorkoutModalComponent({
                   <div className={`w-1.5 h-1.5 rounded-full ${isWorkoutRunning ? 'bg-white animate-pulse' : 'bg-white/60'}`} />
                   <p className="text-[10px] text-white">{isWorkoutRunning ? 'Recording' : 'Paused'}</p>
                 </div>
-                {gpsConnected && (
-                  <div className="w-6 h-6 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center">
-                    <Navigation className="w-3 h-3 text-white" />
+                {gpsConnected ? (
+                  <div className="w-6 h-6 rounded-full bg-green-500/20 backdrop-blur-sm border border-green-400/30 flex items-center justify-center">
+                    <Navigation className="w-3 h-3 text-green-400" />
+                  </div>
+                ) : (
+                  <div className="w-6 h-6 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center">
+                    <WifiOff className="w-3 h-3 text-white/50" />
                   </div>
                 )}
               </div>
@@ -382,19 +529,19 @@ function StartWorkoutModalComponent({
       )}
 
       {/* External Buttons - Step 4: Review Activity */}
-{modalStep === 4 && (
-  <div className="fixed bottom-8 right-4 z-[60]" onClick={(e) => e.stopPropagation()}>
-    <div className="flex flex-col items-center gap-1.5">
-      <button
-        onClick={onClose}
-        className="w-20 h-20 rounded-full bg-[#2d2d2d] backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 hover:bg-[#2d2d2d]/90 shadow-lg"
-      >
-        <Check className="w-7 h-7 text-white" strokeWidth={2} />
-      </button>
-      <span className="text-white text-[10px] text-center">Done</span>
-    </div>
-  </div>
-)}
+      {modalStep === 4 && (
+        <div className="fixed bottom-8 right-4 z-[60]" onClick={(e) => e.stopPropagation()}>
+          <div className="flex flex-col items-center gap-1.5">
+            <button
+              onClick={onClose}
+              className="w-20 h-20 rounded-full bg-[#2d2d2d] backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 hover:bg-[#2d2d2d]/90 shadow-lg"
+            >
+              <Check className="w-7 h-7 text-white" strokeWidth={2} />
+            </button>
+            <span className="text-white text-[10px] text-center">Done</span>
+          </div>
+        </div>
+      )}
     </>
   );
 }

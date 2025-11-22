@@ -15,7 +15,7 @@ const config: CapacitorConfig = {
     SplashScreen: {
       launchShowDuration: 2000,
       launchAutoHide: true,
-      backgroundColor: '#7a8872', // SPREDfit sage green
+      backgroundColor: '#1B2632', // SPREDfit sage green
       androidScaleType: 'CENTER_CROP',
       showSpinner: false,
       splashFullScreen: true,
@@ -23,7 +23,7 @@ const config: CapacitorConfig = {
     },
     StatusBar: {
       style: 'DARK', // Dark text for light background
-      backgroundColor: '#7a8872', // SPREDfit sage green
+      backgroundColor: '#1B2632', // SPREDfit sage green
     },
     Keyboard: {
       resize: 'body',
@@ -43,7 +43,7 @@ const config: CapacitorConfig = {
     // Allow clear text traffic for development
     allowMixedContent: false,
     // Background color for Android
-    backgroundColor: '#7a8872',
+    backgroundColor: '#1B2632',
     // Build settings
     buildOptions: {
       keystorePath: undefined,

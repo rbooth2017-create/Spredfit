@@ -125,8 +125,8 @@ export function ActiveWorkout({ sport, onComplete, onCancel }: ActiveWorkoutProp
           setCurrentPosition(newPos);
           setGpsAccuracy(position.coords.accuracy);
           
-          // Store route coordinate if accuracy is good
-          if (position.coords.accuracy < 50) {
+                    // Store route coordinate if accuracy is reasonable (was 50, now 100)
+          if (position.coords.accuracy < 100) {
             setRouteCoordinates(prev => [...prev, [newPos.latitude, newPos.longitude]]);
           }
           
@@ -137,21 +137,28 @@ export function ActiveWorkout({ sport, onComplete, onCancel }: ActiveWorkoutProp
 
           // Calculate distance if we have a previous position
           if (lastPositionRef.current) {
-            // Only count movement if accuracy is reasonable and positions are different
-            if (position.coords.accuracy < 50) {
+            // Only count movement if accuracy is reasonable
+            const isAccuracyGood = position.coords.accuracy < 100; // Relaxed from 50m
+            
+            if (isAccuracyGood) {
               const distanceIncrement = calculateDistance(lastPositionRef.current, newPos);
+              const timeDiff = (newPos.timestamp - lastPositionRef.current.timestamp) / 1000; // seconds
               
-              // Filter out GPS jitter (only add if movement is significant)
-              if (distanceIncrement > 0.001 && distanceIncrement < 0.1) {
+              // Filter out GPS jitter and unrealistic jumps
+              // Accept movements between 1m and 500m (was 100m)
+              const minDistance = 0.001; // 1 meter in km
+              const maxDistance = 0.5; // 500 meters in km
+              
+              // Also check time - if too fast (>100 km/h), it's likely GPS error
+              const isReasonableSpeed = timeDiff > 0 && (distanceIncrement / timeDiff) < 27.78; // < 100 km/h in m/s
+              
+              if (distanceIncrement >= minDistance && distanceIncrement <= maxDistance && isReasonableSpeed) {
                 setDistance(prev => prev + distanceIncrement);
                 
                 // Calculate speed from position change if GPS speed not available
-                if (position.coords.speed === null) {
-                  const timeDiff = (newPos.timestamp - lastPositionRef.current.timestamp) / 1000; // seconds
-                  if (timeDiff > 0) {
-                    const speedMps = (distanceIncrement * 1000) / timeDiff; // meters per second
-                    setCurrentSpeed(speedMps);
-                  }
+                if (position.coords.speed === null || position.coords.speed < 0) {
+                  const speedMps = (distanceIncrement * 1000) / timeDiff; // meters per second
+                  setCurrentSpeed(speedMps);
                 }
               }
             }

@@ -4,8 +4,8 @@
   "description": "Fitness tracking and league competition app",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#025E73",
-  "theme_color": "#025E73",
+  "background_color": "#1B2632",
+  "theme_color": "#1B2632",
   "orientation": "portrait",
   "icons": [
     {
