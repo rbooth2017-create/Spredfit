@@ -120,7 +120,6 @@ function DashboardHeaderComponent({ onModalOpen }: DashboardHeaderProps) {
 
 
 export const DashboardHeader = memo(DashboardHeaderComponent);
-
 /**
  * ActivityCarousel Component
  * 
@@ -134,12 +133,12 @@ function ActivityCarouselComponent({
   getSportIcon,
   isExpanded,
 }: ActivityCarouselProps) {
-  // Make the circle bigger permanently - removed the conditional sizing
-  const circleSize = "w-[1vw] min-[400px]:w-[420px] min-[420px]:w-[450px] sm:w-[480px] md:w-[510px] lg:w-[540px] h-[100vw] min-[400px]:h-[420px] min-[420px]:h-[450px] sm:h-[480px] md:h-[510px] lg:h-[540px]";
-    
+  // Fixed size circle that can overflow/crop at screen edges
+    const circleSize = "w-[90vw] h-[90vw] max-w-[900px] max-h-[900px]";
+        
   return (
-    <div className={`absolute left-0 right-0 -translate-y-1/2 z-10 px-4 transition-all duration-700 ease-in-out top-[50%]`}>
-      <div className={`max-w-md mx-auto flex justify-center transition-all duration-700 ease-in-out`}>
+    <div className={`absolute left-0 right-0 -translate-y-1/2 z-10 transition-all duration-700 ease-in-out top-[50%]`}>
+      <div className="flex justify-center transition-all duration-700 ease-in-out">
         <div className="relative">
           {/* Fixed circle with cycling content inside - optimized for SE and larger phones */}
           <div className={`${circleSize} rounded-full border-[3px] border-white/20 relative overflow-hidden transition-all duration-700 ease-in-out`} data-tutorial="activity-carousel">

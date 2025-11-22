@@ -1,0 +1,74 @@
+[33m2f2e54ff[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m, [m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m HEAD@{0}: reset: moving to origin/main
+[33md8556843[m HEAD@{1}: commit: Few updates
+[33m3352d334[m HEAD@{2}: commit: Colour tweak
+[33mcb0ab715[m HEAD@{3}: commit: GPS working rev1
+[33mb460c2d7[m HEAD@{4}: commit: GPS improvements
+[33m2d803e01[m HEAD@{5}: commit: gps detailing
+[33m61f74d5f[m HEAD@{6}: pull --rebase (finish): returning to refs/heads/main
+[33m61f74d5f[m HEAD@{7}: pull --rebase (pick): Global css update
+[33maff00607[m HEAD@{8}: pull --rebase (start): checkout aff00607d5dcd4854a85142bffda83f0e0359d9f
+[33me23c00ab[m HEAD@{9}: commit: Global css update
+[33m6c00c73f[m HEAD@{10}: commit: workout-run file change
+[33m9576c808[m HEAD@{11}: commit: new dash
+[33me3faa009[m HEAD@{12}: commit: dashboard file update
+[33m60a3a98c[m HEAD@{13}: commit: GPS update
+[33mdb104dc1[m HEAD@{14}: commit: Integrated Capacitor GPS tracking
+[33m6473aefc[m HEAD@{15}: commit: GPS integration
+[33md028df5d[m HEAD@{16}: commit: background colour global
+[33m616cf451[m HEAD@{17}: commit: circle move again
+[33m12dba7c7[m HEAD@{18}: commit: dash new
+[33m5a517e31[m HEAD@{19}: commit: background on load
+[33m6db95ec0[m HEAD@{20}: commit: new
+[33m17fa0cf2[m HEAD@{21}: commit: Move circle down
+[33m76ea77f1[m HEAD@{22}: commit: Update workout PNGs and simplify animated background
+[33m81132c4d[m HEAD@{23}: commit: updated auth and image sql
+[33mf69060bc[m HEAD@{24}: commit: leaderboard functions
+[33ma1cea1db[m HEAD@{25}: commit: api update on create league
+[33m43bace0c[m HEAD@{26}: commit: login error fixed
+[33ma3ee0375[m HEAD@{27}: commit: Refresh
+[33mb1d4776a[m HEAD@{28}: commit: manifest.json
+[33mc3813304[m HEAD@{29}: commit: many updates
+[33m971ab8cd[m HEAD@{30}: commit: images working
+[33me9bbe8a4[m HEAD@{31}: commit: dashboard
+[33m93202370[m HEAD@{32}: commit: one last push
+[33me7954e2f[m HEAD@{33}: commit: jpg to png
+[33m8de7effc[m HEAD@{34}: commit: workout modal
+[33m7ea3cf04[m HEAD@{35}: commit: New
+[33m6d5d6980[m HEAD@{36}: commit: new dash colours
+[33md4e998d0[m HEAD@{37}: commit: background
+[33m22e6aec5[m HEAD@{38}: commit: Fix AnimatedBackground full-screen positioning with CSS overrides
+[33mb634decf[m HEAD@{39}: commit: refresh auto
+[33mdb5581d1[m HEAD@{40}: commit: Add robust activity refresh mechanism after workout save
+[33m71cd113f[m HEAD@{41}: commit: Animation change
+[33m11a725dd[m HEAD@{42}: commit: Change dashboard display name from full_name to username
+[33mc2c99104[m HEAD@{43}: commit: Add share league functionality with clean URL
+[33m3a003684[m HEAD@{44}: commit: feat: Connect join league functionality to Supabase
+[33mc94cc5d3[m HEAD@{45}: commit: fix: Add explicit GPS permission handling for mobile browsers
+[33m3f7a6f80[m HEAD@{46}: commit: fix: GPS searching screen now shows for minimum 2 seconds
+[33m2b6f6e6c[m HEAD@{47}: commit: feat: Add real GPS tracking and Supabase integration to Start Workout
+[33ma3f6be10[m HEAD@{48}: commit: Update PWA icons to v2
+[33m08c7ff3f[m HEAD@{49}: commit: Remove animated dots and decorative glows, keep clean gradient background
+[33m89dc908d[m HEAD@{50}: commit: Add league creation and management functionality
+[33m7ba8201f[m HEAD@{51}: commit: Fix workout logging - save directly to Supabase database
+[33m7ca8ab59[m HEAD@{52}: commit: Fix log workout - save to Supabase and add photo upload option
+[33m54cf57c9[m HEAD@{53}: commit: Add loading state to prevent login screen flash on auth init
+[33m5b78952c[m HEAD@{54}: commit: Implement remember me functionality for login
+[33m7032c956[m HEAD@{55}: commit: Add environment variables for Supabase configuration
+[33m01a10d52[m HEAD@{56}: commit: Fix auth timeout with fallback user
+[33m3d41394e[m HEAD@{57}: commit: Fix import path for supabase info
+[33m02bcce20[m HEAD@{58}: commit: Update to new Supabase publishable key
+[33me757d6f3[m HEAD@{59}: commit: Add temporary version indicator
+[33mb2db4f20[m HEAD@{60}: commit: Update Supabase API key to new publishable key
+[33m53d8f6cd[m HEAD@{61}: commit: Make bottom-left control visible and open Settings modal
+[33mb2896765[m HEAD@{62}: commit: Add small bottom-left sign to Dashboard UI
+[33mc210922a[m HEAD@{63}: commit: Add logging and toast feedback to signOut for easier testing
+[33m9253644f[m HEAD@{64}: commit: Forward onSignOut to SettingsModal so modal sign-out calls global handler
+[33m7dabc6f6[m HEAD@{65}: commit: Remove redirect rule from vercel.json for troubleshooting
+[33m04e9c599[m HEAD@{66}: commit: Fix redirect rule in vercel.json
+[33me5a56187[m HEAD@{67}: commit: Fix invalid source pattern in vercel.json
+[33mc9b540be[m HEAD@{68}: commit: Fix PWA manifest, service worker, and install button logic
+[33m3467e1f7[m HEAD@{69}: commit: Enable PWA manifest and service worker registration
+[33md1e6e00b[m HEAD@{70}: commit: Remove solid dashboard background to reveal animation
+[33m53603b6d[m HEAD@{71}: commit (amend): Initial commit: Spredfit mobile app
+[33mcd569917[m HEAD@{72}: Branch: renamed refs/heads/master to refs/heads/main
+[33mcd569917[m HEAD@{74}: commit (initial): Initial commit: Spredfit mobile app

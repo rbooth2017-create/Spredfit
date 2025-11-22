@@ -33,7 +33,7 @@ export function AnimatedBackground({ animationsPaused = false, dimmed = false }:
       {/* Top Section - 75% Height */}
       <motion.div 
         className="absolute top-0 left-0 right-0"
-        style={{ height: '75%' }}
+        style={{ height: '78%' }}
         animate={animationsPaused ? {} : {
           backgroundColor: topColors,
         }}
@@ -47,7 +47,7 @@ export function AnimatedBackground({ animationsPaused = false, dimmed = false }:
       {/* Bottom Section - 25% Height */}
       <motion.div 
         className="absolute bottom-0 left-0 right-0"
-        style={{ height: '25%' }}
+        style={{ height: '22%' }}
         animate={animationsPaused ? {} : {
            backgroundColor: bottomColors,
         }}
