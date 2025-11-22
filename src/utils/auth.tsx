@@ -45,6 +45,8 @@ const supabase = createClient(supabaseUrl, publicAnonKey, {
     storage: typeof window !== 'undefined' ? window.localStorage : undefined
   }
 });
+// Export the supabase client for use in other modules
+export { supabase };
 
 /* ---------- utility functions ---------- */
 

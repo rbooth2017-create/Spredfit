@@ -21,6 +21,8 @@ import {
   ChevronRight,
   Download,
   Smartphone,
+  Database,
+  Calendar,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -50,6 +52,8 @@ import { FloatingContent } from "./FloatingContent";
 import { useAuth } from "../utils/auth";
 import { useApp } from "../utils/AppContext";
 import { usePWAInstall } from "./PWAInstall";
+import { importHealthWorkouts } from "../utils/healthData";
+import { Capacitor } from "@capacitor/core";
 
 interface SettingsProps {
   onBack: () => void;
@@ -57,10 +61,10 @@ interface SettingsProps {
   onLogout: () => void;
 }
 
-type SettingsSection = "account" | "security" | "preferences" | "privacy" | null;
+type SettingsSection = "account" | "security" | "preferences" | "privacy" | "import" | null;
 
 export function Settings({ onBack, onUploadPhoto, onLogout }: SettingsProps) {
-  const { signOut } = useAuth();
+  const { signOut, user } = useAuth();
   const { appSettings, setAppSettings } = useApp();
   const { canInstall, platform, triggerInstall, isAndroidWithPrompt, isIOS } = usePWAInstall();
   const [activeSection, setActiveSection] = useState<SettingsSection>(null);
@@ -79,6 +83,10 @@ export function Settings({ onBack, onUploadPhoto, onLogout }: SettingsProps) {
 
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showPWADialog, setShowPWADialog] = useState(false);
+  
+  // Health import states
+  const [importDays, setImportDays] = useState("7");
+  const [isImporting, setIsImporting] = useState(false);
 
   const handleSaveAccount = () => {
     toast.success("Account information updated");
@@ -123,8 +131,31 @@ export function Settings({ onBack, onUploadPhoto, onLogout }: SettingsProps) {
         toast.error("Installation cancelled");
       }
     } else if (isIOS) {
-      // Show iOS instructions
       setShowPWADialog(true);
+    }
+  };
+
+  const handleHealthImport = async () => {
+    if (!user?.id) {
+      toast.error("Please log in to import workouts");
+      return;
+    }
+
+    setIsImporting(true);
+    
+    try {
+      const days = parseInt(importDays);
+      const endDate = new Date();
+      const startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+
+      const result = await importHealthWorkouts(user.id, startDate, endDate);
+      
+      setActiveSection(null);
+    } catch (error) {
+      console.error("Import error:", error);
+    } finally {
+      setIsImporting(false);
     }
   };
 
@@ -135,6 +166,8 @@ export function Settings({ onBack, onUploadPhoto, onLogout }: SettingsProps) {
       privateProfile: privateProfile,
     });
   }, [units, notifications, privateProfile]);
+
+  const isNativePlatform = Capacitor.isNativePlatform();
 
   return (
     <FloatingContent onBack={onBack} backLabel="Back">
@@ -238,6 +271,25 @@ export function Settings({ onBack, onUploadPhoto, onLogout }: SettingsProps) {
               <ChevronRight className="w-5 h-5 text-[#2d332d]/40" />
             </div>
           </div>
+
+          {/* Data Import - Only show on native platforms */}
+          {isNativePlatform && (
+            <div
+              onClick={() => setActiveSection("import")}
+              className="bg-[#eef0ed] rounded-3xl p-4 border border-[#2d332d]/10 cursor-pointer hover:bg-[#9ca895]/30 transition-colors"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-10 h-10 rounded-full bg-[#2d332d] flex items-center justify-center">
+                  <Database className="w-5 h-5 text-[#9ca895]" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-[#2d332d]">Data Import</p>
+                  <p className="text-xs text-[#2d332d]/60">Import from health apps</p>
+                </div>
+                <ChevronRight className="w-5 h-5 text-[#2d332d]/40" />
+              </div>
+            </div>
+          )}
 
           {/* Logout */}
           <Button
@@ -418,6 +470,58 @@ export function Settings({ onBack, onUploadPhoto, onLogout }: SettingsProps) {
               </div>
               <Switch checked={privateProfile} onCheckedChange={setPrivateProfile} />
             </div>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Data Import Dialog */}
+      <Dialog open={activeSection === "import"} onOpenChange={(open) => !open && setActiveSection(null)}>
+        <DialogContent className="bg-[#9ca895] border-[#2d332d]/20 text-[#2d332d]">
+          <DialogHeader>
+            <DialogTitle className="text-[#2d332d]">Import Health Data</DialogTitle>
+            <DialogDescription className="text-[#2d332d]/70">
+              Import workouts from {Capacitor.getPlatform() === 'ios' ? 'Apple Health' : 'Google Fit'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 mt-4">
+            <div>
+              <Label className="text-[#2d332d]">Import Period</Label>
+              <Select value={importDays} onValueChange={setImportDays}>
+                <SelectTrigger className="bg-[#eef0ed] border-[#2d332d]/10 text-[#2d332d]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent className="bg-[#eef0ed]">
+                  <SelectItem value="7">Last 7 days</SelectItem>
+                  <SelectItem value="14">Last 14 days</SelectItem>
+                  <SelectItem value="30">Last 30 days</SelectItem>
+                  <SelectItem value="90">Last 90 days</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="bg-[#2d332d]/5 rounded-lg p-3">
+              <p className="text-xs text-[#2d332d]/70">
+                • Duplicates will be skipped automatically<br />
+                • You'll need to grant health data permissions<br />
+                • Import may take a moment for large date ranges
+              </p>
+            </div>
+            <Button
+              onClick={handleHealthImport}
+              disabled={isImporting}
+              className="w-full bg-[#2d332d] hover:bg-[#2d332d]/90 text-[#9ca895] rounded-full"
+            >
+              {isImporting ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />
+                  Importing...
+                </>
+              ) : (
+                <>
+                  <Download className="w-4 h-4 mr-2" />
+                  Import Workouts
+                </>
+              )}
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
