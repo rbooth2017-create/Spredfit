@@ -783,4 +783,187 @@ async getAllVisibleWorkouts() {
       throw error;
     }
   }
+async addWorkoutComment(workoutId: string, comment: string) {
+  console.log('🔵 API Client: Adding comment to workout');
+  try {
+    const { data: { user } } = await this.supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('No user found');
+    }
+
+    const { data, error } = await this.supabase
+      .from('workout_comments')
+      .insert({
+        workout_id: workoutId,
+        author_id: user.id,
+        content: comment,
+      })
+      .select(`
+        *,
+        profiles!workout_comments_author_id_fkey (
+          username,
+          avatar_url
+        )
+      `)
+      .single();
+
+    if (error) throw error;
+
+    console.log('✅ Comment added:', data);
+    return {
+      id: data.id,
+      userId: data.author_id,
+      userName: data.profiles?.username || 'User',
+      userAvatar: data.profiles?.avatar_url || '',
+      text: data.content,
+      timestamp: new Date(data.created_at).toLocaleTimeString(),
+      created_at: data.created_at
+    };
+  } catch (error) {
+    console.error('❌ Failed to add comment:', error);
+    throw error;
+  }
+}
+
+async getWorkoutComments(workoutId: string) {
+  console.log('🔵 API Client: Fetching workout comments');
+  try {
+    const { data: comments, error } = await this.supabase
+      .from('workout_comments')
+      .select(`
+        *,
+        profiles!workout_comments_author_id_fkey (
+          username,
+          avatar_url
+        )
+      `)
+      .eq('workout_id', workoutId)
+      .order('created_at', { ascending: true });
+
+    if (error) throw error;
+
+    console.log('✅ Comments fetched:', comments);
+    return (comments || []).map((comment: any) => ({
+      id: comment.id,
+      userId: comment.author_id,
+      userName: comment.profiles?.username || 'User',
+      userAvatar: comment.profiles?.avatar_url || '',
+      text: comment.content,
+      timestamp: new Date(comment.created_at).toLocaleTimeString(),
+      created_at: comment.created_at
+    }));
+  } catch (error) {
+    console.error('❌ Failed to fetch comments:', error);
+    throw error;
+  }
+}
+
+async addWorkoutReaction(workoutId: string, reactionType: string) {
+  console.log('🔵 API Client: Adding reaction to workout');
+  try {
+    const { data: { user } } = await this.supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('No user found');
+    }
+
+    // Check if user already reacted
+    const { data: existing } = await this.supabase
+      .from('workout_reactions')
+      .select('id, reaction_type')
+      .eq('workout_id', workoutId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (existing) {
+      // If same reaction, remove it (toggle off)
+      if (existing.reaction_type === reactionType) {
+        const { error } = await this.supabase
+          .from('workout_reactions')
+          .delete()
+          .eq('id', existing.id);
+        
+        if (error) throw error;
+        console.log('✅ Reaction removed');
+        return { removed: true };
+      } else {
+        // Update to new reaction
+        const { error } = await this.supabase
+          .from('workout_reactions')
+          .update({ reaction_type: reactionType })
+          .eq('id', existing.id);
+        
+        if (error) throw error;
+        console.log('✅ Reaction updated');
+      }
+    } else {
+      // Insert new reaction
+      const { error } = await this.supabase
+        .from('workout_reactions')
+        .insert({
+          workout_id: workoutId,
+          user_id: user.id,
+          reaction_type: reactionType,
+        });
+      
+      if (error) throw error;
+      console.log('✅ Reaction added');
+    }
+
+    return { removed: false };
+  } catch (error) {
+    console.error('❌ Failed to add reaction:', error);
+    throw error;
+  }
+}
+
+async getWorkoutReactions(workoutId: string) {
+  console.log('🔵 API Client: Fetching workout reactions');
+  try {
+    const { data: reactions, error } = await this.supabase
+      .from('workout_reactions')
+      .select('reaction_type, user_id')
+      .eq('workout_id', workoutId);
+
+    if (error) throw error;
+
+    // Group by reaction type and count
+    const grouped: Record<string, { count: number; userReacted: boolean }> = {};
+    const { data: { user } } = await this.supabase.auth.getUser();
+    
+    (reactions || []).forEach((reaction: any) => {
+      if (!grouped[reaction.reaction_type]) {
+        grouped[reaction.reaction_type] = { count: 0, userReacted: false };
+      }
+      grouped[reaction.reaction_type].count++;
+      if (user && reaction.user_id === user.id) {
+        grouped[reaction.reaction_type].userReacted = true;
+      }
+    });
+
+    console.log('✅ Reactions fetched:', grouped);
+    return grouped;
+  } catch (error) {
+    console.error('❌ Failed to fetch reactions:', error);
+    throw error;
+  }
+}
+
+async deleteWorkoutComment(commentId: string) {
+  console.log('🔵 API Client: Deleting comment');
+  try {
+    const { error } = await this.supabase
+      .from('workout_comments')
+      .delete()
+      .eq('id', commentId);
+
+    if (error) throw error;
+
+    console.log('✅ Comment deleted');
+  } catch (error) {
+    console.error('❌ Failed to delete comment:', error);
+    throw error;
+  }
+}
 }

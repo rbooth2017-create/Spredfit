@@ -1,4 +1,4 @@
-import { memo, useEffect } from "react";
+import { memo, useEffect, useRef } from "react";
 import {
   Navigation,
   Check,
@@ -51,7 +51,7 @@ interface StartWorkoutModalProps {
   toggleLock: () => void;
   onClose: () => void;
 
-  // 🔁 New: callback for streaming GPS points
+  // 🔁 callback for streaming GPS points
   onGpsPoint?: (point: {
     latitude: number;
     longitude: number;
@@ -90,6 +90,21 @@ function StartWorkoutModalComponent({
   onClose,
   onGpsPoint,
 }: StartWorkoutModalProps) {
+  // 🔁 detect locked → unlocked while lock widget is open,
+  // then auto-close the lock overlay (return to active workout)
+  const prevLockedRef = useRef(isLocked);
+
+  useEffect(() => {
+    const wasLocked = prevLockedRef.current;
+
+    if (wasLocked && !isLocked && showLockScreen && modalStep === 3) {
+      // Just slid to unlock → hide lock widget
+      setShowLockScreen(false);
+    }
+
+    prevLockedRef.current = isLocked;
+  }, [isLocked, showLockScreen, modalStep, setShowLockScreen]);
+
   // ✅ Step 2: Real GPS acquisition when searching starts
   useEffect(() => {
     if (!gpsSearching || !selectedSport) return;
@@ -447,22 +462,28 @@ function StartWorkoutModalComponent({
             )}
 
             {/* GPS Status Indicator */}
-            <div className="flex items-center gap-2 mb-2">
-              {gpsConnected ? (
-                <>
-                  <Navigation className="w-3 h-3 text-green-400" />
-                  <span className="text-green-400 text-[10px]">
-                    GPS Active
-                  </span>
-                </>
-              ) : (
-                <>
-                  <WifiOff className="w-3 h-3 text-white/50" />
-                  <span className="text-white/50 text-[10px]">
-                    Simulated Tracking
-                  </span>
-                </>
-              )}
+            <div className="flex flex-col items-center gap-1 mb-2">
+              <div className="flex items-center gap-2">
+                {gpsConnected ? (
+                  <>
+                    <Navigation className="w-3 h-3 text-green-400" />
+                    <span className="text-green-400 text-[10px]">
+                      GPS Active
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="w-3 h-3 text-white/50" />
+                    <span className="text-white/50 text-[10px]">
+                      Simulated Tracking
+                    </span>
+                  </>
+                )}
+              </div>
+              <p className="text-white/50 text-[10px] max-w-[220px]">
+                For reliable GPS, keep this screen open. Locking your phone or
+                leaving the app may pause location updates.
+              </p>
             </div>
 
             {/* Lock Screen Widget Button */}
@@ -503,7 +524,7 @@ function StartWorkoutModalComponent({
 
         {/* Step 4: Workout Complete - Review Activity */}
         {modalStep === 4 && selectedSport && (
-          <div className="flex flex-col items-center text-center space-y-4 w-full px-4">
+          <div className="flex flex-col items-center text_center space-y-4 w-full px-4">
             <div className="mb-4">
               <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center">
                 <Check className="w-8 h-8 text-white" strokeWidth={2.5} />
@@ -524,7 +545,7 @@ function StartWorkoutModalComponent({
                   </span>
                 </div>
               )}
-              <div className="flex justify-between items-center">
+              <div className="flex justify-between items_center">
                 <span className="text-white/70 text-xs">Duration:</span>
                 <span className="text-white text-xs">
                   {formatTime(workoutTime)}
@@ -592,7 +613,7 @@ function StartWorkoutModalComponent({
                   </div>
                   <div className="w-px h-6 bg-white/20"></div>
                   <div className="text-center">
-                    <p className="text-lg text-white">{recordedPace}</p>
+                    <p className="text-lg text_white">{recordedPace}</p>
                     <p className="text-[9px] text-white/60">/KM</p>
                   </div>
                 </div>
@@ -609,7 +630,7 @@ function StartWorkoutModalComponent({
                 >
                   <div
                     className={`w-1.5 h-1.5 rounded-full ${
-                      isWorkoutRunning ? "bg.white animate-pulse" : "bg-white/60"
+                      isWorkoutRunning ? "bg-white animate-pulse" : "bg-white/60"
                     }`}
                   />
                   <p className="text-[10px] text-white">
@@ -707,50 +728,7 @@ function StartWorkoutModalComponent({
               )}
             </div>
 
-            {/* Control Buttons Below Circle */}
-            <div className="flex gap-4 mt-8">
-              <button
-                onClick={handlePauseToggle}
-                disabled={isLocked}
-                className={`w-20 h-20 rounded-full flex flex-col items-center justify-center gap-1 shadow-xl transition-all border ${
-                  isWorkoutRunning
-                    ? "bg-white/10 backdrop-blur-sm hover:bg-white/20 text-white border-white/30"
-                    : "bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border-white/40"
-                } disabled:opacity-30 disabled:cursor-not-allowed`}
-              >
-                {isWorkoutRunning ? (
-                  <>
-                    <Pause className="w-7 h-7" strokeWidth={2.5} />
-                    <span className="text-[9px]">Pause</span>
-                  </>
-                ) : (
-                  <>
-                    <Play className="w-7 h-7" strokeWidth={2.5} />
-                    <span className="text-[9px]">Resume</span>
-                  </>
-                )}
-              </button>
-
-              <button
-                onClick={handleCompleteWorkout}
-                disabled={isLocked}
-                className="w-20 h-20 rounded-full bg-[#2d2d2d] hover:bg-[#2d2d2d]/90 text-white flex flex-col items-center justify-center gap-1 shadow-xl disabled:opacity-30 disabled:cursor-not-allowed transition-all border border-white/20"
-              >
-                <Square className="w-7 h-7" strokeWidth={2.5} />
-                <span className="text-[9px]">End</span>
-              </button>
-            </div>
-
-            {/* Return Button */}
-            <div className="text-center mt-8">
-              <button
-                onClick={() => setShowLockScreen(false)}
-                className="text-white/60 hover:text-white flex items-center gap-2 text-sm transition-all"
-              >
-                <ChevronLeft className="w-4 h-4" />
-                Return to workout
-              </button>
-            </div>
+            {/* NOTE: pause / end buttons and "Return to workout" removed on purpose */}
           </div>
         </div>
       )}

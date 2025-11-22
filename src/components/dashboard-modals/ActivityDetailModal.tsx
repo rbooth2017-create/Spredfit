@@ -1,9 +1,10 @@
-import { memo } from "react";
-import { Trophy, Meh, Smile, MessageCircle, ArrowLeft, PenLine, Trash2 } from "lucide-react";
+import { memo, useState, useEffect } from "react";
+import { Trophy, Meh, Smile, MessageCircle, ArrowLeft, PenLine, Trash2, Send } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import { Textarea } from "../ui/textarea";
-import { toast } from "sonner@2.0.3";
+import { toast } from "sonner";
 import { HeadOnFireIcon } from "../HeadOnFireIcon";
+import type { APIClient } from "../../utils/api";
 
 interface Activity {
   id: string;
@@ -29,6 +30,8 @@ interface Activity {
     id: string;
     userName: string;
     text: string;
+    userAvatar?: string;
+    timestamp?: string;
   }>;
   [key: string]: any;
 }
@@ -43,6 +46,7 @@ interface ActivityDetailModalProps {
   onEdit?: (activity: Activity) => void;
   onDelete?: (activityId: string) => void;
   currentUserId?: string;
+  api?: APIClient | null;
 }
 
 function ActivityDetailModalComponent({
@@ -55,7 +59,111 @@ function ActivityDetailModalComponent({
   onEdit,
   onDelete,
   currentUserId,
+  api,
 }: ActivityDetailModalProps) {
+  const [comments, setComments] = useState(activity.comments || []);
+  const [reactions, setReactions] = useState(activity.reactions || {
+    "so-so": 0,
+    "awesome": 0,
+    "mind-blown": 0
+  });
+  const [isLoadingComments, setIsLoadingComments] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Load comments and reactions from database
+  useEffect(() => {
+    if (activity.id && activity.type === 'workout' && api) {
+      loadCommentsAndReactions();
+    }
+  }, [activity.id, api]);
+
+  const loadCommentsAndReactions = async () => {
+    if (!api) return;
+    
+    setIsLoadingComments(true);
+    try {
+      // Load comments
+      const fetchedComments = await api.getWorkoutComments(activity.id);
+      setComments(fetchedComments.map(c => ({
+        id: c.id,
+        userName: c.userName,
+        text: c.text,
+        userAvatar: c.userAvatar,
+        timestamp: c.timestamp
+      })));
+
+      // Load reactions - map to your existing format
+      const fetchedReactions = await api.getWorkoutReactions(activity.id);
+      // Convert from emoji format to your so-so/awesome/mind-blown format
+      const mappedReactions = {
+        "so-so": fetchedReactions['😐']?.count || 0,
+        "awesome": fetchedReactions['😊']?.count || 0,
+        "mind-blown": fetchedReactions['🔥']?.count || 0
+      };
+      setReactions(mappedReactions);
+    } catch (error) {
+      console.error('Failed to load comments/reactions:', error);
+    } finally {
+      setIsLoadingComments(false);
+    }
+  };
+
+  const handleAddComment = async () => {
+    if (!commentText.trim() || !api || isSubmitting) return;
+
+    setIsSubmitting(true);
+    try {
+      const addedComment = await api.addWorkoutComment(activity.id, commentText.trim());
+      setComments([...comments, {
+        id: addedComment.id,
+        userName: addedComment.userName,
+        text: addedComment.text,
+        userAvatar: addedComment.userAvatar,
+        timestamp: addedComment.timestamp
+      }]);
+      setCommentText('');
+      toast.success('Comment added!');
+      onComment(activity.id);
+    } catch (error) {
+      console.error('Failed to add comment:', error);
+      toast.error('Failed to add comment');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleReaction = async (reactionType: string) => {
+    if (!api) {
+      onReaction(activity.id, reactionType);
+      return;
+    }
+
+    // Map your reaction types to emoji format
+    const emojiMap: Record<string, string> = {
+      "so-so": "😐",
+      "awesome": "😊",
+      "mind-blown": "🔥"
+    };
+
+    try {
+      await api.addWorkoutReaction(activity.id, emojiMap[reactionType]);
+      
+      // Reload reactions to get updated counts
+      const fetchedReactions = await api.getWorkoutReactions(activity.id);
+      const mappedReactions = {
+        "so-so": fetchedReactions['😐']?.count || 0,
+        "awesome": fetchedReactions['😊']?.count || 0,
+        "mind-blown": fetchedReactions['🔥']?.count || 0
+      };
+      setReactions(mappedReactions);
+      
+      onReaction(activity.id, reactionType);
+    } catch (error) {
+      console.error('Failed to toggle reaction:', error);
+      toast.error('Failed to update reaction');
+    }
+  };
+
   return (
     <>
       <style>{`
@@ -131,24 +239,37 @@ function ActivityDetailModalComponent({
             )}
 
             {/* Comments */}
-            {activity.comments?.length > 0 && (
+            {isLoadingComments ? (
+              <div className="text-white/60 text-[10px] text-center py-2">Loading comments...</div>
+            ) : comments.length > 0 ? (
               <div className="space-y-1.5 mt-3">
-                {activity.comments.map((comment) => (
+                {comments.map((comment) => (
                   <div key={comment.id} className="bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl p-2">
-                    <p className="text-white/80 text-[10px] mb-0.5">
-                      <span className="font-medium">{comment.userName}</span>
-                    </p>
+                    <div className="flex items-center gap-1.5 mb-0.5">
+                      {comment.userAvatar && (
+                        <Avatar className="w-3 h-3">
+                          <AvatarImage src={comment.userAvatar} />
+                          <AvatarFallback className="bg-white/20 text-white text-[6px]">
+                            {comment.userName.charAt(0)}
+                          </AvatarFallback>
+                        </Avatar>
+                      )}
+                      <p className="text-white/80 text-[10px] font-medium">{comment.userName}</p>
+                      {comment.timestamp && (
+                        <p className="text-white/40 text-[8px] ml-auto">{comment.timestamp}</p>
+                      )}
+                    </div>
                     <p className="text-white/70 text-[9px]">{comment.text}</p>
                   </div>
                 ))}
               </div>
-            )}
+            ) : null}
           </div>
 
           {/* Reaction Buttons - with integrated counts */}
           <div className="flex items-center gap-2 mb-3 flex-shrink-0 justify-center">
             <button
-              onClick={() => onReaction(activity.id, "so-so")}
+              onClick={() => handleReaction("so-so")}
               className={`relative w-9 h-9 rounded-full flex items-center justify-center transition-all ${
                 activity.userReaction === "so-so" 
                   ? 'bg-white/30 border-2 border-white/40' 
@@ -156,14 +277,14 @@ function ActivityDetailModalComponent({
               }`}
             >
               <Meh className="w-4 h-4 text-white" />
-              {activity.reactions?.["so-so"] > 0 && (
+              {reactions["so-so"] > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white text-[#2d332d] text-[8px] flex items-center justify-center font-medium">
-                  {activity.reactions["so-so"]}
+                  {reactions["so-so"]}
                 </span>
               )}
             </button>
             <button
-              onClick={() => onReaction(activity.id, "awesome")}
+              onClick={() => handleReaction("awesome")}
               className={`relative w-9 h-9 rounded-full flex items-center justify-center transition-all ${
                 activity.userReaction === "awesome" 
                   ? 'bg-white/30 border-2 border-white/40' 
@@ -171,14 +292,14 @@ function ActivityDetailModalComponent({
               }`}
             >
               <Smile className={`w-4 h-4 text-white ${activity.userReaction === "awesome" ? 'fill-white' : ''}`} />
-              {activity.reactions?.["awesome"] > 0 && (
+              {reactions["awesome"] > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white text-[#2d332d] text-[8px] flex items-center justify-center font-medium">
-                  {activity.reactions["awesome"]}
+                  {reactions["awesome"]}
                 </span>
               )}
             </button>
             <button
-              onClick={() => onReaction(activity.id, "mind-blown")}
+              onClick={() => handleReaction("mind-blown")}
               className={`relative w-9 h-9 rounded-full flex items-center justify-center transition-all ${
                 activity.userReaction === "mind-blown" 
                   ? 'bg-white/30 border-2 border-white/40' 
@@ -187,28 +308,41 @@ function ActivityDetailModalComponent({
               title="Mind blown"
             >
               <HeadOnFireIcon className="w-4 h-4 text-white" />
-              {activity.reactions?.["mind-blown"] > 0 && (
+              {reactions["mind-blown"] > 0 && (
                 <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-white text-[#2d332d] text-[8px] flex items-center justify-center font-medium">
-                  {activity.reactions["mind-blown"]}
+                  {reactions["mind-blown"]}
                 </span>
               )}
             </button>
           </div>
 
-          {/* Comment Input - simplified */}
-          <div className="flex-shrink-0">
+          {/* Comment Input - with Post button */}
+          <div className="flex-shrink-0 flex gap-1.5 items-center">
             <Textarea
               placeholder="Add a comment..."
               value={commentText}
               onChange={(e) => setCommentText(e.target.value)}
-              className="w-full h-9 resize-none text-[10px] bg-white/10 backdrop-blur-sm border-white/20 text-white placeholder:text-white/40 rounded-full px-3 py-2"
+              disabled={isSubmitting}
+              className="flex-1 h-9 resize-none text-[10px] bg-white/10 backdrop-blur-sm border-white/20 text-white placeholder:text-white/40 rounded-full px-3 py-2 disabled:opacity-50"
               onKeyDown={(e) => {
                 if (e.key === 'Enter' && !e.shiftKey) {
                   e.preventDefault();
-                  onComment(activity.id);
+                  handleAddComment();
                 }
               }}
             />
+            <button
+              onClick={handleAddComment}
+              disabled={!commentText.trim() || isSubmitting}
+              className="w-9 h-9 rounded-full bg-[#A35139] hover:bg-[#8d3f2d] disabled:opacity-50 disabled:cursor-not-allowed text-white transition-colors flex items-center justify-center flex-shrink-0"
+              title="Post comment"
+            >
+              {isSubmitting ? (
+                <span className="text-[10px]">...</span>
+              ) : (
+                <Send className="w-4 h-4" />
+              )}
+            </button>
           </div>
         </div>
       </div>

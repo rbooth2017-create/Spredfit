@@ -266,13 +266,16 @@ const handleSignup = async () => {
     </motion.div>
   );
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen w-full flex items-center justify-center bg-[#1a1f1a]">
+if (authLoading) {
+  return (
+    <>
+      <AnimatedBackground />
+      <div className="min-h-screen w-full flex items-center justify-center">
         <div className="text-white">Loading...</div>
       </div>
-    );
-  }
+    </>
+  );
+}
 
   if (!user) {
     return (

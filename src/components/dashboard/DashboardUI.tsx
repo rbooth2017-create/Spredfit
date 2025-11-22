@@ -91,7 +91,16 @@ function DashboardHeaderComponent({ onModalOpen }: DashboardHeaderProps) {
       {/* User Name - right aligned */}
       <div className="flex items-center justify-end mb-3">
         <div>
-          <h1 className="text-2xl text-[#eef0ed]">{user?.username || 'User'}</h1>
+         <h1 className="text-2xl text-[#eef0ed]">
+            {user?.username ? (
+              user.username
+            ) : (
+              <span className="inline-flex items-center gap-2">
+                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <span className="text-white/50">Loading...</span>
+              </span>
+            )}
+          </h1>
         </div>
       </div>
       
@@ -171,7 +180,15 @@ function ActivityCarouselComponent({
                     <div 
                       key={activity.id} 
                       className={`${circleSize} flex-shrink-0 flex flex-col items-center justify-center text-center px-6 snap-center cursor-pointer transition-all duration-700 ease-in-out relative`}
-                      onClick={() => onActivityClick(activity)}
+                      onClick={() => {
+                        console.log('🔍 Activity clicked:', {
+                          userName: activity.userName,
+                          leaguePosition: activity.leaguePosition,
+                          totalMembers: activity.totalMembers,
+                          positionChange: activity.positionChange
+                        });
+                        onActivityClick(activity);
+                      }}
                     >
                       {/* Background Image at 10% opacity */}
                       {activity.photo && (
@@ -186,37 +203,48 @@ function ActivityCarouselComponent({
                         />
                       )}
                       
-                      {/* Content */}
+                      {/* Content - NEW ORDER */}
                       <div className="relative z-10">
-                        <div className="mb-2">
-                          <Icon className={`${isExpanded ? 'w-12 h-12' : 'w-8 h-8'} text-[#eef0ed] mx-auto transition-all duration-700 ease-in-out`} strokeWidth={1.5} />
+                        {/* 1. Sport Icon */}
+                        <div className="mb-3">
+                          <Icon className={`${isExpanded ? 'w-16 h-16' : 'w-12 h-12'} text-[#eef0ed] mx-auto transition-all duration-700 ease-in-out`} strokeWidth={1.5} />
                         </div>
-                        <h2 className={`text-[#eef0ed] mb-1 transition-all duration-700 ease-in-out ${isExpanded ? 'text-4xl' : 'text-2xl'}`}>{activity.userName}</h2>
-                        <p className={`text-[#eef0ed]/80 mb-1 transition-all duration-700 ease-in-out ${isExpanded ? 'text-lg' : 'text-sm'}`}>
-                          {activityLabel}
-                        </p>
-                        <p className={`text-[#eef0ed]/70 mb-2 transition-all duration-700 ease-in-out ${isExpanded ? 'text-sm' : 'text-xs'}`}>
+                        
+                        {/* 2. User Name */}
+                        <h2 className={`text-[#eef0ed] mb-2 font-semibold transition-all duration-700 ease-in-out ${isExpanded ? 'text-3xl' : 'text-xl'}`}>
+                          {activity.userName}
+                        </h2>
+                        
+                        {/* 3. Distance and Time (or just time) */}
+                        {activity.type === 'workout' && (
+                          <p className={`text-[#eef0ed]/90 mb-2 font-medium transition-all duration-700 ease-in-out ${isExpanded ? 'text-lg' : 'text-base'}`}>
+                            {activity.distance && activity.distance > 0 
+                              ? `${activity.distance} km • ${activity.duration} min`
+                              : `${activity.duration} min`
+                            }
+                          </p>
+                        )}
+                        
+                        {/* 4. League Name */}
+                        <p className={`text-[#eef0ed]/70 mb-2 transition-all duration-700 ease-in-out ${isExpanded ? 'text-base' : 'text-sm'}`}>
                           {activity.leagueName || currentLeague?.name || 'League'}
                         </p>
                         
-                        {/* League Position with Change Indicator */}
+                        {/* 5. League Position with Change Indicator */}
                         {activity.leaguePosition && (
-                          <div className="flex items-center justify-center gap-1 mb-1">
-                            <p className={`text-[#eef0ed] transition-all duration-700 ease-in-out ${isExpanded ? 'text-base' : 'text-sm'}`}>
-                              #{activity.leaguePosition} out of {activity.totalMembers}
+                          <div className="flex items-center justify-center gap-2">
+                            <p className={`text-[#eef0ed] font-semibold transition-all duration-700 ease-in-out ${isExpanded ? 'text-xl' : 'text-base'}`}>
+                              #{activity.leaguePosition}
                             </p>
+                            <span className={`text-[#eef0ed]/60 transition-all duration-700 ease-in-out ${isExpanded ? 'text-sm' : 'text-xs'}`}>
+                              of {activity.totalMembers}
+                            </span>
                             {activity.positionChange !== null && activity.positionChange !== 0 && (
                               activity.positionChange > 0 
-                                ? <TrendingUp className={`${isExpanded ? 'w-5 h-5' : 'w-4 h-4'} text-[#eef0ed]`} strokeWidth={2} />
-                                : <TrendingDown className={`${isExpanded ? 'w-5 h-5' : 'w-4 h-4'} text-[#eef0ed]`} strokeWidth={2} />
+                                ? <TrendingUp className={`${isExpanded ? 'w-6 h-6' : 'w-5 h-5'} text-white`} strokeWidth={2.5} />
+                                : <TrendingDown className={`${isExpanded ? 'w-6 h-6' : 'w-5 h-5'} text-white`} strokeWidth={2.5} />
                             )}
                           </div>
-                        )}
-                        
-                        {activity.duration && (
-                          <p className={`text-[#eef0ed]/60 mt-1 transition-all duration-700 ease-in-out ${isExpanded ? 'text-sm' : 'text-xs'}`}>
-                            {Math.floor(activity.duration / 60)}h {activity.duration % 60}m
-                          </p>
                         )}
                       </div>
                     </div>

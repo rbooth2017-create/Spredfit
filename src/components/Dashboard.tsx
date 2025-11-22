@@ -111,6 +111,30 @@ export function Dashboard({
     }
   }, [justSignedUp]);
 
+  // Add this helper function near the top of Dashboard.tsx, after the imports
+const getStoredPositions = (userId: string, leagueId: string) => {
+  try {
+    const key = `league_position_${userId}_${leagueId}`;
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : null;
+  } catch {
+    return null;
+  }
+};
+
+const storePosition = (userId: string, leagueId: string, position: number) => {
+  try {
+    const key = `league_position_${userId}_${leagueId}`;
+    const data = {
+      position,
+      timestamp: Date.now(),
+    };
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (error) {
+    console.error('Failed to store position:', error);
+  }
+};
+
   // ✅ USE THE CUSTOM HOOK - All state in one place!
   const state = useDashboardState();
 
@@ -584,28 +608,96 @@ export function Dashboard({
     }
   }, [workoutTime, recordedDistance, setRecordedPace]);
 
-  // Load activities when component mounts or when a workout is created
-  useEffect(() => {
-    async function loadActivities() {
-      if (!accessToken) {
-        setActivities([]);
-        return;
-      }
-      try {
-        const api = new APIClient(accessToken);
-        const workouts = await api.getAllVisibleWorkouts();
-        const withPhotos = normalizeWorkoutPhotos(workouts);
-        console.log("🖼 First workout after normalize:", withPhotos[0]);
-        const transformedActivities =
-          transformActivityUserNames(withPhotos);
-        setActivities(transformedActivities);
-      } catch (error) {
-        console.error("Failed to load workouts:", error);
-        setActivities([]);
-      }
+ // Load activities when component mounts or when a workout is created
+useEffect(() => {
+  async function loadActivities() {
+    if (!accessToken || !user?.id) {
+      setActivities([]);
+      return;
     }
-    loadActivities();
-  }, [accessToken, setActivities, refreshTrigger]);
+    try {
+      const api = new APIClient(accessToken);
+      const workouts = await api.getAllVisibleWorkouts();
+      const withPhotos = normalizeWorkoutPhotos(workouts);
+      
+      // Calculate league positions for each workout
+      const activitiesWithPositions = await Promise.all(
+        withPhotos.map(async (workout) => {
+          // Find which league this workout belongs to
+          const workoutLeague = leagues.find(league => 
+            league.members?.some(m => m.id === workout.userId)
+          );
+          
+          if (!workoutLeague) {
+            return {
+              ...workout,
+              leaguePosition: null,
+              totalMembers: null,
+              positionChange: null,
+            };
+          }
+          
+          // Get leaderboard for this league
+          try {
+            const leaderboard = await api.getLeagueLeaderboard(workoutLeague.id, 'total');
+            const userPosition = leaderboard.find(entry => entry.userId === workout.userId);
+            
+            if (!userPosition) {
+              return {
+                ...workout,
+                leagueName: workoutLeague.name,
+                leaguePosition: null,
+                totalMembers: leaderboard.length,
+                positionChange: null,
+              };
+            }
+            
+            // Calculate position change
+            let positionChange = 0;
+            const currentPosition = userPosition.rank;
+            const storedData = getStoredPositions(workout.userId, workoutLeague.id);
+            
+            if (storedData && storedData.position) {
+              // Positive change = moved UP (lower number is better)
+              // Negative change = moved DOWN (higher number is worse)
+              positionChange = storedData.position - currentPosition;
+            }
+            
+            // Store current position for next time
+            // Only store if this is the current user's workout
+            if (workout.userId === user.id) {
+              storePosition(workout.userId, workoutLeague.id, currentPosition);
+            }
+            
+            return {
+              ...workout,
+              leagueName: workoutLeague.name,
+              leaguePosition: currentPosition,
+              totalMembers: leaderboard.length,
+              positionChange: positionChange,
+            };
+          } catch (error) {
+            console.error('Failed to get leaderboard for league:', workoutLeague.id, error);
+            return {
+              ...workout,
+              leagueName: workoutLeague.name,
+              leaguePosition: null,
+              totalMembers: workoutLeague.members?.length || 0,
+              positionChange: null,
+            };
+          }
+        })
+      );
+      
+      const transformedActivities = transformActivityUserNames(activitiesWithPositions);
+      setActivities(transformedActivities);
+    } catch (error) {
+      console.error("Failed to load workouts:", error);
+      setActivities([]);
+    }
+  }
+  loadActivities();
+}, [accessToken, setActivities, refreshTrigger, leagues, user?.id]);
 
   // Load chat when league changes
   useEffect(() => {
