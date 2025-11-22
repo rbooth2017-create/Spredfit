@@ -139,12 +139,10 @@
     @apply border-border outline-ring/50;
   }
 
-  body {
-    @apply text-foreground;
-    font-family: var(--font-family);
-    background-color: #1B2632;
-    animation: backgroundFade 95s ease-in-out infinite;
-  }
+body {
+  @apply text-foreground;
+  font-family: var(--font-family);
+  background-color: #1B2632;
 }
 
 /**
@@ -262,82 +260,7 @@ html {
   display: none !important;
 }
 
-/* Halftone Dot Pulsate Animation - 4-7-8 Breathing Technique */
-/* Expand for 4s, Hold for 7s, Shrink for 8s = 19s total */
-@keyframes dotPulsate {
-  0% {
-    opacity: 0.3;
-    transform: scale(1);
-  }
-  21.05% {
-    opacity: 0.2;
-    transform: scale(1.15);
-  }
-  57.89% {
-    opacity: 0.2;
-    transform: scale(1.15);
-  }
-  100% {
-    opacity: 0.3;
-    transform: scale(1);
-  }
-}
 
-.dot-pulsate {
-  animation: dotPulsate 19s ease-in-out infinite;
-}
-
-/* Dot Color Cycle Animation - Opposite colors to background for visibility */
-@keyframes dotColorCycle {
-  0% {
-    fill: #FCD9A6; /* Light orange - opposite of #025E73 teal */
-  }
-  20% {
-    fill: #FEE0D9; /* Light peach - opposite of #011F26 dark teal */
-  }
-  40% {
-    fill: #5A596D; /* Dark purple-gray - opposite of #A5A692 sage */
-  }
-  60% {
-    fill: #404870; /* Dark blue-gray - opposite of #BFB78F tan */
-  }
-  80% {
-    fill: #0D58E4; /* Bright blue - opposite of #F2A71B orange */
-  }
-  100% {
-    fill: #FCD9A6; /* Back to light orange */
-  }
-}
-
-.dot-color-cycle {
-  animation: dotColorCycle 19s ease-in-out infinite;
-}
-
-/* Background Color Fade Animation */
-@keyframes backgroundFade {
-  0% {
-    background-color: #025E73; /* Teal */
-  }
-  20% {
-    background-color: #011F26; /* Dark teal/black */
-  }
-  40% {
-    background-color: #A5A692; /* Sage green/gray */
-  }
-  60% {
-    background-color: #BFB78F; /* Tan/beige */
-  }
-  80% {
-    background-color: #F2A71B; /* Orange/gold */
-  }
-  100% {
-    background-color: #025E73; /* Back to teal */
-  }
-}
-
-.background-fade {
-  animation: backgroundFade 5s ease-in-out infinite;
-}
 
 /* Fade In Animation for Dashboard Load */
 @keyframes fadeIn {
