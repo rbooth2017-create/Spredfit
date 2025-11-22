@@ -396,53 +396,32 @@ export function Dashboard({
     });
   };
 
-  // Get the default workout image path for a given sport
-// Get the correct workout image path
-const getWorkoutImagePath = (sport?: string) => {
-  if (!sport) return undefined;
+  // ✅ Single helper: map sport name to correct local image path
+  const getWorkoutImagePath = (sport?: string) => {
+    if (!sport) return undefined;
 
-  const key = sport.toLowerCase();
+    const key = sport.toLowerCase();
 
-  // File is EXACTLY: public/workout/Workout-run.png
-  if (key === "running") {
-    return "/workout/Workout-run.png";
-  }
-
-  // Slug map for other sports
-  const slugMap: Record<string, string> = {
-    cycling: "cycling",
-    swimming: "swimming",
-    yoga: "yoga",
-    hiit: "hiit",
-    "team sports": "team-sports",
-    strength: "strength",
-    other: "other",
-  };
-
-  const slug = slugMap[key] ?? key.replace(/\s+/g, "-");
-
-  return `/workout/workout-${slug}.png`;
-};
-
-
-
-  // Normalize workout photos so the UI always gets `photo`
-const normalizeWorkoutPhotos = (items: any[]) => {
-  return items.map((item) => {
-    let photo;
-
-    if (item.type === "Running") {
-      photo = getWorkoutImagePath("Running"); // ALWAYS correct run image
-    } else {
-      photo =
-        item.photo ||
-        item.photo_url ||
-        getWorkoutImagePath(item.type);
+    // Special case – your file is workout-run.png, not workout-running.png
+    if (key === "running") {
+      return "/workout/workout-run.png";
     }
 
-    return { ...item, photo };
-  });
-};
+    // Default: workout-cycling.png, workout-yoga.png, etc.
+    // (folder is public/workout in your repo)
+    return "/workout/workout-" + key + ".png";
+  };
+
+  // Normalize workout photos so the UI always gets `photo`
+  const normalizeWorkoutPhotos = (items: any[]) => {
+    return items.map((item) => ({
+      ...item,
+      photo:
+        item.photo ||
+        item.photo_url ||
+        getWorkoutImagePath(item.type),
+    }));
+  };
 
   // GPS tracking effect
   useEffect(() => {
@@ -596,7 +575,7 @@ const normalizeWorkoutPhotos = (items: any[]) => {
   // Update recorded pace
   useEffect(() => {
     if (workoutTime > 0 && recordedDistance > 0) {
-      const paceMinutes = (workoutTime / 60) / recordedDistance;
+      const paceMinutes = workoutTime / 60 / recordedDistance;
       const minutes = Math.floor(paceMinutes);
       const seconds = Math.floor((paceMinutes - minutes) * 60);
       setRecordedPace(
@@ -616,7 +595,7 @@ const normalizeWorkoutPhotos = (items: any[]) => {
         const api = new APIClient(accessToken);
         const workouts = await api.getAllVisibleWorkouts();
         const withPhotos = normalizeWorkoutPhotos(workouts);
-        console.log("🖼 Normalized workouts", withPhotos);
+        console.log("🖼 First workout after normalize:", withPhotos[0]);
         const transformedActivities =
           transformActivityUserNames(withPhotos);
         setActivities(transformedActivities);
@@ -728,7 +707,7 @@ const normalizeWorkoutPhotos = (items: any[]) => {
         notes: gpsConnected
           ? `GPS tracked: ${gpsPositions.length} points`
           : "Indoor workout",
-        photo_url: getWorkoutImagePath(selectedSport),
+        photo_url: getWorkoutImagePath(selectedSport), // ✅ Running -> workout-run.png
       });
 
       toast.success("Workout Saved!", {
