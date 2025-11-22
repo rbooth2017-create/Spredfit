@@ -124,6 +124,16 @@ export function ActiveWorkout({ sport, onComplete, onCancel }: ActiveWorkoutProp
 
           setCurrentPosition(newPos);
           setGpsAccuracy(position.coords.accuracy);
+
+          console.log(
+  "[ACTIVE GPS] pos",
+  newPos.latitude,
+  newPos.longitude,
+  "±",
+  newPos.accuracy,
+  "m"
+);
+
           
                     // Store route coordinate if accuracy is reasonable (was 50, now 100)
           if (position.coords.accuracy < 100) {
