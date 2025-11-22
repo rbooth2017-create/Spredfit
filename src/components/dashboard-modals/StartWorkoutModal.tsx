@@ -91,61 +91,78 @@ function StartWorkoutModalComponent({
       return;
     }
 
-    // Request GPS position
-    const requestGPS = async () => {
-      try {
-        await new Promise((resolve, reject) => {
-          navigator.geolocation.getCurrentPosition(
-            (position) => {
-              const accuracy = position.coords.accuracy;
-              toast.success("📍 GPS Locked", {
-                description: `Accuracy: ±${accuracy.toFixed(0)}m`,
-                duration: 2000,
+     // Request GPS position
+  const requestGPS = async () => {
+    try {
+      await new Promise((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const accuracy = position.coords.accuracy;
+            toast.success("📍 GPS Locked", {
+              description: `Accuracy: ±${accuracy.toFixed(0)}m`,
+              duration: 2000,
+            });
+            setGpsConnected(true);
+            setGpsSearching(false);
+            resolve(position);
+            
+            // Wait a moment to show success, then start workout
+            setTimeout(() => {
+              setModalStep(3);
+            }, 1500);
+          },
+          (error) => {
+            setGpsSearching(false);
+            
+            if (error.code === error.PERMISSION_DENIED) {
+              // Permission was denied - show instructions
+              toast.error("Location Permission Required", {
+                description: "Please enable location access in your browser settings",
+                duration: 6000,
+                action: {
+                  label: "How to Enable",
+                  onClick: () => {
+                    toast.info("Enable Location Access", {
+                      description: "1. Click the lock icon in the address bar\n2. Find 'Location' permission\n3. Select 'Allow'\n4. Refresh the page",
+                      duration: 10000,
+                    });
+                  },
+                },
               });
-              setGpsConnected(true);
-              setGpsSearching(false);
-              resolve(position);
               
-              // Wait a moment to show success, then start workout
-              setTimeout(() => {
-                setModalStep(3);
-              }, 1500);
-            },
-            (error) => {
-              setGpsSearching(false);
+              // DON'T auto-advance to step 3, stay on step 2 to show error state
+              setGpsConnected(false);
               
-              if (error.code === error.PERMISSION_DENIED) {
-                toast.error("GPS Permission Denied", {
-                  description: "Please enable location access in your browser settings",
-                  duration: 4000,
-                });
-              } else if (error.code === error.TIMEOUT) {
-                toast.error("GPS Timeout", {
-                  description: "Unable to get GPS signal. Move outdoors or skip GPS.",
-                  duration: 4000,
-                });
-              } else {
-                toast.error("GPS Error", {
-                  description: "Unable to access GPS. You can start without it.",
-                  duration: 3000,
-                });
-              }
-              reject(error);
-            },
-            {
-              enableHighAccuracy: true,
-              timeout: 15000, // Wait up to 15 seconds
-              maximumAge: 0
+            } else if (error.code === error.TIMEOUT) {
+              toast.error("GPS Timeout", {
+                description: "Unable to get GPS signal. Move outdoors or skip GPS.",
+                duration: 4000,
+              });
+              setGpsConnected(false);
+            } else {
+              toast.error("GPS Error", {
+                description: "Unable to access GPS. You can start without it.",
+                duration: 3000,
+              });
+              setGpsConnected(false);
             }
-          );
-        });
-      } catch (error) {
-        // GPS failed, but don't auto-start - let user decide
-        console.error('GPS error:', error);
-      }
-    };
-
-    requestGPS();
+            reject(error);
+          },
+          {
+            enableHighAccuracy: true,
+            timeout: 15000, // Wait up to 15 seconds
+            maximumAge: 0
+          }
+        );
+      });
+    } catch (error) {
+      // GPS failed, but don't auto-start - let user decide
+      console.error('GPS error:', error);
+    }
+  };
+  
+  requestGPS();
+  
   }, [gpsSearching, selectedSport, setGpsConnected, setGpsSearching, setModalStep]);
 
   return (
@@ -231,27 +248,56 @@ function StartWorkoutModalComponent({
           </div>
         )}
 
-        {/* Step 2c: GPS Failed */}
-        {modalStep === 2 && selectedSport && !gpsSearching && !gpsConnected && (
-          <div className="flex flex-col items-center text-center space-y-6">
-            <p className="text-white/70 text-xs">{selectedSport}</p>
-            <div className="relative">
-              <div className="w-24 h-24 rounded-full bg-red-500/20 backdrop-blur-sm border-2 border-red-400/50 flex items-center justify-center">
-                <WifiOff className="w-12 h-12 text-red-400" strokeWidth={2} />
-              </div>
+             {/* Step 2c: GPS Failed - UPDATE THIS SECTION */}
+      {modalStep === 2 && selectedSport && !gpsSearching && !gpsConnected && (
+        <div className="flex flex-col items-center text-center space-y-6">
+          <p className="text-white/70 text-xs">{selectedSport}</p>
+          <div className="relative">
+            <div className="w-24 h-24 rounded-full bg-red-500/20 backdrop-blur-sm border-2 border-red-400/50 flex items-center justify-center">
+              <WifiOff className="w-12 h-12 text-red-400" strokeWidth={2} />
             </div>
-            <div>
-              <p className="text-white text-sm mb-1">GPS Unavailable</p>
-              <p className="text-white/50 text-xs">You can still start with simulated tracking</p>
+          </div>
+          <div className="px-4">
+            <p className="text-white text-sm mb-2">GPS Unavailable</p>
+            <p className="text-white/70 text-xs mb-3">
+              Location access is disabled for this site
+            </p>
+            <div className="bg-white/10 rounded-lg p-3 mb-4 text-left">
+              <p className="text-white/80 text-xs mb-2">To enable GPS:</p>
+              <ol className="text-white/60 text-[10px] space-y-1 list-decimal list-inside">
+                <li>Click the lock/info icon in the address bar</li>
+                <li>Find "Location" permission</li>
+                <li>Select "Allow"</li>
+                <li>Refresh and try again</li>
+              </ol>
             </div>
+          </div>
+          <div className="flex flex-col gap-2">
             <button
-              onClick={() => setModalStep(3)}
+              onClick={() => {
+                // Try requesting GPS again
+                setGpsSearching(true);
+              }}
+              className="px-6 py-2 rounded-full bg-white/20 backdrop-blur-sm text-white text-xs border border-white/30 hover:bg-white/30 transition-all"
+            >
+              Try Again
+            </button>
+            <button
+              onClick={() => {
+                setGpsConnected(false);
+                setModalStep(3);
+                toast.info("Starting without GPS", {
+                  description: "Distance will be simulated",
+                  duration: 2000,
+                });
+              }}
               className="px-6 py-2 rounded-full bg-white/10 backdrop-blur-sm text-white text-xs border border-white/20 hover:bg-white/20 transition-all"
             >
-              Start Workout
+              Start Without GPS
             </button>
           </div>
-        )}
+        </div>
+      )}
 
         {/* Step 3: Recording */}
         {modalStep === 3 && selectedSport && (
