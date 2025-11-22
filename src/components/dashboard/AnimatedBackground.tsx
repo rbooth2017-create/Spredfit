@@ -16,9 +16,9 @@ export function AnimatedBackground({ animationsPaused = false, dimmed = false }:
 
   const topColors = [
     '#1B2632', // Scheme 1 (Abyssal Anchorfish Blue)
-    '#172B36', // Scheme 2 (Oceanic Noir)
+    '#114c5A', // Scheme 2 (Oceanic Noir)
     '#142030', // Scheme 3 (Hēi Sè Black)
-    '#1B2632', // Loop
+    '#172B36', // Loop
   ];
 
   const bottomColors = [
