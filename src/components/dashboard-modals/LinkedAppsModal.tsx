@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import { X, Link, Check, Smartphone, Info } from 'lucide-react';
+import { X, Link, Check, Info, Upload } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface LinkedAppsModalProps {
@@ -19,38 +19,60 @@ function LinkedAppsModalComponent({ onClose }: LinkedAppsModalProps) {
     {
       id: 'googlefit',
       name: 'Google Fit',
-      description: 'Auto-sync your Android health data',
+      description: 'Import your Android workouts',
       icon: '🏃',
       connected: false,
     },
     {
       id: 'applehealth',
       name: 'Apple Health',
-      description: 'Auto-sync your iPhone health data',
+      description: 'Import your iPhone workouts',
       icon: '❤️',
       connected: false,
     },
   ]);
 
   const [showInstructions, setShowInstructions] = useState(false);
+  const [importing, setImporting] = useState(false);
 
-  const handleConnect = (appId: string) => {
+  const handleFileImport = async (appId: string, event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
     const app = apps.find(a => a.id === appId);
     if (!app) return;
 
-    setApps(prevApps =>
-      prevApps.map(a =>
-        a.id === appId ? { ...a, connected: !a.connected } : a
-      )
-    );
+    setImporting(true);
 
-    if (!app.connected) {
-      toast.success(`Connected to ${app.name}!`, {
-        description: 'Your workouts will sync automatically',
-      });
-    } else {
-      toast.info(`Disconnected from ${app.name}`);
+    try {
+      const text = await file.text();
+
+      if (appId === 'googlefit') {
+        const data = JSON.parse(text);
+        console.log('📊 Google Fit data:', data);
+        toast.success('Google Fit Data Imported!');
+      } else if (appId === 'applehealth') {
+        console.log('📊 Apple Health data length:', text.length);
+        toast.success('Apple Health Data Imported!');
+      }
+
+      setApps(prevApps =>
+        prevApps.map(a =>
+          a.id === appId ? { ...a, connected: true } : a
+        )
+      );
+    } catch (error) {
+      console.error('Import error:', error);
+      toast.error('Import Failed - Check file format');
+    } finally {
+      setImporting(false);
+      event.target.value = '';
     }
+  };
+
+  const handleConnect = (appId: string) => {
+    const fileInput = document.getElementById(`file-input-${appId}`) as HTMLInputElement;
+    fileInput?.click();
   };
 
   return (
@@ -59,135 +81,100 @@ function LinkedAppsModalComponent({ onClose }: LinkedAppsModalProps) {
       onClick={onClose}
     >
       <div
-        className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col"
+        className="bg-gradient-to-br from-gray-900 to-gray-800 rounded-lg max-w-xl w-full max-h-[85vh] overflow-hidden flex flex-col"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="p-6 border-b border-white/10 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <Link className="w-6 h-6 text-white" />
-            <h2 className="text-2xl font-bold text-white">Linked Apps</h2>
+        <div className="p-4 border-b border-white/10 flex items-center justify-between flex-shrink-0">
+          <div className="flex items-center gap-2">
+            <Link className="w-5 h-5 text-white" />
+            <h2 className="text-xl font-bold text-white">Linked Apps</h2>
           </div>
-          <button
-            onClick={onClose}
-            className="text-gray-400 hover:text-white transition-colors"
-          >
-            <X className="w-6 h-6" />
+          <button onClick={onClose} className="text-gray-400 hover:text-white">
+            <X className="w-5 h-5" />
           </button>
         </div>
 
         {/* Content */}
-        <div 
-          className="flex-1 overflow-y-auto p-6"
-          style={{
-            scrollbarWidth: 'none',
-            msOverflowStyle: 'none',
-          }}
-        >
-          <style>{`
-            .flex-1.overflow-y-auto::-webkit-scrollbar {
-              display: none;
-            }
-          `}</style>
-
+        <div className="flex-1 overflow-y-auto p-4">
           {/* App Cards */}
-          <div className="space-y-4 mb-6">
+          <div className="space-y-3 mb-4">
             {apps.map((app) => (
               <div
                 key={app.id}
-                className="bg-white/5 border border-white/10 rounded-lg p-4 hover:bg-white/10 transition-all"
+                className="bg-white/5 border border-white/10 rounded-lg p-3"
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="text-4xl">{app.icon}</div>
-                    <div className="flex-1">
-                      <h3 className="text-white font-semibold text-lg flex items-center gap-2">
-                        {app.name}
-                        {app.connected && (
-                          <Check className="w-4 h-4 text-green-400" />
-                        )}
-                      </h3>
-                      <p className="text-white/60 text-sm">{app.description}</p>
-                      {!app.connected && (
-                        <p className="text-emerald-400 text-xs mt-1 flex items-center gap-1">
-                          <Smartphone className="w-3 h-3" />
-                          Automatic sync available
-                        </p>
-                      )}
-                    </div>
+                <div className="flex items-start gap-3">
+                  <div className="text-3xl flex-shrink-0">{app.icon}</div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-white font-semibold flex items-center gap-2">
+                      {app.name}
+                      {app.connected && <Check className="w-4 h-4 text-green-400 flex-shrink-0" />}
+                    </h3>
+                    <p className="text-white/60 text-sm">{app.description}</p>
                   </div>
                   <button
                     onClick={() => handleConnect(app.id)}
-                    className={`px-6 py-2 rounded-full font-medium transition-all ${
+                    disabled={importing}
+                    className={`px-4 py-2 rounded-full font-medium text-sm whitespace-nowrap flex-shrink-0 ${
                       app.connected
-                        ? 'bg-red-500/20 text-red-400 hover:bg-red-500/30'
+                        ? 'bg-green-500/20 text-green-400'
+                        : importing
+                        ? 'bg-gray-500/20 text-gray-400'
                         : 'bg-blue-500/20 text-blue-400 hover:bg-blue-500/30'
                     }`}
                   >
-                    {app.connected ? 'Disconnect' : 'Connect'}
+                    {importing ? 'Importing...' : app.connected ? 'Connected' : 'Import'}
                   </button>
                 </div>
+                <input
+                  id={`file-input-${app.id}`}
+                  type="file"
+                  accept={app.id === 'googlefit' ? '.json' : '.xml,.zip'}
+                  className="hidden"
+                  onChange={(e) => handleFileImport(app.id, e)}
+                />
               </div>
             ))}
           </div>
 
-          {/* Instructions Button */}
+          {/* Instructions */}
           <button
             onClick={() => setShowInstructions(!showInstructions)}
-            className="w-full p-4 bg-blue-500/10 border border-blue-500/20 rounded-lg hover:bg-blue-500/20 transition-all flex items-center justify-between"
+            className="w-full p-3 bg-blue-500/10 border border-blue-500/20 rounded-lg hover:bg-blue-500/20 flex items-center justify-between"
           >
-            <div className="flex items-center gap-3">
-              <Info className="w-5 h-5 text-blue-400" />
-              <span className="text-white font-medium">How to Connect</span>
+            <div className="flex items-center gap-2">
+              <Info className="w-4 h-4 text-blue-400" />
+              <span className="text-white text-sm font-medium">How to Export Data</span>
             </div>
-            <span className="text-blue-400 text-sm">
-              {showInstructions ? 'Hide' : 'Show'}
-            </span>
+            <span className="text-blue-400 text-xs">{showInstructions ? 'Hide' : 'Show'}</span>
           </button>
 
-          {/* Instructions Panel */}
           {showInstructions && (
-            <div className="mt-4 p-6 bg-white/5 border border-white/10 rounded-lg space-y-6">
+            <div className="mt-3 p-4 bg-white/5 border border-white/10 rounded-lg space-y-4 text-sm">
               <div>
-                <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
-                  🏃 Google Fit (Android)
-                </h4>
-                <ol className="text-white/70 text-sm space-y-2 list-decimal list-inside">
-                  <li>Tap "Connect" on Google Fit above</li>
-                  <li>Grant permission when prompted by your device</li>
-                  <li>Connect your other apps (Garmin, Strava, etc.) to Google Fit</li>
-                  <li>SPREDfit will automatically import your workouts and health stats! 🎉</li>
+                <h4 className="text-white font-semibold mb-2">🏃 Google Fit</h4>
+                <ol className="text-white/70 text-xs space-y-1 list-decimal list-inside">
+                  <li>Go to takeout.google.com</li>
+                  <li>Select only "Fit"</li>
+                  <li>Download as JSON</li>
+                  <li>Click Import above</li>
                 </ol>
-                <p className="text-white/50 text-xs mt-3">
-                  💡 <strong>Tip:</strong> In Google Fit, go to Profile → Settings → Connected apps 
-                  to link Garmin, Strava, and other fitness devices.
-                </p>
               </div>
 
-              <div className="border-t border-white/10 pt-6">
-                <h4 className="text-white font-semibold mb-3 flex items-center gap-2">
-                  ❤️ Apple Health (iPhone)
-                </h4>
-                <ol className="text-white/70 text-sm space-y-2 list-decimal list-inside">
-                  <li>Tap "Connect" on Apple Health above</li>
-                  <li>Grant permission when prompted by iOS</li>
-                  <li>Connect your other apps (Garmin, Strava, etc.) to Apple Health</li>
-                  <li>SPREDfit will automatically import your workouts and health stats! 🎉</li>
+              <div className="border-t border-white/10 pt-4">
+                <h4 className="text-white font-semibold mb-2">❤️ Apple Health</h4>
+                <ol className="text-white/70 text-xs space-y-1 list-decimal list-inside">
+                  <li>Open Health app</li>
+                  <li>Tap profile → Export All Health Data</li>
+                  <li>Transfer export.xml to this device</li>
+                  <li>Click Import above</li>
                 </ol>
-                <p className="text-white/50 text-xs mt-3">
-                  💡 <strong>Tip:</strong> In Apple Health, go to Sharing → Apps to manage which 
-                  fitness apps share data with Health.
-                </p>
               </div>
 
-              <div className="border-t border-white/10 pt-6">
-                <h4 className="text-white font-semibold mb-3">📱 Already installed SPREDfit?</h4>
-                <p className="text-white/70 text-sm">
-                  Great! Just tap "Connect" above to link your health data. Once connected, 
-                  all your workouts from Garmin, Strava, and other connected devices will 
-                  automatically sync to SPREDfit.
-                </p>
-              </div>
+              <p className="text-white/50 text-xs border-t border-white/10 pt-4">
+                💡 Includes all workouts from connected devices (Garmin, Strava, etc.)
+              </p>
             </div>
           )}
         </div>
