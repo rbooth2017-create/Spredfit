@@ -135,7 +135,7 @@ function ActivityCarouselComponent({
   isExpanded,
 }: ActivityCarouselProps) {
   // Fixed size circle that can overflow/crop at screen edges
-    const circleSize = "w-[90vw] h-[90vw] max-w-[900px] max-h-[900px]";
+  const circleSize = "w-[90vw] h-[90vw] max-w-[900px] max-h-[900px]";
         
   return (
     <div className={`absolute left-0 right-0 -translate-y-1/2 z-10 transition-all duration-700 ease-in-out top-[40%]`}>
@@ -175,6 +175,9 @@ function ActivityCarouselComponent({
                     activityLabel = 'Training Plan';
                     Icon = Calendar;
                   }
+                  
+                  // Get last 3 comments
+                  const recentComments = (activity.comments || []).slice(-3);
                   
                   return (
                     <div 
@@ -232,7 +235,7 @@ function ActivityCarouselComponent({
                         
                         {/* 5. League Position with Change Indicator */}
                         {activity.leaguePosition && (
-                          <div className="flex items-center justify-center gap-2">
+                          <div className="flex items-center justify-center gap-2 mb-4">
                             <p className={`text-[#eef0ed] font-semibold transition-all duration-700 ease-in-out ${isExpanded ? 'text-xl' : 'text-base'}`}>
                               #{activity.leaguePosition}
                             </p>
@@ -244,6 +247,18 @@ function ActivityCarouselComponent({
                                 ? <TrendingUp className={`${isExpanded ? 'w-6 h-6' : 'w-5 h-5'} text-white`} strokeWidth={2.5} />
                                 : <TrendingDown className={`${isExpanded ? 'w-6 h-6' : 'w-5 h-5'} text-white`} strokeWidth={2.5} />
                             )}
+                          </div>
+                        )}
+
+                        {/* 6. Last 3 Comments */}
+                        {recentComments.length > 0 && (
+                          <div className="mt-4 space-y-2 max-w-xs mx-auto">
+                            {recentComments.map((comment) => (
+                              <div key={comment.id} className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-left">
+                                <p className="text-[#eef0ed] text-xs font-semibold">{comment.userName}</p>
+                                <p className="text-[#eef0ed]/80 text-[10px] line-clamp-2">{comment.text}</p>
+                              </div>
+                            ))}
                           </div>
                         )}
                       </div>
@@ -266,19 +281,6 @@ function ActivityCarouselComponent({
               </div>
             </div>
           </div>
-          
-          {/* Fixed "View" button - bottom right of circle */}
-          {activities.length > 0 && (
-            <button
-              onClick={() => {
-                console.log('View button clicked!', activities[0]);
-                onActivityClick(activities[0]);
-              }}
-              className="absolute bottom-8 right-8 w-8 h-8 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white text-xs hover:bg-white/20 transition-all z-50 flex items-center justify-center"
-            >
-              View
-            </button>
-          )}
         </div>
       </div>
     </div>
