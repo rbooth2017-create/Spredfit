@@ -137,11 +137,11 @@ function ActivityCarouselComponent({
     const circleSize = "w-[90vw] h-[90vw] max-w-[900px] max-h-[900px]";
         
   return (
-    <div className={`absolute left-0 right-0 -translate-y-1/2 z-10 transition-all duration-700 ease-in-out top-[50%]`}>
+    <div className={`absolute left-0 right-0 -translate-y-1/2 z-10 transition-all duration-700 ease-in-out top-[40%]`}>
       <div className="flex justify-center transition-all duration-700 ease-in-out">
         <div className="relative">
           {/* Fixed circle with cycling content inside - optimized for SE and larger phones */}
-          <div className={`${circleSize} rounded-full border-[3px] border-white/20 relative overflow-hidden transition-all duration-700 ease-in-out`} data-tutorial="activity-carousel">
+          <div className={`${circleSize} rounded-full border-[0px] border-white/20 relative overflow-hidden transition-all duration-700 ease-in-out`} data-tutorial="activity-carousel">
             <div 
               className="overflow-x-auto absolute inset-0 flex items-center"
               style={{ 
