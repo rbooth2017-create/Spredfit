@@ -139,6 +139,11 @@ const storePosition = (userId: string, leagueId: string, position: number) => {
   // ✅ USE THE CUSTOM HOOK - All state in one place!
   const state = useDashboardState();
 
+    // Memoize API client to prevent recreation on every render
+  const api = useMemo(() => {
+    return accessToken ? new APIClient(accessToken) : null;
+  }, [accessToken]);
+
   // ✅ Destructure for easier use (backward compatibility)
   const {
     // Modal
@@ -1136,6 +1141,7 @@ useEffect(() => {
                   onComment={handleComment}
                   onBack={closeModal}
                   currentUserId={user?.id}
+                  api={api}
                   onEdit={(activity) => {
                     // Pre-fill the log workout form with existing data
                     setEditingWorkoutId(activity.id);
