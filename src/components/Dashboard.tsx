@@ -50,6 +50,7 @@ import { TrainingPlansModal } from "./dashboard-modals/TrainingPlansModal";
 import { CoffeeModal } from "./dashboard-modals/CoffeeModal";
 import { TodaysActivityModal } from "./dashboard-modals/TodaysActivityModal";
 import { PlannedWorkoutDetailModal } from "./dashboard-modals/PlannedWorkoutDetailModal";
+import { LinkedAppsModal } from "./dashboard-modals/LinkedAppsModal";
 
 // Dashboard Component - Main application view
 interface DashboardProps {
@@ -1103,9 +1104,12 @@ useEffect(() => {
               />
             )}
 
-            {/* Metrics Modal */}
-            {activeModal === "metrics" && <MetricsModal />}
-
+           {/* Metrics Modal */}
+            {activeModal === "metrics" && <MetricsModal onClose={closeModal} />}
+            
+            {/* Linked Apps Modal */}
+            {activeModal === "linkedApps" && <LinkedAppsModal onClose={closeModal} />}
+            
             {/* Activity Feed Modal */}
             {activeModal === "activityFeed" && (
               <ActivityFeedModal

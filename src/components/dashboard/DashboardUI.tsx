@@ -22,6 +22,7 @@ import {
   Dumbbell,
   Heart,
   Zap,
+  Link,
 } from "lucide-react";
 import { toast } from "sonner@2.0.3";
 import logo from "figma:asset/acd126c619660e3932cb554ee937e18cc6986211.png";
@@ -377,6 +378,7 @@ function NavigationSidebarComponent({ onModalOpen, hideButtons }: NavigationSide
     { id: 'metrics', icon: TrendingUp, label: 'Metrics', dataTutorial: 'metrics-button' },
     { id: 'chat', icon: MessageCircle, label: 'Chat', dataTutorial: 'chat-button' },
     { id: 'trainingPlans', icon: Sparkles, label: 'Training', dataTutorial: 'training-button' },
+    { id: 'linkedApps', icon: Link, label: 'Apps', dataTutorial: 'linked-apps-button' },
   ];
 
   return (
