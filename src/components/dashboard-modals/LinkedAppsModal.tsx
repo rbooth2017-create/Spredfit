@@ -1,5 +1,5 @@
 import { memo, useState } from 'react';
-import { X, Link, Check, Info, Upload } from 'lucide-react';
+import { X, Link, Check, Info, Upload, ExternalLink, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface LinkedAppsModalProps {
@@ -154,18 +154,40 @@ function LinkedAppsModalComponent({ onClose }: LinkedAppsModalProps) {
             <div className="mt-3 p-4 bg-white/5 border border-white/10 rounded-lg space-y-4 text-sm">
               <div>
                 <h4 className="text-white font-semibold mb-2">🏃 Google Fit</h4>
-                <ol className="text-white/70 text-xs space-y-1 list-decimal list-inside">
-                  <li>Go to takeout.google.com</li>
-                  <li>Select only "Fit"</li>
-                  <li>Download as JSON</li>
-                  <li>Click Import above</li>
+                <ol className="text-white/70 text-xs space-y-1.5 list-decimal list-inside">
+                  <li className="flex items-start gap-1">
+                    <span className="flex-shrink-0">1.</span>
+                    <div className="flex-1">
+                      Go to{' '}
+                      <a 
+                        href="https://takeout.google.com" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="text-blue-400 hover:text-blue-300 underline inline-flex items-center gap-1"
+                      >
+                        Google Takeout
+                        <ExternalLink className="w-3 h-3" />
+                      </a>
+                    </div>
+                  </li>
+                  <li>Select only "Fit" (deselect all others)</li>
+                  <li>Choose "Export once" and "JSON" format</li>
+                  <li>Click "Create export"</li>
+                  <li>Click Import above when file is ready</li>
                 </ol>
+                <p className="mt-3 text-white/70 text-xs flex items-start gap-2">
+                  <Clock className="w-3 h-3 flex-shrink-0 mt-0.5" />
+                  <span>
+                    Google may take 1-3 hours to prepare your export. 
+                    You'll receive an email when it's ready to download.
+                  </span>
+                </p>
               </div>
 
               <div className="border-t border-white/10 pt-4">
                 <h4 className="text-white font-semibold mb-2">❤️ Apple Health</h4>
                 <ol className="text-white/70 text-xs space-y-1 list-decimal list-inside">
-                  <li>Open Health app</li>
+                  <li>Open Health app on iPhone</li>
                   <li>Tap profile → Export All Health Data</li>
                   <li>Transfer export.xml to this device</li>
                   <li>Click Import above</li>
@@ -173,7 +195,7 @@ function LinkedAppsModalComponent({ onClose }: LinkedAppsModalProps) {
               </div>
 
               <p className="text-white/50 text-xs border-t border-white/10 pt-4">
-                💡 Includes all workouts from connected devices (Garmin, Strava, etc.)
+                💡 Your export includes all workouts from connected devices (Garmin, Strava, Fitbit, etc.)
               </p>
             </div>
           )}
