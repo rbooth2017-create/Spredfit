@@ -18,6 +18,15 @@ interface LeaderboardEntry {
   isCurrentUser: boolean;
 }
 
+interface TeamLeaderboardEntry {
+  teamId: string;
+  teamName: string;
+  totalHours: number;
+  memberCount: number;
+  rank: number;
+  isCurrentUserTeam: boolean;
+}
+
 interface LeaderboardModalProps {
   modalStep: number;
   setModalStep: (step: number) => void;
@@ -43,9 +52,10 @@ function LeaderboardModalComponent({
 }: LeaderboardModalProps) {
   const { accessToken } = useAuth();
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
+  const [teamLeaderboardData, setTeamLeaderboardData] = useState<TeamLeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
 
-  // Fetch leaderboard data when league or period changes
+  // Fetch leaderboard data when league, view, or period changes
   useEffect(() => {
     async function loadLeaderboard() {
       if (!selectedLeague || !accessToken || modalStep !== 2) {
@@ -55,18 +65,25 @@ function LeaderboardModalComponent({
       setIsLoading(true);
       try {
         const api = new APIClient(accessToken);
-        const data = await api.getLeagueLeaderboard(selectedLeague.id, leaderboardPeriod);
-        setLeaderboardData(data);
+        
+        if (leaderboardView === 'individual') {
+          const data = await api.getLeagueLeaderboard(selectedLeague.id, leaderboardPeriod);
+          setLeaderboardData(data);
+        } else {
+          const data = await api.getLeagueTeamLeaderboard(selectedLeague.id, leaderboardPeriod);
+          setTeamLeaderboardData(data);
+        }
       } catch (error) {
         console.error('Failed to load leaderboard:', error);
         setLeaderboardData([]);
+        setTeamLeaderboardData([]);
       } finally {
         setIsLoading(false);
       }
     }
 
     loadLeaderboard();
-  }, [selectedLeague?.id, leaderboardPeriod, accessToken, modalStep]);
+  }, [selectedLeague?.id, leaderboardView, leaderboardPeriod, accessToken, modalStep]);
 
   return (
     <>
@@ -84,7 +101,7 @@ function LeaderboardModalComponent({
                     setSelectedLeague(league);
                     setModalStep(2);
                   }}
-                  className="w-full p-3 rounded-full bg-[#2d332d]/60 backdrop-blur-sm border border-white/10 hover:bg-[#2d332d]/80 transition-all"
+                  className="w-full p-3 rounded-full bg-[#FFFFFF]/60 backdrop-blur-sm border border-white/10 hover:bg-[#FFFFFF]/80 transition-all"
                 >
                   <p className="text-white text-sm mb-1">{league.name}</p>
                   <p className="text-white/70 text-xs">
@@ -107,13 +124,13 @@ function LeaderboardModalComponent({
               {isLoading ? (
                 <p className="text-white/50 text-xs">Loading...</p>
               ) : leaderboardView === 'individual' ? (
-                // Individual leaderboard - REAL DATA
+                // Individual leaderboard
                 leaderboardData.length > 0 ? (
                   leaderboardData.map((member) => (
                     <div
                       key={member.userId}
                       className={`flex items-center justify-between p-2 rounded-full ${
-                        member.isCurrentUser ? 'bg-[#7a8872]' : 'bg-[#2d332d]/60 backdrop-blur-sm border border-white/10'
+                        member.isCurrentUser ? 'bg-[#FFFFFF]' : 'bg-[#FFFFFF]/60 backdrop-blur-sm border border-white/10'
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -127,8 +144,31 @@ function LeaderboardModalComponent({
                   <p className="text-white/50 text-xs italic">No workouts yet in this league</p>
                 )
               ) : (
-                // Team leaderboard - Coming soon
-                <p className="text-white/50 text-xs italic">Team leaderboard coming soon!</p>
+                // Team leaderboard
+                teamLeaderboardData.length > 0 ? (
+                  teamLeaderboardData.map((team) => (
+                    <div
+                      key={team.teamId}
+                      className={`p-2 rounded-2xl ${
+                        team.isCurrentUserTeam ? 'bg-[#FFFFFF]' : 'bg-[#FFFFFF]/60 backdrop-blur-sm border border-white/10'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2">
+                          <span className="text-white/70 text-xs w-5">#{team.rank}</span>
+                          <span className="text-white text-sm font-medium">{team.teamName}</span>
+                        </div>
+                        <span className="text-white text-sm font-bold">{team.totalHours.toFixed(1)}h</span>
+                      </div>
+                      <div className="flex items-center justify-end gap-1">
+                        <Users className="w-3 h-3 text-white/50" />
+                        <span className="text-white/50 text-xs">{team.memberCount} member{team.memberCount !== 1 ? 's' : ''}</span>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-white/50 text-xs italic">No teams created yet</p>
+                )
               )}
             </div>
             <button
@@ -151,9 +191,9 @@ function LeaderboardModalComponent({
                 onClick={() => setLeaderboardView('individual')}
                 className={`w-20 h-20 rounded-full ${
                   leaderboardView === 'individual'
-                    ? 'bg-[#7a8872] border-2 border-white/40'
+                    ? 'bg-[#FFFFFF] border-2 border-white/40'
                     : 'bg-[#2d2d2d] border border-white/20'
-                } backdrop-blur-sm flex items-center justify-center transition-all hover:bg-[#7a8872]/80 shadow-lg`}
+                } backdrop-blur-sm flex items-center justify-center transition-all hover:bg-[#FFFFFF]/80 shadow-lg`}
               >
                 <UserCircle className="w-7 h-7 text-white" strokeWidth={2} />
               </button>
@@ -164,9 +204,9 @@ function LeaderboardModalComponent({
                 onClick={() => setLeaderboardView('team')}
                 className={`w-20 h-20 rounded-full ${
                   leaderboardView === 'team'
-                    ? 'bg-[#7a8872] border-2 border-white/40'
+                    ? 'bg-[#FFFFFF] border-2 border-white/40'
                     : 'bg-[#2d2d2d] border border-white/20'
-                } backdrop-blur-sm flex items-center justify-center transition-all hover:bg-[#7a8872]/80 shadow-lg`}
+                } backdrop-blur-sm flex items-center justify-center transition-all hover:bg-[#FFFFFF]/80 shadow-lg`}
               >
                 <Users className="w-7 h-7 text-white" strokeWidth={2} />
               </button>
@@ -179,9 +219,9 @@ function LeaderboardModalComponent({
                 onClick={() => setLeaderboardPeriod('total')}
                 className={`w-20 h-20 rounded-full ${
                   leaderboardPeriod === 'total'
-                    ? 'bg-[#7a8872] border-2 border-white/40'
+                    ? 'bg-[#FFFFFF] border-2 border-white/40'
                     : 'bg-[#2d2d2d] border border-white/20'
-                } backdrop-blur-sm flex items-center justify-center transition-all hover:bg-[#7a8872]/80 shadow-lg`}
+                } backdrop-blur-sm flex items-center justify-center transition-all hover:bg-[#FFFFFF]/80 shadow-lg`}
               >
                 <Trophy className="w-7 h-7 text-white" strokeWidth={2} />
               </button>
@@ -192,9 +232,9 @@ function LeaderboardModalComponent({
                 onClick={() => setLeaderboardPeriod('weekly')}
                 className={`w-20 h-20 rounded-full ${
                   leaderboardPeriod === 'weekly'
-                    ? 'bg-[#7a8872] border-2 border-white/40'
+                    ? 'bg-[#FFFFFF] border-2 border-white/40'
                     : 'bg-[#2d2d2d] border border-white/20'
-                } backdrop-blur-sm flex items-center justify-center transition-all hover:bg-[#7a8872]/80 shadow-lg`}
+                } backdrop-blur-sm flex items-center justify-center transition-all hover:bg-[#FFFFFF]/80 shadow-lg`}
               >
                 <Calendar className="w-7 h-7 text-white" strokeWidth={2} />
               </button>

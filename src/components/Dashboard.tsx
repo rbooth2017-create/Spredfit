@@ -351,9 +351,9 @@ const storePosition = (userId: string, leagueId: string, position: number) => {
   console.log("🔍 BEFORE useMemo - leagues:", leagues);
   console.log("🔍 BEFORE useMemo - profile:", profile);
 
-  const userLeagues = useMemo(() => {
+    const userLeagues = useMemo(() => {
     const currentUserId = profile?.id;
-
+  
     return leagues.map((league, index) => ({
       name: league.name,
       rank: index + 1,
@@ -362,6 +362,8 @@ const storePosition = (userId: string, leagueId: string, position: number) => {
       isManager: league.createdBy === currentUserId,
       code: league.leagueCode,
       ownerId: league.ownerId,
+      allowStealthMode: league.allowStealthMode,  // ✅ Add this
+      allowDoubleUp: league.allowDoubleUp,        // ✅ Add this
     }));
   }, [leagues, profile]);
 
@@ -624,12 +626,22 @@ useEffect(() => {
     try {
       const api = new APIClient(accessToken);
       const workouts = await api.getAllVisibleWorkouts();
-      const withPhotos = normalizeWorkoutPhotos(workouts);
+      
+      // Filter out workouts from users in stealth mode (but show your own)
+      const visibleWorkouts = workouts.filter(workout => {
+        // Always show your own workouts
+        if (workout.userId === user.id) return true;
+        
+        // Hide workouts from users in stealth mode
+        return !workout.inStealthMode;
+      });
+      
+      const withPhotos = normalizeWorkoutPhotos(visibleWorkouts);
       
       // Calculate league positions for each workout
       const activitiesWithPositions = await Promise.all(
         withPhotos.map(async (workout) => {
-          // Find which league this workout belongs to
+          // ... rest of the existing code for calculating positions
           const workoutLeague = leagues.find(league => 
             league.members?.some(m => m.id === workout.userId)
           );
@@ -664,13 +676,10 @@ useEffect(() => {
             const storedData = getStoredPositions(workout.userId, workoutLeague.id);
             
             if (storedData && storedData.position) {
-              // Positive change = moved UP (lower number is better)
-              // Negative change = moved DOWN (higher number is worse)
               positionChange = storedData.position - currentPosition;
             }
             
             // Store current position for next time
-            // Only store if this is the current user's workout
             if (workout.userId === user.id) {
               storePosition(workout.userId, workoutLeague.id, currentPosition);
             }

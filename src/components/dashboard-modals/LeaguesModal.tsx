@@ -1,9 +1,10 @@
-import { memo, useEffect } from "react";
+import { memo, useEffect, useState, useMemo } from "react";
 import { Users, Trophy, ArrowLeft, Check, EyeOff, Star, Share2, Copy, Settings, Trash2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "../../utils/AppContext";
 import { useAuth } from "../../utils/auth";
 import { APIClient } from "../../utils/api";
+import { TeamsModal } from './TeamsModal';
 
 // ✅ Switch component - with forced animation
 function Switch({ checked, onCheckedChange }: { checked: boolean; onCheckedChange: (checked: boolean) => void }) {
@@ -41,11 +42,20 @@ interface League {
   isManager?: boolean;
   code?: string;
   ownerId?: string;
+  allowStealthMode?: boolean;
+  allowDoubleUp?: boolean;
 }
 
 interface Sport {
   name: string;
   icon: any;
+}
+
+interface MembershipStatus {
+  stealthUntil: string | null;
+  inStealthMode: boolean;
+  doubleUpDate: string | null;
+  doubleUpUsed: boolean;
 }
 
 interface LeaguesModalProps {
@@ -111,44 +121,238 @@ function LeaguesModalComponent({
   setDoubleUpActivated,
   onClose,
 }: LeaguesModalProps) {
-const { createLeague, refreshLeagues } = useApp();
-const { accessToken, profile } = useAuth();
+  const { createLeague, refreshLeagues } = useApp();
+  const { accessToken, profile } = useAuth();
+  
+  // Teams modal state
+  const [showTeamsModal, setShowTeamsModal] = useState(false);
+  const [selectedLeagueForTeams, setSelectedLeagueForTeams] = useState<{ id: string; name: string } | null>(null);
 
-// Fetch league code when viewing a league
+  // Membership status for selected league
+  const [membershipStatus, setMembershipStatus] = useState<MembershipStatus | null>(null);
+  const [loadingStatus, setLoadingStatus] = useState(false);
+
+  // Memoize API client
+  const api = useMemo(() => {
+    if (!accessToken) return null;
+    return new APIClient(accessToken);
+  }, [accessToken]);
+
+  // Load membership status when viewing a league
+  useEffect(() => {
+    const loadMembershipStatus = async () => {
+      if (!selectedLeague || modalStep !== 2 || !api) return;
+      
+      setLoadingStatus(true);
+      try {
+        const status = await api.getLeagueMembershipStatus(selectedLeague.id);
+        setMembershipStatus(status);
+        
+        // Update local state based on DB status
+        const now = new Date();
+        const isStealthActive = status.stealthUntil && new Date(status.stealthUntil) > now;
+        setStealthActivated(!!isStealthActive);
+        
+        const isTodayDoubleUp = status.doubleUpDate && 
+          new Date(status.doubleUpDate).toDateString() === now.toDateString();
+        setDoubleUpActivated(!!isTodayDoubleUp);
+      } catch (error) {
+        console.error('Failed to load membership status:', error);
+      } finally {
+        setLoadingStatus(false);
+      }
+    };
+
+    loadMembershipStatus();
+  }, [selectedLeague?.id, modalStep, api]);
+
+ // Fetch league properties when viewing a league
 useEffect(() => {
   if (!selectedLeague || modalStep !== 2) return;
   
-  // The league code is already available in the userLeagues array
-  const league = userLeagues.find(l => l.id === selectedLeague.id);
-  if (league?.code && !selectedLeague.code) {
-    setSelectedLeague({ ...selectedLeague, code: league.code });
+  const fullLeague = userLeagues.find(l => l.id === selectedLeague.id);
+  
+  console.log('🔍 useEffect running - selectedLeague.id:', selectedLeague.id);
+  console.log('🔍 userLeagues length:', userLeagues.length);
+  console.log('🔍 Found fullLeague:', fullLeague);
+  
+  if (fullLeague) {
+    console.log('🔍 fullLeague.allowStealthMode:', fullLeague.allowStealthMode);
+    console.log('🔍 fullLeague.allowDoubleUp:', fullLeague.allowDoubleUp);
+    console.log('🔍 selectedLeague.allowStealthMode:', selectedLeague.allowStealthMode);
+    console.log('🔍 selectedLeague.allowDoubleUp:', selectedLeague.allowDoubleUp);
+    
+    // Check if we need to update
+    const needsUpdate = 
+      selectedLeague.allowStealthMode === undefined ||
+      selectedLeague.allowDoubleUp === undefined ||
+      selectedLeague.allowStealthMode !== fullLeague.allowStealthMode ||
+      selectedLeague.allowDoubleUp !== fullLeague.allowDoubleUp ||
+      !selectedLeague.code;
+    
+    console.log('🔍 needsUpdate:', needsUpdate);
+    
+    if (needsUpdate) {
+      console.log('🔄 Updating selectedLeague with properties from userLeagues');
+      setSelectedLeague({
+        ...selectedLeague,
+        code: fullLeague.code || fullLeague.leagueCode,
+        allowStealthMode: fullLeague.allowStealthMode,
+        allowDoubleUp: fullLeague.allowDoubleUp,
+        ownerId: fullLeague.ownerId,
+      });
+    }
+  } else {
+    console.log('❌ fullLeague not found in userLeagues!');
   }
 }, [selectedLeague?.id, userLeagues, modalStep]);
 
-const handleLeaveLeague = async (leagueId: string) => {
-  if (window.confirm('Are you sure you want to leave this league?')) {
+  // Calculate stealth time remaining
+  const getStealthTimeRemaining = () => {
+    if (!membershipStatus?.stealthUntil) return null;
+    
+    const now = new Date();
+    const end = new Date(membershipStatus.stealthUntil);
+    
+    if (end <= now) return null;
+    
+    const diffMs = end.getTime() - now.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+    const remainingHours = diffHours % 24;
+    
+    if (diffDays > 0) {
+      return `${diffDays}d ${remainingHours}h`;
+    }
+    return `${diffHours}h`;
+  };
+
+  const handleStealthToggle = async () => {
+    if (!selectedLeague || !api) return;
+
+    // Check if league allows stealth mode
+    if (!selectedLeague.allowStealthMode) {
+      toast.error('Stealth mode not enabled for this league');
+      return;
+    }
+
     try {
-      if (!accessToken) {
-        toast.error('Authentication required');
-        return;
+      const now = new Date();
+      const isCurrentlyActive = membershipStatus?.stealthUntil && new Date(membershipStatus.stealthUntil) > now;
+
+      if (isCurrentlyActive) {
+        // Deactivate stealth
+        await api.deactivateStealth(selectedLeague.id);
+        setStealthActivated(false);
+        setMembershipStatus({
+          ...membershipStatus!,
+          stealthUntil: null,
+          inStealthMode: false,
+        });
+        
+        toast.success('Stealth Deactivated', {
+          description: 'You\'re now visible on the leaderboard',
+        });
+      } else {
+        // Activate stealth
+        const result = await api.activateStealth(selectedLeague.id);
+        setStealthActivated(true);
+        setMembershipStatus({
+          ...membershipStatus!,
+          stealthUntil: result.stealth_until,
+          inStealthMode: true,
+        });
+        
+        toast.success('Stealth Activated!', {
+          description: 'Your activities hidden for 3 days',
+        });
       }
-      
-      const api = new APIClient(accessToken);
-      await api.leaveLeague(leagueId);
-      
-      toast.success('Left League', {
-        description: 'You have left the league',
-      });
-      
-      await refreshLeagues();
     } catch (error) {
-      console.error('Failed to leave league:', error);
-      toast.error('Failed to leave league', {
+      console.error('Failed to toggle stealth mode:', error);
+      toast.error('Failed to update stealth mode', {
         description: error instanceof Error ? error.message : 'Please try again',
       });
     }
-  }
-};
+  };
+
+  const handleDoubleUpToggle = async () => {
+    if (!selectedLeague || !api) return;
+
+    // Check if league allows double up
+    if (!selectedLeague.allowDoubleUp) {
+      toast.error('Double Up Day not enabled for this league');
+      return;
+    }
+
+    // Check if already used
+    if (membershipStatus?.doubleUpUsed) {
+      toast.error('Double Up already used', {
+        description: 'You can only use Double Up once per league',
+      });
+      return;
+    }
+
+    // Check if already active today
+    const now = new Date();
+    const isTodayDoubleUp = membershipStatus?.doubleUpDate && 
+      new Date(membershipStatus.doubleUpDate).toDateString() === now.toDateString();
+
+    if (isTodayDoubleUp) {
+      toast.info('Double Up already active for today');
+      return;
+    }
+
+    // Confirm activation
+    const confirmed = window.confirm(
+      'Activate Double Up Day?\n\nAll workouts logged today will count for 2x points. This can only be used once!'
+    );
+
+    if (!confirmed) return;
+
+    try {
+      const result = await api.activateDoubleUp(selectedLeague.id);
+      setDoubleUpActivated(true);
+      setMembershipStatus({
+        ...membershipStatus!,
+        doubleUpDate: result.double_up_date,
+        doubleUpUsed: true,
+      });
+      
+      toast.success('Double Up Active!', {
+        description: 'All workouts today will count for 2x points!',
+      });
+    } catch (error) {
+      console.error('Failed to activate double up:', error);
+      toast.error('Failed to activate Double Up', {
+        description: error instanceof Error ? error.message : 'Please try again',
+      });
+    }
+  };
+
+  const handleLeaveLeague = async (leagueId: string) => {
+    if (window.confirm('Are you sure you want to leave this league?')) {
+      try {
+        if (!accessToken) {
+          toast.error('Authentication required');
+          return;
+        }
+        
+        const api = new APIClient(accessToken);
+        await api.leaveLeague(leagueId);
+        
+        toast.success('Left League', {
+          description: 'You have left the league',
+        });
+        
+        await refreshLeagues();
+      } catch (error) {
+        console.error('Failed to leave league:', error);
+        toast.error('Failed to leave league', {
+          description: error instanceof Error ? error.message : 'Please try again',
+        });
+      }
+    }
+  };
 
   const handleCreateLeague = async () => {
     if (!newLeagueName.trim()) {
@@ -220,8 +424,58 @@ const handleLeaveLeague = async (leagueId: string) => {
     }
   };
 
+  // Render stealth button status
+  const renderStealthStatus = () => {
+    if (loadingStatus) return 'Loading...';
+    
+    if (!selectedLeague?.allowStealthMode) {
+      return 'Not Available';
+    }
+
+    const timeRemaining = getStealthTimeRemaining();
+    if (timeRemaining) {
+      return `Active\n${timeRemaining}`;
+    }
+    
+    return 'Stealth\nMode';
+  };
+
+  // Render double up button status
+  const renderDoubleUpStatus = () => {
+    if (loadingStatus) return 'Loading...';
+    
+    if (!selectedLeague?.allowDoubleUp) {
+      return 'Not Available';
+    }
+
+    if (membershipStatus?.doubleUpUsed) {
+      return 'Already\nUsed';
+    }
+
+    if (doubleUpActivated) {
+      return 'Active\nToday!';
+    }
+    
+    return 'Double Up\nDay';
+  };
+
   return (
     <>
+      {/* Teams Modal Overlay */}
+      {showTeamsModal && selectedLeagueForTeams && accessToken && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70]" onClick={(e) => e.stopPropagation()}>
+          <TeamsModal
+            leagueId={selectedLeagueForTeams.id}
+            leagueName={selectedLeagueForTeams.name}
+            accessToken={accessToken}
+            onClose={() => {
+              setShowTeamsModal(false);
+              setSelectedLeagueForTeams(null);
+            }}
+          />
+        </div>
+      )}
+
       {/* Modal Content */}
       <div className="w-96 h-96 rounded-full bg-transparent border-2 border-white/40 flex items-center justify-center p-8 shadow-2xl overflow-hidden">
         {/* Step 1: Your Leagues List */}
@@ -334,7 +588,7 @@ const handleLeaveLeague = async (leagueId: string) => {
                 <div className="flex items-center justify-between bg-[#2d332d]/40 backdrop-blur-sm border border-white/10 rounded-full px-3 py-2">
                   <div className="flex flex-col items-start">
                     <label className="text-white text-[10px]">Stealth Mode</label>
-                    <span className="text-white/50 text-[8px]">Hide from leaderboard</span>
+                    <span className="text-white/50 text-[8px]">Hide for 3 days</span>
                   </div>
                   <Switch checked={stealthMode} onCheckedChange={setStealthMode} />
                 </div>
@@ -342,7 +596,7 @@ const handleLeaveLeague = async (leagueId: string) => {
                 <div className="flex items-center justify-between bg-[#2d332d]/40 backdrop-blur-sm border border-white/10 rounded-full px-3 py-2">
                   <div className="flex flex-col items-start">
                     <label className="text-white text-[10px]">Double Up Day</label>
-                    <span className="text-white/50 text-[8px]">2x points on Saturdays</span>
+                    <span className="text-white/50 text-[8px]">2x points (one-time)</span>
                   </div>
                   <Switch checked={doubleUp} onCheckedChange={setDoubleUp} />
                 </div>
@@ -484,11 +738,10 @@ const handleLeaveLeague = async (leagueId: string) => {
                         </button>
                         <button
                           onClick={() => {
-                            toast.info('Manage Teams', {
-                              description: 'Team management coming soon!',
-                            });
+                            setSelectedLeagueForTeams({ id: league.id, name: league.name });
+                            setShowTeamsModal(true);
                           }}
-                        className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm text-white text-[10px] border border-white/20 hover:bg-white/20 transition-all flex items-center gap-1"
+                          className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm text-white text-[10px] border border-white/20 hover:bg-white/20 transition-all flex items-center gap-1"
                         >
                           <Users className="w-3 h-3" strokeWidth={2} />
                           Teams
@@ -527,7 +780,7 @@ const handleLeaveLeague = async (leagueId: string) => {
                         ) : (
                           <button
                             onClick={() => handleLeaveLeague(league.id)}
-                           className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm text-white text-[10px] border border-white/20 hover:bg-white/20 transition-all flex items-center gap-1"
+                            className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm text-white text-[10px] border border-white/20 hover:bg-white/20 transition-all flex items-center gap-1"
                           >
                             <LogOut className="w-3 h-3" strokeWidth={2} />
                             Leave
@@ -592,75 +845,72 @@ const handleLeaveLeague = async (leagueId: string) => {
 
       {/* External Buttons - Step 2: League Detail View */}
       {modalStep === 2 && (
-        <div className="fixed bottom-8 right-4 z-[60] flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
-          {/* Explanatory Text */}
-          <div className="flex flex-col gap-3">
-            <div className="px-3 py-2 max-w-[180px]">
-              <p className="text-white text-[9px] leading-tight">
-                Stealth mode hides your activities for 3 days
-              </p>
-            </div>
-            <div className="px-3 py-2 max-w-[180px]">
-              <p className="text-white text-[9px] leading-tight">
-                Double your workouts for that day (can use only once)
-              </p>
-            </div>
-          </div>
+        <>
+          {console.log('🔍 Button render - selectedLeague:', selectedLeague)}
+          {console.log('🔍 Button render - allowStealthMode:', selectedLeague?.allowStealthMode)}
+          {console.log('🔍 Button render - allowDoubleUp:', selectedLeague?.allowDoubleUp)}
+          {console.log('🔍 Button render - loadingStatus:', loadingStatus)}
           
-          {/* Buttons */}
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-col items-center gap-1.5">
-              <button
-                onClick={() => {
-                  setStealthActivated(!stealthActivated);
-                  toast.success(
-                    !stealthActivated ? 'Stealth Activated!' : 'Stealth Deactivated',
-                    {
-                      description: !stealthActivated 
-                        ? 'Your activities hidden for 3 days' 
-                        : 'You\'re now visible on the leaderboard',
-                    }
-                  );
-                }}
-                className={`w-20 h-20 rounded-full backdrop-blur-sm flex items-center justify-center transition-all shadow-lg ${
-                  stealthActivated
-                    ? 'bg-white/30 border-2 border-white/50'
-                    : 'bg-white/10 border border-white/20'
-                }`}
-              >
-                <EyeOff className="w-7 h-7 text-white" strokeWidth={2} />
-              </button>
-              <span className="text-white text-[10px] text-center">
-                {stealthActivated ? 'Stealth\nActivated' : 'Stealth\nMode'}
-              </span>
+          <div className="fixed bottom-8 right-4 z-[60] flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+            {/* Explanatory Text */}
+            <div className="flex flex-col gap-3">
+              <div className="px-3 py-2 max-w-[180px]">
+                <p className="text-white text-[9px] leading-tight">
+                  Stealth mode hides your activities for 3 days
+                </p>
+              </div>
+              <div className="px-3 py-2 max-w-[180px]">
+                <p className="text-white text-[9px] leading-tight">
+                  Double your workouts for that day (can use only once)
+                </p>
+              </div>
             </div>
-            <div className="flex flex-col items-center gap-1.5">
-              <button
-                onClick={() => {
-                  setDoubleUpActivated(!doubleUpActivated);
-                  toast.success(
-                    !doubleUpActivated ? 'Double Up Active!' : 'Double Up Deactivated',
-                    {
-                      description: !doubleUpActivated 
-                        ? 'Double points for today\'s workout!' 
-                        : 'Back to regular points',
-                    }
-                  );
-                }}
-                className={`w-20 h-20 rounded-full backdrop-blur-sm flex items-center justify-center transition-all shadow-lg ${
-                  doubleUpActivated
-                    ? 'bg-white/30 border-2 border-white/50'
-                    : 'bg-white/10 border border-white/20'
-                }`}
-              >
-                <Star className="w-7 h-7 text-white" strokeWidth={2} />
-              </button>
-              <span className="text-white text-[10px] text-center">
-                {doubleUpActivated ? 'Double Up\nActive' : 'Double Up\nDay'}
-              </span>
+            
+            {/* Buttons */}
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col items-center gap-1.5">
+                <button
+                  onClick={handleStealthToggle}
+                  disabled={!selectedLeague?.allowStealthMode || loadingStatus}
+                  className={`w-20 h-20 rounded-full backdrop-blur-sm flex items-center justify-center transition-all shadow-lg ${
+                    !selectedLeague?.allowStealthMode || loadingStatus
+                      ? 'bg-white/5 border border-white/10 opacity-50 cursor-not-allowed'
+                      : stealthActivated
+                      ? 'bg-white/30 border-2 border-white/50'
+                      : 'bg-white/10 border border-white/20 hover:bg-white/20'
+                  }`}
+                >
+                  <EyeOff className="w-7 h-7 text-white" strokeWidth={2} />
+                </button>
+                <span className="text-white text-[10px] text-center whitespace-pre-line">
+                  {renderStealthStatus()}
+                </span>
+              </div>
+              <div className="flex flex-col items-center gap-1.5">
+                <button
+                  onClick={handleDoubleUpToggle}
+                  disabled={
+                    !selectedLeague?.allowDoubleUp || 
+                    loadingStatus || 
+                    membershipStatus?.doubleUpUsed === true
+                  }
+                  className={`w-20 h-20 rounded-full backdrop-blur-sm flex items-center justify-center transition-all shadow-lg ${
+                    !selectedLeague?.allowDoubleUp || loadingStatus || membershipStatus?.doubleUpUsed
+                      ? 'bg-white/5 border border-white/10 opacity-50 cursor-not-allowed'
+                      : doubleUpActivated
+                      ? 'bg-white/30 border-2 border-white/50'
+                      : 'bg-white/10 border border-white/20 hover:bg-white/20'
+                  }`}
+                >
+                  <Star className="w-7 h-7 text-white" strokeWidth={2} />
+                </button>
+                <span className="text-white text-[10px] text-center whitespace-pre-line">
+                  {renderDoubleUpStatus()}
+                </span>
+              </div>
             </div>
           </div>
-        </div>
+        </>
       )}
 
       {/* External Buttons - Step 3: Join League */}

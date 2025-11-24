@@ -67,19 +67,7 @@ export function SettingsModal({
                 onClick={() => setSettingsScreen('privacy')}
                 className="w-full p-3 rounded-full bg-[#2d332d]/60 backdrop-blur-sm border border-white/10 hover:bg-[#2d332d]/80 transition-all text-white text-sm"
               >
-                Privacy
-              </button>
-              <button 
-                onClick={() => setSettingsScreen('notifications')}
-                className="w-full p-3 rounded-full bg-[#2d332d]/60 backdrop-blur-sm border border-white/10 hover:bg-[#2d332d]/80 transition-all text-white text-sm"
-              >
                 Notifications
-              </button>
-              <button 
-                onClick={() => setSettingsScreen('units')}
-                className="w-full p-3 rounded-full bg-[#2d332d]/60 backdrop-blur-sm border border-white/10 hover:bg-[#2d332d]/80 transition-all text-white text-sm"
-              >
-                Units & Preferences
               </button>
               <button 
   onClick={() => {
@@ -153,41 +141,6 @@ export function SettingsModal({
           </>
         )}
 
-        {/* Privacy Screen */}
-        {settingsScreen === 'privacy' && (
-          <>
-            <div className="mb-4 flex-shrink-0 text-center">
-              <p className="text-white text-sm">Privacy</p>
-            </div>
-            <div className="flex-1 overflow-y-auto scrollbar-hide space-y-3 min-h-0 pr-2">
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10">
-                <div className="flex-1">
-                  <p className="text-white text-xs">Private Profile</p>
-                  <p className="text-white/50 text-[10px] mt-0.5">Only friends can see your activity</p>
-                </div>
-                <button
-                  onClick={() => setPrivateProfile(!privateProfile)}
-                  className={`w-12 h-6 rounded-full transition-all ${privateProfile ? 'bg-white/30' : 'bg-white/20'}`}
-                >
-                  <div className={`w-5 h-5 rounded-full bg-white transition-transform ${privateProfile ? 'translate-x-6' : 'translate-x-0.5'}`} />
-                </button>
-              </div>
-              <button
-                onClick={() => toast.info('Data export will be sent to your email')}
-                className="w-full p-3 rounded-full bg-[#2d332d]/60 backdrop-blur-sm border border-white/10 hover:bg-[#2d332d]/80 transition-all text-white text-xs"
-              >
-                Download My Data
-              </button>
-              <button
-                onClick={() => toast.error('Please contact support to delete your account')}
-                className="w-full p-3 rounded-full bg-red-600/40 backdrop-blur-sm border border-red-400/20 hover:bg-red-600/60 transition-all text-white text-xs"
-              >
-                Delete Account
-              </button>
-            </div>
-          </>
-        )}
-
         {/* Notifications Screen */}
         {settingsScreen === 'notifications' && (
           <>
@@ -244,120 +197,6 @@ export function SettingsModal({
                   />
                   <span className="text-white text-xs">Weekly summaries</span>
                 </label>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Units & Preferences Screen */}
-        {settingsScreen === 'units' && (
-          <>
-            <div className="mb-4 flex-shrink-0 text-center">
-              <p className="text-white text-sm">Units & Preferences</p>
-            </div>
-            <div className="flex-1 overflow-y-auto scrollbar-hide space-y-3 min-h-0 pr-2">
-              <div>
-                <label className="text-white/60 text-[10px] mb-1.5 block">Distance Unit</label>
-                <select
-                  value={distanceUnit}
-                  onChange={(e) => setDistanceUnit(e.target.value)}
-                  className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-white/40"
-                >
-                  <option value="km" className="bg-[#2d332d]">Kilometers (km)</option>
-                  <option value="miles" className="bg-[#2d332d]">Miles</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-white/60 text-[10px] mb-1.5 block">Weight Unit</label>
-                <select
-                  value={weightUnit}
-                  onChange={(e) => setWeightUnit(e.target.value)}
-                  className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-white/40"
-                >
-                  <option value="kg" className="bg-[#2d332d]">Kilograms (kg)</option>
-                  <option value="lbs" className="bg-[#2d332d]">Pounds (lbs)</option>
-                </select>
-              </div>
-            </div>
-          </>
-        )}
-
-        {/* Connected Apps Screen */}
-        {settingsScreen === 'connectedApps' && (
-          <>
-            <div className="mb-4 flex-shrink-0 text-center">
-              <p className="text-white text-sm">Connected Apps</p>
-            </div>
-            <div className="flex-1 overflow-y-auto scrollbar-hide space-y-3 min-h-0 pr-2">
-              <p className="text-white/60 text-[10px] mb-2 text-center">Sync your workouts automatically</p>
-              
-              {/* Strava */}
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10">
-                <div className="flex-1">
-                  <p className="text-white text-xs">Strava</p>
-                  <p className="text-white/50 text-[10px] mt-0.5">
-                    {connectedApps.strava ? 'Connected' : 'Not connected'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setConnectedApps((prev: any) => ({ ...prev, strava: !prev.strava }));
-                    toast.success(connectedApps.strava ? 'Strava disconnected' : 'Strava connected');
-                  }}
-                  className={`px-4 py-1.5 rounded-full text-[10px] transition-all ${
-                    connectedApps.strava 
-                      ? 'bg-red-600/60 text-white border border-red-400/20' 
-                      : 'bg-white/20 text-white border border-white/20 hover:bg-white/30'
-                  }`}
-                >
-                  {connectedApps.strava ? 'Disconnect' : 'Connect'}
-                </button>
-              </div>
-
-              {/* Apple HealthKit */}
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10">
-                <div className="flex-1">
-                  <p className="text-white text-xs">Apple HealthKit</p>
-                  <p className="text-white/50 text-[10px] mt-0.5">
-                    {connectedApps.appleHealthKit ? 'Connected' : 'Not connected'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setConnectedApps((prev: any) => ({ ...prev, appleHealthKit: !prev.appleHealthKit }));
-                    toast.success(connectedApps.appleHealthKit ? 'Apple HealthKit disconnected' : 'Apple HealthKit connected');
-                  }}
-                  className={`px-4 py-1.5 rounded-full text-[10px] transition-all ${
-                    connectedApps.appleHealthKit 
-                      ? 'bg-red-600/60 text-white border border-red-400/20' 
-                      : 'bg-white/20 text-white border border-white/20 hover:bg-white/30'
-                  }`}
-                >
-                  {connectedApps.appleHealthKit ? 'Disconnect' : 'Connect'}
-                </button>
-              </div>
-
-              {/* Google Fitness */}
-              <div className="flex items-center justify-between p-3 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10">
-                <div className="flex-1">
-                  <p className="text-white text-xs">Google Fitness</p>
-                  <p className="text-white/50 text-[10px] mt-0.5">
-                    {connectedApps.googleFitness ? 'Connected' : 'Not connected'}
-                  </p>
-                </div>
-                <button
-                  onClick={() => {
-                    setConnectedApps((prev: any) => ({ ...prev, googleFitness: !prev.googleFitness }));
-                    toast.success(connectedApps.googleFitness ? 'Google Fitness disconnected' : 'Google Fitness connected');
-                  }}
-                  className={`px-4 py-1.5 rounded-full text-[10px] transition-all ${
-                    connectedApps.googleFitness 
-                      ? 'bg-red-600/60 text-white border border-red-400/20' 
-                      : 'bg-white/20 text-white border border-white/20 hover:bg-white/30'
-                  }`}
-                >
-                  {connectedApps.googleFitness ? 'Disconnect' : 'Connect'}
-                </button>
               </div>
             </div>
           </>
