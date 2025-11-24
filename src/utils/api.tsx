@@ -816,7 +816,7 @@ async getUserLeagues() {
     }
   }
 
-  async getLeagueChat(leagueId: string) {
+    async getLeagueChat(leagueId: string) {
     console.log('🔵 API Client: Fetching league chat');
     try {
       const { data: messages, error } = await this.supabase
@@ -824,21 +824,20 @@ async getUserLeagues() {
         .select(`
           *,
           profiles!league_chat_user_id_fkey (
-            name,
             username,
             avatar_url
           )
         `)
         .eq('league_id', leagueId)
         .order('created_at', { ascending: true });
-
+  
       if (error) throw error;
-
+  
       console.log('✅ Chat messages fetched:', messages);
       return messages.map((msg: any) => ({
         id: msg.id,
         userId: msg.user_id,
-        userName: msg.profiles?.name || msg.profiles?.username || 'User',
+        userName: msg.profiles?.username || 'User',
         userAvatar: msg.profiles?.avatar_url || '',
         message: msg.message,
         timestamp: new Date(msg.created_at).toLocaleTimeString(),

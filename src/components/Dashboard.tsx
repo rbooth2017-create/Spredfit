@@ -714,24 +714,50 @@ useEffect(() => {
   loadActivities();
 }, [accessToken, setActivities, refreshTrigger, leagues, user?.id]);
 
-  // Load chat when league changes
-  useEffect(() => {
-    async function loadChat() {
-      if (!currentLeague || !accessToken) {
-        setChatMessages([]);
-        return;
-      }
-      try {
-        const api = new APIClient(accessToken);
-        const data = await api.getLeagueChat(currentLeague.id);
-        setChatMessages(data);
-      } catch (error) {
-        console.error("Failed to load chat:", error);
-        setChatMessages([]);
-      }
+    // Load chat when league changes
+  const loadChat = async () => {
+    if (!selectedChat || !accessToken) return;
+    
+    try {
+      const api = new APIClient(accessToken);
+      const messages = await api.getLeagueChat(selectedChat);
+      
+      // Transform messages to ChatMessage format
+      const transformedMessages = messages.map((msg: any) => ({
+        id: msg.id,
+        sender: msg.userName,
+        text: msg.message,
+        time: msg.timestamp,
+        isMe: msg.userId === user?.id
+      }));
+      
+      setChatMessages({
+        [selectedChat]: transformedMessages
+      });
+    } catch (error) {
+      console.error('Failed to load chat:', error);
     }
-    loadChat();
-  }, [currentLeague, accessToken, setChatMessages]);
+  };
+
+    // Load chat when a chat is selected and poll for new messages
+  useEffect(() => {
+    if (selectedChat && accessToken) {
+      loadChat();
+      
+      // Poll for new messages every 5 seconds
+      const interval = setInterval(loadChat, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [selectedChat, accessToken, user?.id]);  // Load chat when a chat is selected and poll for new messages
+  useEffect(() => {
+    if (selectedChat && accessToken) {
+      loadChat();
+      
+      // Poll for new messages every 5 seconds
+      const interval = setInterval(loadChat, 5000);
+      return () => clearInterval(interval);
+    }
+  }, [selectedChat, accessToken, user?.id]);
 
   // Use leagues as chat list
   useEffect(() => {
@@ -762,6 +788,25 @@ useEffect(() => {
   }, [activeModal]);
 
   const teamChats: any[] = [];
+
+    // Send message function
+  const sendMessage = async () => {
+    if (!user || !selectedChat || !messageText.trim()) return;
+    
+    try {
+      const api = new APIClient(accessToken);
+      await api.sendChatMessage(selectedChat, messageText.trim());
+      
+      // Reload chat to show new message
+      await loadChat();
+      setMessageText('');
+      toast.success('Message sent!');
+    } catch (error) {
+      console.error('Failed to send message:', error);
+      toast.error('Failed to send message');
+    }
+  };
+  
 
   // ✅ Use custom hooks for handlers and timers
   const handlers = useDashboardHandlers(state);
@@ -1205,20 +1250,21 @@ useEffect(() => {
                 />
               )}
 
-            {/* Chat Modal */}
-            {activeModal === "chat" && (
-              <ChatModal
-                chatFilter={chatFilter}
-                setChatFilter={setChatFilter}
-                leagueChats={leagueChats}
-                teamChats={teamChats}
-                selectedChat={selectedChat}
-                setSelectedChat={setSelectedChat}
-                chatMessages={chatMessages}
-                messageText={messageText}
-                setMessageText={setMessageText}
-              />
-            )}
+                     {/* Chat Modal */}
+          {activeModal === "chat" && (
+            <ChatModal
+              chatFilter={chatFilter}
+              setChatFilter={setChatFilter}
+              leagueChats={leagueChats}
+              teamChats={teamChats}
+              selectedChat={selectedChat}
+              setSelectedChat={setSelectedChat}
+              chatMessages={chatMessages}
+              messageText={messageText}
+              setMessageText={setMessageText}
+              onSendMessage={sendMessage}  // Add this prop
+            />
+          )}
 
             {/* Training Plans Modal */}
             {activeModal === "trainingPlans" && (

@@ -1,6 +1,5 @@
 import { memo } from "react";
 import { MessageCircle, ChevronLeft, Send, Trophy, Users } from "lucide-react";
-import { toast } from "sonner@2.0.3";
 
 interface Chat {
   id: string;
@@ -28,6 +27,7 @@ interface ChatModalProps {
   chatMessages: Record<string, ChatMessage[]>;
   messageText: string;
   setMessageText: (text: string) => void;
+  onSendMessage: () => Promise<void>;
 }
 
 function ChatModalComponent({
@@ -40,6 +40,7 @@ function ChatModalComponent({
   chatMessages,
   messageText,
   setMessageText,
+  onSendMessage,
 }: ChatModalProps) {
   const getCurrentChatName = () => {
     if (!selectedChat) return '';
@@ -134,18 +135,18 @@ function ChatModalComponent({
                   type="text"
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
+                  onKeyPress={(e) => {
+                    if (e.key === 'Enter' && messageText.trim()) {
+                      onSendMessage();
+                    }
+                  }}
                   placeholder="Type a message..."
                   className="flex-1 bg-white/10 backdrop-blur-sm border border-white/20 rounded-full px-4 py-2 text-white text-xs placeholder:text-white/40 focus:outline-none focus:border-white/40"
                 />
                 <button
-                  onClick={() => {
-                    if (messageText.trim()) {
-                      // Here you would add the message to the chat
-                      setMessageText('');
-                      toast.success('Message sent!');
-                    }
-                  }}
-                  className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-all flex-shrink-0"
+                  onClick={onSendMessage}
+                  disabled={!messageText.trim()}
+                  className="w-9 h-9 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center hover:bg-white/30 transition-all flex-shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   <Send className="w-4 h-4 text-white" strokeWidth={2} />
                 </button>
