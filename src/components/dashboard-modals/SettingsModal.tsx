@@ -1,5 +1,7 @@
-import { memo } from "react";
-import { toast } from "sonner@2.0.3";
+import { memo, useState } from "react";
+import { toast } from "sonner";
+import { useAuth } from "../../utils/auth";
+import { Eye, EyeOff } from "lucide-react";
 import type { SettingsScreen } from "../../hooks/useDashboardState";
 
 interface SettingsModalProps {
@@ -23,7 +25,7 @@ interface SettingsModalProps {
     googleFitness: boolean;
   };
   setConnectedApps: (apps: any) => void;
-  closeModal: () => void;
+  onClose: () => void;
   onSignOut?: () => void;
 }
 
@@ -44,9 +46,76 @@ export function SettingsModal({
   setWeightUnit,
   connectedApps,
   setConnectedApps,
-  closeModal,
+  onClose,
   onSignOut,
 }: SettingsModalProps) {
+  const { user } = useAuth();
+  const [currentPassword, setCurrentPassword] = useState("");
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [isUpdating, setIsUpdating] = useState(false);
+  
+  // Show/hide password states
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+
+  // Handle password update
+  const handlePasswordUpdate = async () => {
+    // Validation
+    if (!currentPassword) {
+      toast.error("Please enter your current password");
+      return;
+    }
+
+    if (!newPassword) {
+      toast.error("Please enter a new password");
+      return;
+    }
+
+    if (newPassword.length < 6) {
+      toast.error("Password must be at least 6 characters");
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      toast.error("Passwords don't match");
+      return;
+    }
+
+    setIsUpdating(true);
+
+    try {
+      const { createClient } = await import('@supabase/supabase-js');
+      const supabase = createClient(
+        import.meta.env.VITE_SUPABASE_URL,
+        import.meta.env.VITE_SUPABASE_ANON_KEY
+      );
+
+      // Update password
+      const { error } = await supabase.auth.updateUser({
+        password: newPassword
+      });
+
+      if (error) throw error;
+
+      toast.success("Password updated successfully!");
+      
+      // Clear password fields
+      setCurrentPassword("");
+      setNewPassword("");
+      setConfirmPassword("");
+      
+      // Go back to main settings
+      setSettingsScreen('main');
+    } catch (error) {
+      console.error("Failed to update password:", error);
+      toast.error(error instanceof Error ? error.message : "Failed to update password");
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+
   return (
     <div className="w-96 h-96 rounded-full bg-transparent border-2 border-white/40 flex items-center justify-center p-8 shadow-2xl overflow-hidden">
       <div className="flex flex-col w-full h-full p-6">
@@ -61,82 +130,124 @@ export function SettingsModal({
                 onClick={() => setSettingsScreen('account')}
                 className="w-full p-3 rounded-full bg-[#2d332d]/60 backdrop-blur-sm border border-white/10 hover:bg-[#2d332d]/80 transition-all text-white text-sm"
               >
-                Account Settings
+                Change Password
+      
               </button>
               <button 
-                onClick={() => setSettingsScreen('privacy')}
-                className="w-full p-3 rounded-full bg-[#2d332d]/60 backdrop-blur-sm border border-white/10 hover:bg-[#2d332d]/80 transition-all text-white text-sm"
+                onClick={() => {
+                  console.log('🔴 Sign out clicked');
+                  toast.success('Signed out successfully');
+                  if (onSignOut) {
+                    onSignOut();
+                  }
+                  if (onClose) {
+                    onClose();
+                  }
+                }}
+                className="w-full p-3 rounded-full bg-red-600/60 backdrop-blur-sm border border-red-400/20 hover:bg-red-600/80 transition-all text-white text-sm"
               >
-                Notifications
+                Sign Out
               </button>
-              <button 
-  onClick={() => {
-    console.log('🔴 handleLogout called from SettingsModal');
-    toast.success('Signed out successfully');
-    if (onSignOut) {
-      onSignOut();
-    }
-    if (closeModal && typeof closeModal === 'function') {
-      closeModal();
-    }
-  }}
-  className="w-full p-3 rounded-full bg-red-600/60 backdrop-blur-sm border border-red-400/20 hover:bg-red-600/80 transition-all text-white text-sm"
->
-  Sign Out
-</button>
             </div>
           </>
         )}
 
-        {/* Account Settings Screen */}
+        {/* Change Password Screen */}
         {settingsScreen === 'account' && (
           <>
-            <div className="mb-4 flex-shrink-0 text-center">
-              <p className="text-white text-sm">Account Settings</p>
+            <div className="mb-4 flex-shrink-0 flex items-center justify-between">
+              <button
+                onClick={() => setSettingsScreen('main')}
+                className="text-white/60 hover:text-white text-xs"
+              >
+                ← Back
+              </button>
+              <p className="text-white text-sm">Change Password</p>
+              <div className="w-12" />
             </div>
             <div className="flex-1 overflow-y-auto scrollbar-hide space-y-3 min-h-0 pr-2">
+              {/* Current Password */}
               <div>
-                <label className="text-white/60 text-[10px] mb-1.5 block">Name</label>
-                <input
-                  type="text"
-                  value={userName}
-                  onChange={(e) => setUserName(e.target.value)}
-                  className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-white/40"
-                />
+                <label className="text-white/60 text-[10px] mb-1.5 block">Current Password</label>
+                <div className="relative">
+                  <input
+                    type={showCurrentPassword ? "text" : "password"}
+                    value={currentPassword}
+                    onChange={(e) => setCurrentPassword(e.target.value)}
+                    placeholder="Enter current password"
+                    className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl pl-3 pr-9 py-2 text-white text-xs focus:outline-none focus:border-white/40 placeholder:text-white/40"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60 transition-colors"
+                  >
+                    {showCurrentPassword ? (
+                      <EyeOff className="w-3.5 h-3.5" />
+                    ) : (
+                      <Eye className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
               </div>
-              <div>
-                <label className="text-white/60 text-[10px] mb-1.5 block">Email</label>
-                <input
-                  type="email"
-                  value={userEmail}
-                  onChange={(e) => setUserEmail(e.target.value)}
-                  className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-white/40"
-                />
-              </div>
-              <div>
-                <label className="text-white/60 text-[10px] mb-1.5 block">Old Password</label>
-                <input
-                  type="password"
-                  placeholder="Enter old password"
-                  className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-white/40 placeholder:text-white/40"
-                />
-              </div>
+
+              {/* New Password */}
               <div>
                 <label className="text-white/60 text-[10px] mb-1.5 block">New Password</label>
-                <input
-                  type="password"
-                  placeholder="Enter new password"
-                  className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-white/40 placeholder:text-white/40"
-                />
+                <div className="relative">
+                  <input
+                    type={showNewPassword ? "text" : "password"}
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    placeholder="Min 6 characters"
+                    className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl pl-3 pr-9 py-2 text-white text-xs focus:outline-none focus:border-white/40 placeholder:text-white/40"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60 transition-colors"
+                  >
+                    {showNewPassword ? (
+                      <EyeOff className="w-3.5 h-3.5" />
+                    ) : (
+                      <Eye className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
               </div>
+
+              {/* Confirm Password */}
               <div>
-                <label className="text-white/60 text-[10px] mb-1.5 block">Confirm Password</label>
-                <input
-                  type="password"
-                  placeholder="Confirm new password"
-                  className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl px-3 py-2 text-white text-xs focus:outline-none focus:border-white/40 placeholder:text-white/40"
-                />
+                <label className="text-white/60 text-[10px] mb-1.5 block">Confirm New Password</label>
+                <div className="relative">
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Confirm new password"
+                    className="w-full bg-white/10 backdrop-blur-sm border border-white/20 rounded-xl pl-3 pr-9 py-2 text-white text-xs focus:outline-none focus:border-white/40 placeholder:text-white/40"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/60 transition-colors"
+                  >
+                    {showConfirmPassword ? (
+                      <EyeOff className="w-3.5 h-3.5" />
+                    ) : (
+                      <Eye className="w-3.5 h-3.5" />
+                    )}
+                  </button>
+                </div>
               </div>
+
+              <button
+                onClick={handlePasswordUpdate}
+                disabled={isUpdating}
+                className="w-full p-3 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 hover:bg-white/30 transition-all text-white text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed mt-4"
+              >
+                {isUpdating ? "Updating Password..." : "Update Password"}
+              </button>
             </div>
           </>
         )}
@@ -144,8 +255,15 @@ export function SettingsModal({
         {/* Notifications Screen */}
         {settingsScreen === 'notifications' && (
           <>
-            <div className="mb-4 flex-shrink-0 text-center">
+            <div className="mb-4 flex-shrink-0 flex items-center justify-between">
+              <button
+                onClick={() => setSettingsScreen('main')}
+                className="text-white/60 hover:text-white text-xs"
+              >
+                ← Back
+              </button>
               <p className="text-white text-sm">Notifications</p>
+              <div className="w-12" />
             </div>
             <div className="flex-1 overflow-y-auto scrollbar-hide space-y-3 min-h-0 pr-2">
               <div className="flex items-center justify-between p-3 rounded-2xl bg-white/10 backdrop-blur-sm border border-white/10">
@@ -206,5 +324,4 @@ export function SettingsModal({
   );
 }
 
-// ✅ Memoize to prevent unnecessary re-renders
 export default memo(SettingsModal);
