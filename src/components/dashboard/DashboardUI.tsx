@@ -119,8 +119,8 @@ function DashboardHeaderComponent({ onModalOpen }: DashboardHeaderProps) {
   );
 }
 
-
 export const DashboardHeader = memo(DashboardHeaderComponent);
+
 /**
  * ActivityCarousel Component
  * 
@@ -184,12 +184,7 @@ function ActivityCarouselComponent({
                       key={activity.id} 
                       className={`${circleSize} flex-shrink-0 flex flex-col items-center justify-center text-center px-6 snap-center cursor-pointer transition-all duration-700 ease-in-out relative`}
                       onClick={() => {
-                        console.log('🔍 Activity clicked:', {
-                          userName: activity.userName,
-                          leaguePosition: activity.leaguePosition,
-                          totalMembers: activity.totalMembers,
-                          positionChange: activity.positionChange
-                        });
+                        console.log('🔍 Activity clicked:', activity);
                         onActivityClick(activity);
                       }}
                     >
@@ -206,7 +201,7 @@ function ActivityCarouselComponent({
                         />
                       )}
                       
-                      {/* Content - NEW ORDER */}
+                      {/* Content */}
                       <div className="relative z-10">
                         {/* 1. Sport Icon */}
                         <div className="mb-3">
@@ -228,29 +223,39 @@ function ActivityCarouselComponent({
                           </p>
                         )}
                         
-                        {/* 4. League Name */}
-                        <p className={`text-[#eef0ed]/70 mb-2 transition-all duration-700 ease-in-out ${isExpanded ? 'text-base' : 'text-sm'}`}>
-                          {activity.leagueName || currentLeague?.name || 'League'}
-                        </p>
-                        
-                        {/* 5. League Position with Change Indicator */}
-                        {activity.leaguePosition && (
-                          <div className="flex items-center justify-center gap-2 mb-4">
-                            <p className={`text-[#eef0ed] font-semibold transition-all duration-700 ease-in-out ${isExpanded ? 'text-xl' : 'text-base'}`}>
-                              #{activity.leaguePosition}
+                        {/* 4. Primary League Info */}
+                        {activity.primaryLeague ? (
+                          <div className="mb-4">
+                            {/* League Name */}
+                            <p className={`text-[#eef0ed]/70 mb-2 transition-all duration-700 ease-in-out ${isExpanded ? 'text-base' : 'text-sm'}`}>
+                              {activity.primaryLeague.leagueName}
                             </p>
-                            <span className={`text-[#eef0ed]/60 transition-all duration-700 ease-in-out ${isExpanded ? 'text-sm' : 'text-xs'}`}>
-                              of {activity.totalMembers}
-                            </span>
-                            {activity.positionChange !== null && activity.positionChange !== 0 && (
-                              activity.positionChange > 0 
-                                ? <TrendingUp className={`${isExpanded ? 'w-6 h-6' : 'w-5 h-5'} text-white`} strokeWidth={2.5} />
-                                : <TrendingDown className={`${isExpanded ? 'w-6 h-6' : 'w-5 h-5'} text-white`} strokeWidth={2.5} />
+                            
+                            {/* League Position */}
+                            <div className="flex items-center justify-center gap-2">
+                              <p className={`text-[#eef0ed] font-semibold transition-all duration-700 ease-in-out ${isExpanded ? 'text-xl' : 'text-base'}`}>
+                                #{activity.primaryLeague.rank}
+                              </p>
+                              <span className={`text-[#eef0ed]/60 transition-all duration-700 ease-in-out ${isExpanded ? 'text-sm' : 'text-xs'}`}>
+                                of {activity.primaryLeague.totalMembers}
+                              </span>
+                            </div>
+                            
+                            {/* Show if counts for multiple leagues */}
+                            {activity.applicableLeagues && activity.applicableLeagues.length > 1 && (
+                              <p className="text-[#eef0ed]/50 text-[10px] mt-1">
+                                +{activity.applicableLeagues.length - 1} more league{activity.applicableLeagues.length > 2 ? 's' : ''}
+                              </p>
                             )}
                           </div>
+                        ) : (
+                          /* Fallback - show current league or no league message */
+                          <p className={`text-[#eef0ed]/70 mb-4 transition-all duration-700 ease-in-out ${isExpanded ? 'text-base' : 'text-sm'}`}>
+                            {currentLeague?.name || 'No active league'}
+                          </p>
                         )}
 
-                        {/* 6. Last 3 Comments */}
+                        {/* 5. Last 3 Comments */}
                         {recentComments.length > 0 && (
                           <div className="mt-4 space-y-2 max-w-xs mx-auto">
                             {recentComments.map((comment) => (

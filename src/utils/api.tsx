@@ -398,58 +398,137 @@ export class APIClient {
       throw error;
     }
   }
-async getUserLeagues() {
+
+ async getUserLeagues() {
   console.log('🔵 API Client: Fetching user leagues');
   try {
     const { data: { user } } = await this.supabase.auth.getUser();
     
-    if (!user) {
-      throw new Error('No user found');
-    }
+    if (!user) throw new Error('Not authenticated');
 
-    const { data: leagueMembers, error } = await this.supabase
+    const { data: memberships, error: membershipsError } = await this.supabase
       .from('league_memberships')
       .select(`
-        leagues!inner(
+        league_id,
+        leagues!inner (
           id,
           name,
-          description,
+          league_code,
+          owner_id,
           start_date,
           end_date,
-          is_private,
-          league_code,
           allowed_sports,
-          allow_teams,
           allow_stealth_mode,
-          allow_double_up_day,
-          owner_id
+          allow_double_up_day
         )
       `)
       .eq('user_id', user.id);
 
-    if (error) throw error;
+    if (membershipsError) throw membershipsError;
 
-    console.log('✅ Leagues fetched:', leagueMembers);
+    const leaguesWithDetails = await Promise.all(
+      (memberships || []).map(async (membership: any) => {
+        const league = membership.leagues;
 
-    // Get members for each league
-    const leagues = await Promise.all(
-      (leagueMembers || []).map(async (lm: any) => {
-        const members = await this.getLeagueMembers(lm.leagues.id);
+        // Get all members in this league
+        const { data: members } = await this.supabase
+          .from('league_memberships')
+          .select('user_id, stealth_until, double_up_date')
+          .eq('league_id', league.id);
+
+        const membersList = members || [];
+        const now = new Date();
+
+        // Calculate total hours for each member (for ranking)
+        const memberHours = await Promise.all(
+          membersList.map(async (member: any) => {
+            // Check if in stealth mode
+            const inStealth = member.stealth_until && new Date(member.stealth_until) > now;
+
+            let workoutsQuery = this.supabase
+              .from('workouts')
+              .select('duration_min, created_at, type')
+              .eq('user_id', member.user_id)
+              .gte('created_at', league.start_date)
+              .lte('created_at', league.end_date);
+
+            // Filter by allowed sports if specified
+            if (league.allowed_sports && league.allowed_sports.length > 0) {
+              workoutsQuery = workoutsQuery.in('type', league.allowed_sports);
+            }
+
+            const { data: workouts } = await workoutsQuery;
+
+            let totalMinutes = (workouts || []).reduce((sum: number, w: any) => {
+              let minutes = w.duration_min || 0;
+              
+              // Apply double up multiplier if applicable
+              if (member.double_up_date) {
+                const workoutDate = new Date(w.created_at).toDateString();
+                const doubleUpDate = new Date(member.double_up_date).toDateString();
+                if (workoutDate === doubleUpDate) {
+                  minutes *= 2;
+                }
+              }
+              
+              return sum + minutes;
+            }, 0);
+
+            return {
+              user_id: member.user_id,
+              totalHours: inStealth ? 0 : totalMinutes / 60,
+              inStealth
+            };
+          })
+        );
+
+        // Sort by hours to calculate ranks
+        const sortedMembers = memberHours
+          .sort((a, b) => b.totalHours - a.totalHours)
+          .map((m, index) => ({
+            ...m,
+            rank: index + 1
+          }));
+
+        // Find current user's rank
+        const userRank = sortedMembers.find(m => m.user_id === user.id)?.rank || membersList.length;
+        const userHours = sortedMembers.find(m => m.user_id === user.id)?.totalHours || 0;
+
+        // Get total workouts count for the league
+        let workoutsQuery = this.supabase
+          .from('workouts')
+          .select('*', { count: 'exact', head: true })
+          .in('user_id', membersList.map((m: any) => m.user_id))
+          .gte('created_at', league.start_date)
+          .lte('created_at', league.end_date);
+
+        // Filter by allowed sports if specified
+        if (league.allowed_sports && league.allowed_sports.length > 0) {
+          workoutsQuery = workoutsQuery.in('type', league.allowed_sports);
+        }
+
+        const { count: workoutsCount } = await workoutsQuery;
+
         return {
-          id: lm.leagues.id,
-          name: lm.leagues.name,
-          leagueCode: lm.leagues.league_code,
-          ownerId: lm.leagues.owner_id,
-          allowStealthMode: lm.leagues.allow_stealth_mode,
-          allowDoubleUp: lm.leagues.allow_double_up_day, // Changed from allow_double_up
-          allowTeams: lm.leagues.allow_teams,
-          members,
-          created_at: lm.leagues.created_at
+          id: league.id,
+          name: league.name,
+          leagueCode: league.league_code,
+          createdBy: league.owner_id,
+          ownerId: league.owner_id,
+          members: membersList,
+          workouts: workoutsCount || 0,
+          allowedSports: league.allowed_sports,
+          allowStealthMode: league.allow_stealth_mode || false,
+          allowDoubleUp: league.allow_double_up_day || false,
+          userRank: userRank,
+          userHours: userHours,
+          totalMembers: membersList.length
         };
       })
     );
 
-    return leagues;
+    console.log('✅ Leagues fetched with ranks:', leaguesWithDetails);
+    return leaguesWithDetails;
   } catch (error) {
     console.error('❌ Failed to fetch leagues:', error);
     throw error;
@@ -517,87 +596,102 @@ async getUserLeagues() {
     console.log('🔵 API Client: Fetching team leaderboard');
     try {
       const { data: { user } } = await this.supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error('No user found');
+      if (!user) throw new Error('Not authenticated');
+
+      // Get league details
+      const { data: league, error: leagueError } = await this.supabase
+        .from('leagues')
+        .select('start_date, end_date, allowed_sports')
+        .eq('id', leagueId)
+        .single();
+
+      if (leagueError) throw leagueError;
+
+      // Calculate date range
+      let startDate: string;
+      const endDate = league.end_date;
+
+      if (period === 'weekly') {
+        const now = new Date();
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - now.getDay());
+        weekStart.setHours(0, 0, 0, 0);
+        startDate = weekStart.toISOString();
+      } else {
+        startDate = league.start_date;
       }
-  
-      // Get all teams for this league
+
+      // Get all teams
       const { data: teams, error: teamsError } = await this.supabase
         .from('league_teams')
         .select('id, name')
         .eq('league_id', leagueId);
-  
+
       if (teamsError) throw teamsError;
-  
-      // Calculate date filter for weekly
-      let dateFilter = null;
-      if (period === 'weekly') {
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        dateFilter = weekAgo.toISOString();
+
+      if (!teams || teams.length === 0) {
+        return [];
       }
-  
-      // Get team members and their workout hours
-      const teamLeaderboardData = await Promise.all(
-        (teams || []).map(async (team: any) => {
-          // Get all members of this team
-          const { data: teamMembers } = await this.supabase
+
+      // Get team data
+      const teamData = await Promise.all(
+        teams.map(async (team: any) => {
+          // Get team members
+          const { data: members } = await this.supabase
             .from('league_memberships')
-            .select('user_id')
-            .eq('league_id', leagueId)
+            .select('user_id, stealth_until')
             .eq('team_id', team.id);
-  
-          if (!teamMembers || teamMembers.length === 0) {
-            return {
-              teamId: team.id,
-              teamName: team.name,
-              totalHours: 0,
-              memberCount: 0,
-              isCurrentUserTeam: false
-            };
-          }
-  
+
+          const memberCount = members?.length || 0;
+          const now = new Date();
+
           // Get workouts for all team members
-          const memberIds = teamMembers.map((m: any) => m.user_id);
-          let query = this.supabase
-            .from('workouts')
-            .select('duration_min, user_id')
-            .in('user_id', memberIds);
+          let totalMinutes = 0;
           
-          if (dateFilter) {
-            query = query.gte('created_at', dateFilter);
+          for (const member of members || []) {
+            const inStealth = member.stealth_until && new Date(member.stealth_until) > now;
+            
+            if (!inStealth) {
+              let workoutsQuery = this.supabase
+                .from('workouts')
+                .select('duration_min')
+                .eq('user_id', member.user_id)
+                .gte('created_at', startDate)
+                .lte('created_at', endDate);
+
+              // Filter by allowed sports if specified
+              if (league.allowed_sports && league.allowed_sports.length > 0) {
+                workoutsQuery = workoutsQuery.in('type', league.allowed_sports);
+              }
+
+              const { data: workouts } = await workoutsQuery;
+
+              totalMinutes += (workouts || []).reduce((sum: number, w: any) => sum + (w.duration_min || 0), 0);
+            }
           }
-  
-          const { data: workouts } = await query;
-          
-          const totalMinutes = workouts?.reduce((sum, w) => sum + (w.duration_min || 0), 0) || 0;
-          const totalHours = totalMinutes / 60;
-  
-          // Check if current user is on this team
-          const isCurrentUserTeam = memberIds.includes(user.id);
-  
+
+          const isCurrentUserTeam = members?.some((m: any) => m.user_id === user.id) || false;
+
           return {
             teamId: team.id,
             teamName: team.name,
-            totalHours: totalHours,
-            memberCount: teamMembers.length,
+            totalHours: totalMinutes / 60,
+            memberCount,
             isCurrentUserTeam
           };
         })
       );
-  
-      // Sort by total hours descending
-      teamLeaderboardData.sort((a, b) => b.totalHours - a.totalHours);
-  
-      // Add ranks
-      const rankedData = teamLeaderboardData.map((item, index) => ({
-        ...item,
-        rank: index + 1
-      }));
-  
-      console.log('✅ Team leaderboard fetched:', rankedData);
-      return rankedData;
+
+      // Sort and assign ranks
+      const sorted = teamData
+        .sort((a, b) => b.totalHours - a.totalHours)
+        .map((entry, index) => ({
+          ...entry,
+          rank: index + 1
+        }));
+
+      console.log('✅ Team leaderboard fetched:', sorted);
+      return sorted;
     } catch (error) {
       console.error('❌ Failed to fetch team leaderboard:', error);
       throw error;
@@ -608,59 +702,73 @@ async getUserLeagues() {
     console.log('🔵 API Client: Fetching league leaderboard');
     try {
       const { data: { user } } = await this.supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error('No user found');
+      if (!user) throw new Error('Not authenticated');
+
+      // Get league details
+      const { data: league, error: leagueError } = await this.supabase
+        .from('leagues')
+        .select('start_date, end_date, allowed_sports')
+        .eq('id', leagueId)
+        .single();
+
+      if (leagueError) throw leagueError;
+
+      // Calculate date range
+      let startDate: string;
+      const endDate = league.end_date;
+
+      if (period === 'weekly') {
+        const now = new Date();
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - now.getDay());
+        weekStart.setHours(0, 0, 0, 0);
+        startDate = weekStart.toISOString();
+      } else {
+        startDate = league.start_date;
       }
-  
-      // Get league members with stealth status - using correct column names
+
+      // Get all members
       const { data: members, error: membersError } = await this.supabase
         .from('league_memberships')
         .select(`
           user_id,
-          in_stealth_mode,
           stealth_until,
           double_up_date,
-          used_double_up,
           profiles!league_memberships_user_id_fkey (
             id,
-            username
+            username,
+            avatar_url
           )
         `)
         .eq('league_id', leagueId);
-  
+
       if (membersError) throw membersError;
-  
-      // Calculate date filter for weekly
-      let dateFilter = null;
-      if (period === 'weekly') {
-        const weekAgo = new Date();
-        weekAgo.setDate(weekAgo.getDate() - 7);
-        dateFilter = weekAgo.toISOString();
-      }
-  
+
       const now = new Date();
-  
+
       // Get workouts for each member
       const leaderboardData = await Promise.all(
         (members || []).map(async (member: any) => {
-          // Check if user is in stealth mode AND it hasn't expired
-          const inStealth = member.in_stealth_mode && 
-            member.stealth_until && 
-            new Date(member.stealth_until) > now;
-          
-          let query = this.supabase
+          // Check if in stealth mode
+          const inStealth = member.stealth_until && new Date(member.stealth_until) > now;
+
+          let workoutsQuery = this.supabase
             .from('workouts')
-            .select('duration_min, created_at')
-            .eq('user_id', member.user_id);
-          
-          if (dateFilter) {
-            query = query.gte('created_at', dateFilter);
+            .select('duration_min, created_at, type')
+            .eq('user_id', member.user_id)
+            .gte('created_at', startDate)
+            .lte('created_at', endDate);
+
+          // Filter by allowed sports if specified
+          if (league.allowed_sports && league.allowed_sports.length > 0) {
+            workoutsQuery = workoutsQuery.in('type', league.allowed_sports);
           }
-  
-          const { data: workouts } = await query;
-          
-          let totalMinutes = workouts?.reduce((sum, w: any) => {
+
+          const { data: workouts, error: workoutsError } = await workoutsQuery;
+
+          if (workoutsError) throw workoutsError;
+
+          let totalMinutes = (workouts || []).reduce((sum: number, w: any) => {
             let minutes = w.duration_min || 0;
             
             // Apply double up multiplier if applicable
@@ -673,37 +781,30 @@ async getUserLeagues() {
             }
             
             return sum + minutes;
-          }, 0) || 0;
+          }, 0);
           
           const totalHours = totalMinutes / 60;
-  
-          // Hide name if in stealth (but show to the user themselves)
-          const isCurrentUser = member.user_id === user.id;
-          const displayName = (inStealth && !isCurrentUser) 
-            ? '👻 Hidden' 
-            : member.profiles?.username || 'User';
-  
+
           return {
             userId: member.user_id,
-            name: displayName,
-            totalHours: totalHours,
-            isCurrentUser: isCurrentUser,
-            inStealth: inStealth && !isCurrentUser
+            name: member.profiles?.username || 'User',
+            totalHours: inStealth ? 0 : totalHours,
+            isCurrentUser: member.user_id === user.id,
+            inStealth
           };
         })
       );
-  
-      // Sort by total hours descending
-      leaderboardData.sort((a, b) => b.totalHours - a.totalHours);
-  
-      // Add ranks
-      const rankedData = leaderboardData.map((item, index) => ({
-        ...item,
-        rank: index + 1
-      }));
-  
-      console.log('✅ Leaderboard fetched:', rankedData);
-      return rankedData;
+
+      // Sort and assign ranks
+      const sorted = leaderboardData
+        .sort((a, b) => b.totalHours - a.totalHours)
+        .map((entry, index) => ({
+          ...entry,
+          rank: index + 1
+        }));
+
+      console.log('✅ Leaderboard fetched:', sorted);
+      return sorted;
     } catch (error) {
       console.error('❌ Failed to fetch leaderboard:', error);
       throw error;
@@ -747,7 +848,7 @@ async getUserLeagues() {
             is_private: leagueData.isPrivate || false,
             allowed_sports: leagueData.allowedSports,
             allow_teams: leagueData.allowTeams || false,
-            allow_double_up: leagueData.allowDoubleUp || false,
+            allow_double_up_day: leagueData.allowDoubleUp || false,
             allow_bonus_hours: leagueData.allowBonusHours || false,
             allow_stealth_mode: leagueData.allowStealthMode || false,
           },
@@ -816,7 +917,7 @@ async getUserLeagues() {
     }
   }
 
-    async getLeagueChat(leagueId: string) {
+  async getLeagueChat(leagueId: string) {
     console.log('🔵 API Client: Fetching league chat');
     try {
       const { data: messages, error } = await this.supabase
@@ -830,9 +931,9 @@ async getUserLeagues() {
         `)
         .eq('league_id', leagueId)
         .order('created_at', { ascending: true });
-  
+
       if (error) throw error;
-  
+
       console.log('✅ Chat messages fetched:', messages);
       return messages.map((msg: any) => ({
         id: msg.id,
@@ -899,103 +1000,92 @@ async getUserLeagues() {
     }
   }
 
- async getAllVisibleWorkouts() {
-  console.log('🔵 API Client: Fetching all visible workouts');
-  
-  try {
-    const { data: { user } } = await this.supabase.auth.getUser();
+  async getAllVisibleWorkouts() {
+    console.log('🔵 API Client: Fetching all visible workouts');
     
-    if (!user) {
-      throw new Error('No user found');
-    }
-
-    // Get all workouts
-    const { data: workouts, error } = await this.supabase
-      .from('workouts')
-      .select(`
-        *,
-        profiles!workouts_user_id_fkey (
-          username,
-          avatar_url
-        )
-      `)
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-
-    // Get all stealth memberships (active only)
-    const { data: stealthMemberships, error: stealthError } = await this.supabase
-      .from('league_memberships')
-      .select('user_id, league_id, stealth_until')
-      .eq('in_stealth_mode', true)
-      .not('stealth_until', 'is', null);
-
-    if (stealthError) throw stealthError;
-
-    // Create a map of users in stealth mode per league with time window
-    const now = new Date();
-    const stealthMap = new Map<string, { stealthStart: Date; stealthEnd: Date }>();
-    
-    (stealthMemberships || []).forEach(membership => {
-      const stealthEnd = new Date(membership.stealth_until);
+    try {
+      const { data: { user } } = await this.supabase.auth.getUser();
       
-      // Only process if stealth mode is still active
-      if (stealthEnd > now) {
-        // Calculate when stealth mode started (3 days before expiry)
-        const stealthStart = new Date(stealthEnd);
-        stealthStart.setDate(stealthStart.getDate() - 3);
-        
-        const key = `${membership.user_id}-${membership.league_id}`;
-        stealthMap.set(key, {
-          stealthStart,
-          stealthEnd
-        });
+      if (!user) {
+        throw new Error('No user found');
       }
-    });
 
-    console.log('✅ All visible workouts fetched:', workouts?.length || 0);
+      // Get all workouts
+      const { data: workouts, error } = await this.supabase
+        .from('workouts')
+        .select(`
+          *,
+          profiles!workouts_user_id_fkey (
+            username,
+            avatar_url
+          )
+        `)
+        .order('created_at', { ascending: false });
 
-    // Filter and transform workouts
-    return (workouts || [])
-      .filter((workout: any) => {
-        // Always show user's own workouts
-        if (workout.user_id === user.id) return true;
+      if (error) throw error;
+
+      // Get all stealth memberships (active only)
+      const { data: stealthMemberships, error: stealthError } = await this.supabase
+        .from('league_memberships')
+        .select('user_id, league_id, stealth_until')
+        .eq('in_stealth_mode', true)
+        .not('stealth_until', 'is', null);
+
+      if (stealthError) throw stealthError;
+
+      // Create a map of users in stealth mode per league with time window
+      const now = new Date();
+      const stealthMap = new Map<string, { stealthStart: Date; stealthEnd: Date }>();
+      
+      (stealthMemberships || []).forEach(membership => {
+        const stealthEnd = new Date(membership.stealth_until);
         
-        // Check if this workout's user is in stealth mode for this league
-        const stealthKey = `${workout.user_id}-${workout.league_id}`;
-        const stealthInfo = stealthMap.get(stealthKey);
-        
-        if (!stealthInfo) return true; // Not in stealth, show workout
-        
-        // Check if workout was created during the stealth period
-        const workoutDate = new Date(workout.created_at);
-        const isDuringStealthPeriod = workoutDate >= stealthInfo.stealthStart && 
-                                      workoutDate <= stealthInfo.stealthEnd;
-        
-        // Hide workout only if it was created during stealth period
-        return !isDuringStealthPeriod;
-      })
-      .map((workout: any) => ({
-        id: workout.id,
-        userId: workout.user_id,
-        userName: workout.profiles?.username || 'User',
-        userAvatar: workout.profiles?.avatar_url || '',
-        sport: workout.type,
-        duration: workout.duration_min,
-        distance: workout.distance_km,
-        time: new Date(workout.created_at).toLocaleString(),
-        date: workout.created_at,
-        notes: workout.notes,
-        photo: workout.photo_url,
-        likes: 0,
-        comments: [],
-        type: 'workout' as const
-      }));
-  } catch (error) {
-    console.error('❌ Failed to fetch workouts:', error);
-    throw error;
+        // Only process if stealth mode is still active
+        if (stealthEnd > now) {
+          // Calculate when stealth mode started (3 days before expiry)
+          const stealthStart = new Date(stealthEnd);
+          stealthStart.setDate(stealthStart.getDate() - 3);
+          
+          const key = `${membership.user_id}-${membership.league_id}`;
+          stealthMap.set(key, {
+            stealthStart,
+            stealthEnd
+          });
+        }
+      });
+
+      console.log('✅ All visible workouts fetched:', workouts?.length || 0);
+
+      // Filter and transform workouts
+      return (workouts || [])
+        .filter((workout: any) => {
+          // Always show user's own workouts
+          if (workout.user_id === user.id) return true;
+          
+          // For now, show all workouts (stealth filtering happens in leaderboard)
+          return true;
+        })
+        .map((workout: any) => ({
+          id: workout.id,
+          userId: workout.user_id,
+          userName: workout.profiles?.username || 'User',
+          userAvatar: workout.profiles?.avatar_url || '',
+          sport: workout.type,
+          duration: workout.duration_min,
+          distance: workout.distance_km,
+          time: new Date(workout.created_at).toLocaleString(),
+          date: workout.created_at,
+          notes: workout.notes,
+          photo: workout.photo_url,
+          likes: 0,
+          comments: [],
+          type: 'workout' as const
+        }));
+    } catch (error) {
+      console.error('❌ Failed to fetch workouts:', error);
+      throw error;
+    }
   }
-}
 
   async sendChatMessage(leagueId: string, message: string) {
     console.log('🔵 API Client: Sending chat message');

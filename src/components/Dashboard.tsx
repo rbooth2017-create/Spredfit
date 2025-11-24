@@ -356,7 +356,7 @@ const storePosition = (userId: string, leagueId: string, position: number) => {
   
     return leagues.map((league, index) => ({
       name: league.name,
-      rank: index + 1,
+      rank: league.userRank || 1, // ✅ Use actual rank from API
       totalMembers: league.members?.length || 0,
       id: league.id,
       isManager: league.createdBy === currentUserId,
@@ -638,73 +638,41 @@ useEffect(() => {
       
       const withPhotos = normalizeWorkoutPhotos(visibleWorkouts);
       
-      // Calculate league positions for each workout
-      const activitiesWithPositions = await Promise.all(
-        withPhotos.map(async (workout) => {
-          // ... rest of the existing code for calculating positions
-          const workoutLeague = leagues.find(league => 
-            league.members?.some(m => m.id === workout.userId)
-          );
+      // Add league information to each workout
+      const activitiesWithLeagues = withPhotos.map((workout: any) => {
+        // Find which leagues this workout counts for
+        const applicableLeagues = leagues.filter(league => {
+          const workoutDate = new Date(workout.date);
+          const leagueStart = new Date(league.start_date);
+          const leagueEnd = new Date(league.end_date);
           
-          if (!workoutLeague) {
-            return {
-              ...workout,
-              leaguePosition: null,
-              totalMembers: null,
-              positionChange: null,
-            };
+          // Check if workout is in league date range
+          if (workoutDate < leagueStart || workoutDate > leagueEnd) return false;
+          
+          // Check if sport is allowed in league (if sports filter exists)
+          if (league.allowedSports && league.allowedSports.length > 0) {
+            return league.allowedSports.includes(workout.sport);
           }
           
-          // Get leaderboard for this league
-          try {
-            const leaderboard = await api.getLeagueLeaderboard(workoutLeague.id, 'total');
-            const userPosition = leaderboard.find(entry => entry.userId === workout.userId);
-            
-            if (!userPosition) {
-              return {
-                ...workout,
-                leagueName: workoutLeague.name,
-                leaguePosition: null,
-                totalMembers: leaderboard.length,
-                positionChange: null,
-              };
-            }
-            
-            // Calculate position change
-            let positionChange = 0;
-            const currentPosition = userPosition.rank;
-            const storedData = getStoredPositions(workout.userId, workoutLeague.id);
-            
-            if (storedData && storedData.position) {
-              positionChange = storedData.position - currentPosition;
-            }
-            
-            // Store current position for next time
-            if (workout.userId === user.id) {
-              storePosition(workout.userId, workoutLeague.id, currentPosition);
-            }
-            
-            return {
-              ...workout,
-              leagueName: workoutLeague.name,
-              leaguePosition: currentPosition,
-              totalMembers: leaderboard.length,
-              positionChange: positionChange,
-            };
-          } catch (error) {
-            console.error('Failed to get leaderboard for league:', workoutLeague.id, error);
-            return {
-              ...workout,
-              leagueName: workoutLeague.name,
-              leaguePosition: null,
-              totalMembers: workoutLeague.members?.length || 0,
-              positionChange: null,
-            };
-          }
-        })
-      );
+          return true;
+        });
+        
+        // Get user's rank in each applicable league
+        const leagueRanks = applicableLeagues.map(league => ({
+          leagueId: league.id,
+          leagueName: league.name,
+          rank: league.userRank,
+          totalMembers: league.totalMembers
+        }));
+        
+        return {
+          ...workout,
+          applicableLeagues: leagueRanks,
+          primaryLeague: leagueRanks[0] || null // Use first league as primary
+        };
+      });
       
-      const transformedActivities = transformActivityUserNames(activitiesWithPositions);
+      const transformedActivities = transformActivityUserNames(activitiesWithLeagues);
       setActivities(transformedActivities);
     } catch (error) {
       console.error("Failed to load workouts:", error);
@@ -713,6 +681,9 @@ useEffect(() => {
   }
   loadActivities();
 }, [accessToken, setActivities, refreshTrigger, leagues, user?.id]);
+
+// In Dashboard.tsx loadActivities function (around line 620-710)
+// After getting workouts, add league rank information
 
     // Load chat when league changes
   const loadChat = async () => {
