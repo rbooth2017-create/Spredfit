@@ -616,7 +616,7 @@ const storePosition = (userId: string, leagueId: string, position: number) => {
     }
   }, [workoutTime, recordedDistance, setRecordedPace]);
 
- // Load activities when component mounts or when a workout is created
+// Load activities when component mounts or when a workout is created
 useEffect(() => {
   async function loadActivities() {
     if (!accessToken || !user?.id) {
@@ -638,39 +638,65 @@ useEffect(() => {
       
       const withPhotos = normalizeWorkoutPhotos(visibleWorkouts);
       
-      // Add league information to each workout
-      const activitiesWithLeagues = withPhotos.map((workout: any) => {
-        // Find which leagues this workout counts for
-        const applicableLeagues = leagues.filter(league => {
-          const workoutDate = new Date(workout.date);
-          const leagueStart = new Date(league.start_date);
-          const leagueEnd = new Date(league.end_date);
+      // Add league information to each workout with THAT USER'S rank
+      const activitiesWithLeagues = await Promise.all(
+        withPhotos.map(async (workout: any) => {
+          // Find which leagues this workout counts for
+          const applicableLeagues = leagues.filter(league => {
+            // Check if the workout creator is a member of this league
+            const isMember = league.members?.some((m: any) => m.user_id === workout.userId);
+            if (!isMember) return false;
+
+            const workoutDate = new Date(workout.date);
+            const leagueStart = new Date(league.start_date);
+            const leagueEnd = new Date(league.end_date);
+            
+            // Check if workout is in league date range
+            if (workoutDate < leagueStart || workoutDate > leagueEnd) return false;
+            
+            // Check if sport is allowed in league (if sports filter exists)
+            if (league.allowedSports && league.allowedSports.length > 0) {
+              return league.allowedSports.includes(workout.sport);
+            }
+            
+            return true;
+          });
           
-          // Check if workout is in league date range
-          if (workoutDate < leagueStart || workoutDate > leagueEnd) return false;
+          // Get the workout creator's rank in each applicable league
+          const leagueRanks = await Promise.all(
+            applicableLeagues.map(async (league) => {
+              try {
+                // Fetch the leaderboard for this league
+                const leaderboard = await api.getLeagueLeaderboard(league.id, 'total');
+                
+                // Find this user's position in the leaderboard
+                const userEntry = leaderboard.find(entry => entry.userId === workout.userId);
+                
+                return {
+                  leagueId: league.id,
+                  leagueName: league.name,
+                  rank: userEntry?.rank || league.members?.length || 1,
+                  totalMembers: league.members?.length || leaderboard.length
+                };
+              } catch (error) {
+                console.error('Failed to get leaderboard for league:', league.id, error);
+                return {
+                  leagueId: league.id,
+                  leagueName: league.name,
+                  rank: league.members?.length || 1,
+                  totalMembers: league.members?.length || 0
+                };
+              }
+            })
+          );
           
-          // Check if sport is allowed in league (if sports filter exists)
-          if (league.allowedSports && league.allowedSports.length > 0) {
-            return league.allowedSports.includes(workout.sport);
-          }
-          
-          return true;
-        });
-        
-        // Get user's rank in each applicable league
-        const leagueRanks = applicableLeagues.map(league => ({
-          leagueId: league.id,
-          leagueName: league.name,
-          rank: league.userRank,
-          totalMembers: league.totalMembers
-        }));
-        
-        return {
-          ...workout,
-          applicableLeagues: leagueRanks,
-          primaryLeague: leagueRanks[0] || null // Use first league as primary
-        };
-      });
+          return {
+            ...workout,
+            applicableLeagues: leagueRanks,
+            primaryLeague: leagueRanks[0] || null // Use first league as primary
+          };
+        })
+      );
       
       const transformedActivities = transformActivityUserNames(activitiesWithLeagues);
       setActivities(transformedActivities);

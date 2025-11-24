@@ -260,8 +260,8 @@ function ActivityCarouselComponent({
                           <div className="mt-4 space-y-2 max-w-xs mx-auto">
                             {recentComments.map((comment) => (
                               <div key={comment.id} className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-left">
-                                <p className="text-[#eef0ed] text-xs font-semibold">{comment.userName}</p>
-                                <p className="text-[#eef0ed]/80 text-[10px] line-clamp-2">{comment.text}</p>
+                                <p className="text-[#FFFFFF] text-xs font-semibold">{comment.userName}</p>
+                                <p className="text-[#FFFFFF]/80 text-[10px] line-clamp-2">{comment.text}</p>
                               </div>
                             ))}
                           </div>
