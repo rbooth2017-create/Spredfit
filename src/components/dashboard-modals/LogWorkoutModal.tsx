@@ -50,7 +50,7 @@ function LogWorkoutModalComponent({
   editingWorkoutId,
   onUpdate,
   onClose,
-  accessToken, 
+  accessToken,
 }: LogWorkoutModalProps) {
   const { createWorkout, currentLeague, refreshActivities } = useApp();
   const [saving, setSaving] = useState(false);
@@ -60,27 +60,50 @@ function LogWorkoutModalComponent({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    console.log('📸 handlePhotoUpload triggered');
+    
     const file = event.target.files?.[0];
-    if (!file) return;
+    console.log('📦 File from input:', file);
+    
+    if (!file) {
+      console.log('❌ No file selected');
+      return;
+    }
+
+    console.log('📊 File details:', {
+      name: file.name,
+      size: file.size,
+      type: file.type
+    });
 
     if (!file.type.startsWith('image/')) {
+      console.log('❌ Invalid file type:', file.type);
       toast.error('Please select an image file');
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
+      console.log('❌ File too large:', file.size);
       toast.error('Image must be less than 5MB');
       return;
     }
 
+    console.log('✅ File validation passed');
     setUploading(true);
+    
     try {
+      console.log('🔵 Creating API client with token:', accessToken ? 'Present' : 'Missing');
       const api = new APIClient(accessToken || null);
+      
+      console.log('🔵 Calling uploadWorkoutPhoto...');
       const photoUrl = await api.uploadWorkoutPhoto(file);
+      
+      console.log('✅ Photo uploaded! URL:', photoUrl);
       setUploadedPhoto(photoUrl);
       
       // Update the saved workout with the photo
       if (savedWorkoutId) {
+        console.log('🔵 Updating workout', savedWorkoutId, 'with photo');
         await api.updateWorkout(savedWorkoutId, {
           type: selectedSport!,
           duration: (parseInt(logHours) || 0) * 60 + (parseInt(logMinutes) || 0),
@@ -89,29 +112,56 @@ function LogWorkoutModalComponent({
           notes: logNotes,
           photo_url: photoUrl,
         });
+        console.log('✅ Workout updated with photo');
         await refreshActivities();
+      } else {
+        console.log('⚠️ No savedWorkoutId - photo uploaded but not attached to workout');
       }
       
       toast.success('Photo uploaded!');
       setShowPhotoUpload(false);
     } catch (error) {
-      console.error('Failed to upload photo:', error);
+      console.error('❌ Failed to upload photo:', error);
+      console.error('❌ Error details:', {
+        message: error instanceof Error ? error.message : 'Unknown error',
+        stack: error instanceof Error ? error.stack : undefined
+      });
       toast.error('Failed to upload photo');
     } finally {
+      console.log('🏁 Upload process finished');
       setUploading(false);
+      // Reset file input
+      if (fileInputRef.current) {
+        fileInputRef.current.value = '';
+      }
+    }
+  };
+
+  const handleCameraButtonClick = () => {
+    console.log('📷 Camera button clicked');
+    console.log('📷 fileInputRef.current:', fileInputRef.current);
+    if (fileInputRef.current) {
+      console.log('📷 Triggering click on file input');
+      fileInputRef.current.click();
+    } else {
+      console.log('❌ fileInputRef is null!');
     }
   };
 
   return (
     <>
-      {/* Hidden file input */}
+      {/* Hidden file input - ALWAYS RENDERED */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
         capture="environment"
-        onChange={handlePhotoUpload}
+        onChange={(e) => {
+          console.log('🎯 onChange fired! Files:', e.target.files);
+          handlePhotoUpload(e);
+        }}
         className="hidden"
+        style={{ display: 'none' }}
       />
 
       {/* Modal Content */}
@@ -128,11 +178,10 @@ function LogWorkoutModalComponent({
                     <button
                       onClick={() => {
                         setSelectedSport(sport.name);
-                        // Check if sport needs distance
                         if (['Running', 'Cycling', 'Swimming'].includes(sport.name)) {
-                          setModalStep(2); // Go to distance entry
+                          setModalStep(2);
                         } else {
-                          setModalStep(3); // Skip to time entry
+                          setModalStep(3);
                         }
                       }}
                       className="w-14 h-14 rounded-full bg-transparent backdrop-blur-sm hover:bg-white/10 flex items-center justify-center transition-all border border-white/20"
@@ -147,7 +196,7 @@ function LogWorkoutModalComponent({
           </div>
         )}
 
-        {/* Step 2: Distance Entry (for Running, Cycling, Swimming) */}
+        {/* Step 2: Distance Entry */}
         {modalStep === 2 && selectedSport && (
           <div className="flex flex-col items-center text-center space-y-4 w-full">
             <p className="text-white/70 text-xs">{selectedSport}</p>
@@ -268,7 +317,7 @@ function LogWorkoutModalComponent({
               </div>
             ) : (
               <button
-                onClick={() => fileInputRef.current?.click()}
+                onClick={handleCameraButtonClick}
                 className="w-24 h-24 rounded-full bg-white/10 backdrop-blur-sm border-2 border-dashed border-white/40 flex items-center justify-center hover:bg-white/20 transition-all"
               >
                 <Camera className="w-10 h-10 text-white" strokeWidth={1.5} />
@@ -313,7 +362,6 @@ function LogWorkoutModalComponent({
             <div className="flex flex-col items-center gap-1.5">
               <button
                 onClick={() => {
-                  // Go back to distance entry for sports that have it, otherwise go to sport selection
                   if (selectedSport && ['Running', 'Cycling', 'Swimming'].includes(selectedSport)) {
                     setModalStep(2);
                   } else {
@@ -355,7 +403,7 @@ function LogWorkoutModalComponent({
             <div className="flex flex-col items-center gap-1.5">
               <button
                 onClick={async () => {
-                  if (saving) return; // Prevent double-click
+                  if (saving) return;
                   
                   setSaving(true);
                   try {
@@ -367,7 +415,7 @@ function LogWorkoutModalComponent({
                       date: new Date().toISOString(),
                       notes: logNotes,
                       leagueId: currentLeague?.id,
-                      photo: uploadedPhoto, // Include uploaded photo (will be null initially)
+                      photo: uploadedPhoto,
                     };
                     
                     let workoutId;
@@ -376,10 +424,10 @@ function LogWorkoutModalComponent({
                       workoutId = editingWorkoutId;
                     } else {
                       const result = await createWorkout(workoutData);
-                      workoutId = result.id; // Save the workout ID
+                      workoutId = result.id;
                     }
                     
-                    setSavedWorkoutId(workoutId); // Store it for photo upload later
+                    setSavedWorkoutId(workoutId);
                     
                     toast.success(editingWorkoutId ? 'Workout Updated!' : 'Workout Logged!');
                     await refreshActivities();
@@ -410,13 +458,7 @@ function LogWorkoutModalComponent({
               <button
                 onClick={() => setShowPhotoUpload(true)}
                 className="w-20 h-20 rounded-full bg-[#2d2d2d] backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 hover:bg-[#2d2d2d]/90 shadow-lg"
-              >
-                <Camera className="w-7 h-7 text-white" strokeWidth={2} />
-              </button>
-              <span className="text-white text-[10px] text-center">{uploadedPhoto ? 'Change' : 'Add Photo'}</span>
-            </div>
-            <div className="flex flex-col items-center gap-1.5">
-              <button
+              
                 onClick={onClose}
                 className="w-20 h-20 rounded-full bg-[#2d2d2d] backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 hover:bg-[#2d2d2d]/90 shadow-lg"
               >
@@ -449,5 +491,4 @@ function LogWorkoutModalComponent({
   );
 }
 
-// ✅ Memoize to prevent unnecessary re-renders
 export const LogWorkoutModal = memo(LogWorkoutModalComponent);

@@ -134,156 +134,155 @@ function ActivityCarouselComponent({
   getSportIcon,
   isExpanded,
 }: ActivityCarouselProps) {
-  // Fixed size circle that can overflow/crop at screen edges
-  const circleSize = "w-[90vw] h-[90vw] max-w-[900px] max-h-[900px]";
-        
   return (
-    <div className={`absolute left-0 right-0 -translate-y-1/2 z-10 transition-all duration-700 ease-in-out top-[40%]`}>
-      <div className="flex justify-center transition-all duration-700 ease-in-out">
-        <div className="relative">
-          {/* Fixed circle with cycling content inside - optimized for SE and larger phones */}
-          <div className={`${circleSize} rounded-full border-[0px] border-white/20 relative overflow-hidden transition-all duration-700 ease-in-out`} data-tutorial="activity-carousel">
-            <div 
-              className="overflow-x-auto absolute inset-0 flex items-center"
-              style={{ 
-                scrollbarWidth: 'none', 
-                msOverflowStyle: 'none',
-                WebkitOverflowScrolling: 'touch'
-              }}
-            >
-              <style>{`
-                .overflow-x-auto::-webkit-scrollbar { 
-                  display: none; 
+    <div className="absolute left-0 right-0 top-0 bottom-0 z-10">
+      <div className="w-full h-full">
+        {/* Full width square container with padding */}
+        <div className="w-full h-full relative overflow-hidden" data-tutorial="activity-carousel">
+          <div 
+            className="overflow-x-auto absolute inset-0 flex items-center px-4"
+            style={{ 
+              scrollbarWidth: 'none', 
+              msOverflowStyle: 'none',
+              WebkitOverflowScrolling: 'touch'
+            }}
+          >
+            <style>{`
+              .overflow-x-auto::-webkit-scrollbar { 
+                display: none; 
+              }
+            `}</style>
+            <div className="flex snap-x snap-mandatory h-full gap-4">
+              {activities.map((activity) => {
+                // Determine what to show based on activity type
+                let activityLabel = '';
+                let Icon = Activity;
+                
+                if (activity.type === 'workout') {
+                  activityLabel = activity.sport || 'Workout';
+                  Icon = getSportIcon(activity.sport);
+                } else if (activity.type === 'achievement') {
+                  activityLabel = activity.achievement || 'Achievement';
+                  Icon = Award;
+                } else if (activity.type === 'streak') {
+                  activityLabel = 'Streak';
+                  Icon = Flame;
+                } else if (activity.type === 'plan_complete') {
+                  activityLabel = 'Training Plan';
+                  Icon = Calendar;
                 }
-              `}</style>
-              <div className="flex snap-x snap-mandatory">
-                {activities.map((activity) => {
-                  // Determine what to show based on activity type
-                  let activityLabel = '';
-                  let Icon = Activity;
-                  
-                  if (activity.type === 'workout') {
-                    activityLabel = activity.sport || 'Workout';
-                    Icon = getSportIcon(activity.sport);
-                  } else if (activity.type === 'achievement') {
-                    activityLabel = activity.achievement || 'Achievement';
-                    Icon = Award;
-                  } else if (activity.type === 'streak') {
-                    activityLabel = 'Streak';
-                    Icon = Flame;
-                  } else if (activity.type === 'plan_complete') {
-                    activityLabel = 'Training Plan';
-                    Icon = Calendar;
-                  }
-                  
-                  // Get last 3 comments
-                  const recentComments = (activity.comments || []).slice(-3);
-                  
-                  return (
-                    <div 
-                      key={activity.id} 
-                      className={`${circleSize} flex-shrink-0 flex flex-col items-center justify-center text-center px-6 snap-center cursor-pointer transition-all duration-700 ease-in-out relative`}
-                      onClick={() => {
-                        console.log('🔍 Activity clicked:', activity);
-                        onActivityClick(activity);
-                      }}
-                    >
-                      {/* Background Image at 10% opacity */}
-                      {activity.photo && (
-                        <div 
-                          className="absolute inset-0"
-                          style={{
-                            backgroundImage: `url(${activity.photo})`,
-                            backgroundSize: 'cover',
-                            backgroundPosition: 'center',
-                            opacity: 0.1
-                          }}
-                        />
+                
+                // Get last 3 comments
+                const recentComments = (activity.comments || []).slice(-3);
+                
+                return (
+                  <div 
+                    key={activity.id} 
+                    className="flex-shrink-0 h-full flex flex-col items-center justify-center text-center snap-center cursor-pointer relative rounded-2xl overflow-hidden"
+                    style={{ width: 'calc(100vw - 4rem)' }}
+                    onClick={() => {
+                      console.log('🔍 Activity clicked:', activity);
+                      onActivityClick(activity);
+                    }}
+                  >
+                    {/* Background Image at 10% opacity */}
+                    {activity.photo && (
+                      <div 
+                        className="absolute inset-0"
+                        style={{
+                          backgroundImage: `url(${activity.photo})`,
+                          backgroundSize: 'cover',
+                          backgroundPosition: 'center',
+                          opacity: 0.1
+                        }}
+                      />
+                    )}
+                    
+                    {/* Content */}
+                    <div className="relative z-10 px-6">
+                      {/* 1. Sport Icon */}
+                      <div className="mb-3">
+                        <Icon className="w-12 h-12 text-[#eef0ed] mx-auto" strokeWidth={1.5} />
+                      </div>
+                      
+                      {/* 2. User Name */}
+                      <h2 className="text-[#eef0ed] mb-2 font-semibold text-xl">
+                        {activity.userName}
+                      </h2>
+                      
+                      {/* 3. Distance and Time (or just time) */}
+                      {activity.type === 'workout' && (
+                        <p className="text-[#eef0ed]/90 mb-2 font-medium text-base">
+                          {activity.distance && activity.distance > 0 
+                            ? `${activity.distance} km • ${activity.duration} min`
+                            : `${activity.duration} min`
+                          }
+                        </p>
                       )}
                       
-                      {/* Content */}
-                      <div className="relative z-10">
-                        {/* 1. Sport Icon */}
-                        <div className="mb-3">
-                          <Icon className={`${isExpanded ? 'w-16 h-16' : 'w-12 h-12'} text-[#eef0ed] mx-auto transition-all duration-700 ease-in-out`} strokeWidth={1.5} />
-                        </div>
-                        
-                        {/* 2. User Name */}
-                        <h2 className={`text-[#eef0ed] mb-2 font-semibold transition-all duration-700 ease-in-out ${isExpanded ? 'text-3xl' : 'text-xl'}`}>
-                          {activity.userName}
-                        </h2>
-                        
-                        {/* 3. Distance and Time (or just time) */}
-                        {activity.type === 'workout' && (
-                          <p className={`text-[#eef0ed]/90 mb-2 font-medium transition-all duration-700 ease-in-out ${isExpanded ? 'text-lg' : 'text-base'}`}>
-                            {activity.distance && activity.distance > 0 
-                              ? `${activity.distance} km • ${activity.duration} min`
-                              : `${activity.duration} min`
-                            }
+                      {/* 4. Primary League Info */}
+                      {activity.primaryLeague ? (
+                        <div className="mb-4">
+                          {/* League Name */}
+                          <p className="text-[#eef0ed]/70 mb-2 text-sm">
+                            {activity.primaryLeague.leagueName}
                           </p>
-                        )}
-                        
-                        {/* 4. Primary League Info */}
-                        {activity.primaryLeague ? (
-                          <div className="mb-4">
-                            {/* League Name */}
-                            <p className={`text-[#eef0ed]/70 mb-2 transition-all duration-700 ease-in-out ${isExpanded ? 'text-base' : 'text-sm'}`}>
-                              {activity.primaryLeague.leagueName}
+                          
+                          {/* League Position */}
+                          <div className="flex items-center justify-center gap-2">
+                            <p className="text-[#eef0ed] font-semibold text-base">
+                              #{activity.primaryLeague.rank}
                             </p>
-                            
-                            {/* League Position */}
-                            <div className="flex items-center justify-center gap-2">
-                              <p className={`text-[#eef0ed] font-semibold transition-all duration-700 ease-in-out ${isExpanded ? 'text-xl' : 'text-base'}`}>
-                                #{activity.primaryLeague.rank}
-                              </p>
-                              <span className={`text-[#eef0ed]/60 transition-all duration-700 ease-in-out ${isExpanded ? 'text-sm' : 'text-xs'}`}>
-                                of {activity.primaryLeague.totalMembers}
-                              </span>
-                            </div>
-                            
-                            {/* Show if counts for multiple leagues */}
-                            {activity.applicableLeagues && activity.applicableLeagues.length > 1 && (
-                              <p className="text-[#eef0ed]/50 text-[10px] mt-1">
-                                +{activity.applicableLeagues.length - 1} more league{activity.applicableLeagues.length > 2 ? 's' : ''}
-                              </p>
-                            )}
+                            <span className="text-[#eef0ed]/60 text-xs">
+                              of {activity.primaryLeague.totalMembers}
+                            </span>
                           </div>
-                        ) : (
-                          /* Fallback - show current league or no league message */
-                          <p className={`text-[#eef0ed]/70 mb-4 transition-all duration-700 ease-in-out ${isExpanded ? 'text-base' : 'text-sm'}`}>
-                            {currentLeague?.name || 'No active league'}
-                          </p>
-                        )}
+                          
+                          {/* Show if counts for multiple leagues */}
+                          {activity.applicableLeagues && activity.applicableLeagues.length > 1 && (
+                            <p className="text-[#eef0ed]/50 text-[10px] mt-1">
+                              +{activity.applicableLeagues.length - 1} more league{activity.applicableLeagues.length > 2 ? 's' : ''}
+                            </p>
+                          )}
+                        </div>
+                      ) : (
+                        /* Fallback - show current league or no league message */
+                        <p className="text-[#eef0ed]/70 mb-4 text-sm">
+                          {currentLeague?.name || 'No active league'}
+                        </p>
+                      )}
 
-                        {/* 5. Last 3 Comments */}
-                        {recentComments.length > 0 && (
-                          <div className="mt-4 space-y-2 max-w-xs mx-auto">
-                            {recentComments.map((comment) => (
-                              <div key={comment.id} className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-left">
-                                <p className="text-[#FFFFFF] text-xs font-semibold">{comment.userName}</p>
-                                <p className="text-[#FFFFFF]/80 text-[10px] line-clamp-2">{comment.text}</p>
-                              </div>
-                            ))}
-                          </div>
-                        )}
-                      </div>
+                      {/* 5. Last 3 Comments */}
+                      {recentComments.length > 0 && (
+                        <div className="mt-4 space-y-2 max-w-xs mx-auto">
+                          {recentComments.map((comment) => (
+                            <div key={comment.id} className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-left">
+                              <p className="text-[#FFFFFF] text-xs font-semibold">{comment.userName}</p>
+                              <p className="text-[#FFFFFF]/80 text-[10px] line-clamp-2">{comment.text}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  );
-                })}
-                
-                {/* Show message if no activities */}
-                {activities.length === 0 && (
-                  <div className={`${circleSize} flex-shrink-0 flex flex-col items-center justify-center text-center px-6 snap-center transition-all duration-700 ease-in-out`}>
-                    <div className="mb-2">
-                      <Activity className={`${isExpanded ? 'w-12 h-12' : 'w-8 h-8'} text-[#eef0ed] mx-auto transition-all duration-700 ease-in-out`} strokeWidth={1.5} />
-                    </div>
-                    <h2 className={`text-[#eef0ed] mb-1 transition-all duration-700 ease-in-out ${isExpanded ? 'text-4xl' : 'text-2xl'}`}>No Activity Yet</h2>
-                    <p className={`text-[#eef0ed]/60 px-4 transition-all duration-700 ease-in-out ${isExpanded ? 'text-sm' : 'text-xs'}`}>
-                      Log a workout to see activity in your league
-                    </p>
                   </div>
-                )}
-              </div>
+                );
+              })}
+              
+              {/* Show message if no activities */}
+              {activities.length === 0 && (
+                <div 
+                  className="flex-shrink-0 h-full flex flex-col items-center justify-center text-center snap-center"
+                  style={{ width: 'calc(100vw - 4rem)' }}
+                >
+                  <div className="mb-2">
+                    <Activity className="w-8 h-8 text-[#eef0ed] mx-auto" strokeWidth={1.5} />
+                  </div>
+                  <h2 className="text-[#eef0ed] mb-1 text-2xl">No Activity Yet</h2>
+                  <p className="text-[#eef0ed]/60 px-4 text-xs">
+                    Log a workout to see activity in your league
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -291,7 +290,6 @@ function ActivityCarouselComponent({
     </div>
   );
 }
-
 export const ActivityCarousel = memo(ActivityCarouselComponent);
 
 /**
