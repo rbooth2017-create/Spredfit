@@ -1,4 +1,4 @@
-import { memo } from "react";
+import { memo, useState } from "react";
 import { ArrowLeft, Check, Camera } from "lucide-react";
 import { toast } from "sonner@2.0.3";
 import { useApp } from "../../utils/AppContext";
@@ -24,7 +24,8 @@ interface LogWorkoutModalProps {
   setLogNotes: (notes: string) => void;
   showPhotoUpload: boolean;
   setShowPhotoUpload: (show: boolean) => void;
-    editingWorkoutId?: string | null;  // ADD THIS
+  editingWorkoutId?: string | null;
+  onUpdate?: (id: string, data: any) => Promise<void>;
   onClose: () => void;
 }
 
@@ -44,11 +45,12 @@ function LogWorkoutModalComponent({
   setLogNotes,
   showPhotoUpload,
   setShowPhotoUpload,
-    editingWorkoutId,  // ADD THIS
-  onUpdate,  // ADD THIS
+  editingWorkoutId,
+  onUpdate,
   onClose,
 }: LogWorkoutModalProps) {
   const { createWorkout, currentLeague, refreshActivities } = useApp();
+  const [saving, setSaving] = useState(false);
 
   return (
     <>
@@ -263,7 +265,10 @@ function LogWorkoutModalComponent({
             </div>
             <div className="flex flex-col items-center gap-1.5">
               <button
-                                onClick={async () => {
+                onClick={async () => {
+                  if (saving) return; // Prevent double-click
+                  
+                  setSaving(true);
                   try {
                     const totalMinutes = (parseInt(logHours) || 0) * 60 + (parseInt(logMinutes) || 0);
                     const workoutData = {
@@ -276,26 +281,27 @@ function LogWorkoutModalComponent({
                     };
                     
                     if (editingWorkoutId && onUpdate) {
-                      // Update existing workout
                       await onUpdate(editingWorkoutId, workoutData);
                     } else {
-                      // Create new workout
                       await createWorkout(workoutData);
                     }
                     
                     toast.success(editingWorkoutId ? 'Workout Updated!' : 'Workout Logged!');
-                    refreshActivities();
+                    await refreshActivities();
                     setModalStep(5);
                   } catch (error) {
                     console.error("Failed to save workout:", error);
                     toast.error("Failed to save workout");
+                  } finally {
+                    setSaving(false);
                   }
                 }}
-                className="w-20 h-20 rounded-full bg-[#2d2d2d] backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 hover:bg-[#2d2d2d]/90 shadow-lg"
+                disabled={saving}
+                className="w-20 h-20 rounded-full bg-[#2d2d2d] backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 hover:bg-[#2d2d2d]/90 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Check className="w-7 h-7 text-white" strokeWidth={2} />
               </button>
-              <span className="text-white text-[10px] text-center">Save</span>
+              <span className="text-white text-[10px] text-center">{saving ? 'Saving...' : 'Save'}</span>
             </div>
           </div>
         </div>

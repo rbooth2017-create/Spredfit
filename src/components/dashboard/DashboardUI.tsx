@@ -384,8 +384,6 @@ function NavigationSidebarComponent({ onModalOpen, hideButtons }: NavigationSide
     { id: 'settings', icon: Settings, label: 'Settings', dataTutorial: 'settings-button' },
     { id: 'metrics', icon: TrendingUp, label: 'Metrics', dataTutorial: 'metrics-button' },
     { id: 'chat', icon: MessageCircle, label: 'Chat', dataTutorial: 'chat-button' },
-    { id: 'trainingPlans', icon: Sparkles, label: 'Training', dataTutorial: 'training-button' },
-    { id: 'linkedApps', icon: Link, label: 'Apps', dataTutorial: 'linked-apps-button' },
   ];
 
   return (

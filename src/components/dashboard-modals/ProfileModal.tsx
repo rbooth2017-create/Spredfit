@@ -37,7 +37,8 @@ function ProfileModalComponent({
     try {
       console.log('📸 Starting photo upload...');
       const api = new APIClient(accessToken);
-      await api.uploadProfilePhoto(selectedPhotoFile);
+      const avatarUrl = await api.uploadAvatar(selectedPhotoFile);
+      await api.updateProfile({ avatar_url: avatarUrl });
       
       toast.success('Photo Updated!', {
         description: 'Your profile photo has been changed',
