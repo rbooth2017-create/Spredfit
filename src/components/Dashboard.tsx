@@ -1046,6 +1046,7 @@ useEffect(() => {
                 setShowPhotoUpload={setShowPhotoUpload}
                 fileInputRef={fileInputRef}
                 handleFileSelect={handleFileSelect}
+                accessToken={accessToken}   // ✅ pass token into the modal
                 editingWorkoutId={editingWorkoutId}
                 onUpdate={async (workoutId, data) => {
                   if (!accessToken) {

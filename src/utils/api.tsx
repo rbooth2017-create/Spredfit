@@ -1659,29 +1659,71 @@ return sorted;
     }
   }
 
-    async updateWorkoutPhoto(workoutId: string, file: File): Promise<string> {
-    console.log('🔵 API Client: Updating workout photo');
-    try {
-      // First upload the photo
-      const photoUrl = await this.uploadWorkoutPhoto(file);
-      
-      // Then update the workout record
-      const { error } = await this.supabase
-        .from('workouts')
-        .update({ photo_url: photoUrl })
-        .eq('id', workoutId);
-  
-      if (error) {
-        console.error('❌ Error updating workout photo:', error);
+        async uploadWorkoutPhoto(file: File): Promise<string> {
+      console.log('🔵 API Client: Uploading workout photo');
+      try {
+        const { data: { user } } = await this.supabase.auth.getUser();
+        
+        if (!user) {
+          throw new Error('No user found');
+        }
+    
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+        const filePath = `${fileName}`;
+    
+        console.log('🔵 Uploading to workout-media bucket, path:', filePath);
+    
+        // Upload to workout-media bucket
+        const { data: uploadData, error: uploadError } = await this.supabase.storage
+          .from('workout-media')
+          .upload(filePath, file, { 
+            upsert: true,
+            contentType: file.type 
+          });
+    
+        if (uploadError) {
+          console.error('❌ Upload error:', uploadError);
+          throw uploadError;
+        }
+    
+        console.log('✅ Upload successful:', uploadData);
+    
+        // Get public URL from workout-media bucket
+        const { data: { publicUrl } } = this.supabase.storage
+          .from('workout-media')
+          .getPublicUrl(filePath);
+    
+        console.log('✅ Workout photo uploaded:', publicUrl);
+        return publicUrl;
+      } catch (error) {
+        console.error('❌ Failed to upload workout photo:', error);
         throw error;
       }
-  
-      console.log('✅ Workout photo updated');
-      return photoUrl;
-    } catch (error) {
-      console.error('❌ Failed to update workout photo:', error);
-      throw error;
     }
-  }
 
+        async updateWorkoutPhoto(workoutId: string, file: File): Promise<string> {
+      console.log('🔵 API Client: Updating workout photo');
+      try {
+        // First upload the photo to workout-media bucket
+        const photoUrl = await this.uploadWorkoutPhoto(file);
+        
+        // Then update the workout record
+        const { error } = await this.supabase
+          .from('workouts')
+          .update({ photo_url: photoUrl })
+          .eq('id', workoutId);
+    
+        if (error) {
+          console.error('❌ Error updating workout photo:', error);
+          throw error;
+        }
+    
+        console.log('✅ Workout photo updated in database');
+        return photoUrl;
+      } catch (error) {
+        console.error('❌ Failed to update workout photo:', error);
+        throw error;
+      }
+    }
 }

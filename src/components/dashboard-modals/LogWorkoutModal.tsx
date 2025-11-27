@@ -28,6 +28,7 @@ interface LogWorkoutModalProps {
   editingWorkoutId?: string | null;
   onUpdate?: (id: string, data: any) => Promise<void>;
   onClose: () => void;
+  accessToken?: string | null;
 }
 
 function LogWorkoutModalComponent({
@@ -49,24 +50,24 @@ function LogWorkoutModalComponent({
   editingWorkoutId,
   onUpdate,
   onClose,
+  accessToken, 
 }: LogWorkoutModalProps) {
   const { createWorkout, currentLeague, refreshActivities } = useApp();
   const [saving, setSaving] = useState(false);
   const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [savedWorkoutId, setSavedWorkoutId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
-    // Validate file type
     if (!file.type.startsWith('image/')) {
       toast.error('Please select an image file');
       return;
     }
 
-    // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
       toast.error('Image must be less than 5MB');
       return;
@@ -74,9 +75,23 @@ function LogWorkoutModalComponent({
 
     setUploading(true);
     try {
-      const api = new APIClient();
+      const api = new APIClient(accessToken || null);
       const photoUrl = await api.uploadWorkoutPhoto(file);
       setUploadedPhoto(photoUrl);
+      
+      // Update the saved workout with the photo
+      if (savedWorkoutId) {
+        await api.updateWorkout(savedWorkoutId, {
+          type: selectedSport!,
+          duration: (parseInt(logHours) || 0) * 60 + (parseInt(logMinutes) || 0),
+          distance: parseFloat(logDistance) || 0,
+          date: new Date().toISOString(),
+          notes: logNotes,
+          photo_url: photoUrl,
+        });
+        await refreshActivities();
+      }
+      
       toast.success('Photo uploaded!');
       setShowPhotoUpload(false);
     } catch (error) {
@@ -352,14 +367,19 @@ function LogWorkoutModalComponent({
                       date: new Date().toISOString(),
                       notes: logNotes,
                       leagueId: currentLeague?.id,
-                      photo: uploadedPhoto, // Include uploaded photo
+                      photo: uploadedPhoto, // Include uploaded photo (will be null initially)
                     };
                     
+                    let workoutId;
                     if (editingWorkoutId && onUpdate) {
                       await onUpdate(editingWorkoutId, workoutData);
+                      workoutId = editingWorkoutId;
                     } else {
-                      await createWorkout(workoutData);
+                      const result = await createWorkout(workoutData);
+                      workoutId = result.id; // Save the workout ID
                     }
+                    
+                    setSavedWorkoutId(workoutId); // Store it for photo upload later
                     
                     toast.success(editingWorkoutId ? 'Workout Updated!' : 'Workout Logged!');
                     await refreshActivities();
