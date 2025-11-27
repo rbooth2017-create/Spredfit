@@ -105,6 +105,8 @@ export function Dashboard({
   // Tutorial state - show if user just signed up
   const [showTutorial, setShowTutorial] = useState(false);
 
+ const [bonusHours, setBonusHours] = useState(false);
+
   // Show tutorial when user just signed up
   useEffect(() => {
     if (justSignedUp) {
@@ -1109,6 +1111,8 @@ useEffect(() => {
                 setStealthMode={setStealthMode}
                 doubleUp={doubleUp}
                 setDoubleUp={setDoubleUp}
+                bonusHours={bonusHours}
+                setBonusHours={setBonusHours} 
                 duration={duration}
                 setDuration={setDuration}
                 sports={sports}

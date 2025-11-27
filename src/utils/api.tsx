@@ -364,7 +364,7 @@ export class APIClient {
     return data;
   }
 
-  async getLeagueMembers(leagueId: string) {
+    async getLeagueMembers(leagueId: string) {
     console.log('🔵 API Client: Fetching league members');
     try {
       const { data: members, error } = await this.supabase
@@ -373,6 +373,7 @@ export class APIClient {
           user_id,
           league_id,
           team_id,
+          bonus_hours,
           profiles!league_memberships_user_id_fkey (
             id,
             username,
@@ -380,15 +381,16 @@ export class APIClient {
           )
         `)
         .eq('league_id', leagueId);
-
+  
       if (error) throw error;
-
+  
       console.log('✅ Members fetched:', members);
       return members.map((m: any) => ({
         id: m.profiles.id,
         user_id: m.user_id,
         league_id: m.league_id,
         team_id: m.team_id,
+        bonus_hours: m.bonus_hours || 0,  // ✅ Add this
         name: m.profiles?.username || 'User',
         full_name: m.profiles?.username || 'Unknown User',
         avatar_url: m.profiles?.avatar_url
@@ -535,6 +537,72 @@ export class APIClient {
   }
 }
 
+async createLeague(leagueData: {
+  name: string;
+  description?: string;
+  startDate?: string;
+  endDate?: string;
+  isPrivate?: boolean;
+  allowedSports?: string[];
+  allowTeams?: boolean;
+  allowDoubleUp?: boolean;
+  allowBonusHours?: boolean;
+  allowStealthMode?: boolean;
+}) {
+  console.log('🔵 API Client: Creating league');
+  try {
+    const { data: { user } } = await this.supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('No user found');
+    }
+
+    // Generate league code
+    const leagueCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+
+    // Create league - ALL FEATURES ENABLED FOR DEMO
+    const { data: newLeague, error: leagueError } = await this.supabase
+      .from('leagues')
+      .insert([
+        {
+          name: leagueData.name,
+          description: leagueData.description,
+          league_code: leagueCode,
+          owner_id: user.id,
+          start_date: leagueData.startDate,
+          end_date: leagueData.endDate,
+          is_private: leagueData.isPrivate || false,
+          allowed_sports: leagueData.allowedSports,
+          allow_teams: true,              // ✅ Always enabled for demo
+          allow_double_up_day: true,      // ✅ Always enabled for demo
+          allow_bonus_hours: true,        // ✅ Always enabled for demo
+          allow_stealth_mode: true,       // ✅ Always enabled for demo
+        },
+      ])
+      .select()
+      .single();
+
+    if (leagueError) throw leagueError;
+
+    // Add creator as member
+    const { error: memberError } = await this.supabase
+      .from('league_memberships')
+      .insert([
+        {
+          league_id: newLeague.id,
+          user_id: user.id,
+        },
+      ]);
+
+    if (memberError) throw memberError;
+
+    console.log('✅ League created:', newLeague);
+    return newLeague;
+  } catch (error) {
+    console.error('❌ Failed to create league:', error);
+    throw error;
+  }
+}
   // ============================================
   // TEAM MANAGEMENT METHODS
   // ============================================
@@ -734,6 +802,7 @@ export class APIClient {
           user_id,
           stealth_until,
           double_up_date,
+          bonus_hours,
           profiles!league_memberships_user_id_fkey (
             id,
             username,
@@ -811,10 +880,10 @@ export class APIClient {
             }, 0);
           }
   
-          return {
+                    return {
             userId: member.user_id,
             name: member.profiles?.username || 'User',
-            totalHours: metricType === 'time' ? (inStealth ? 0 : totalValue) : 0,
+            totalHours: metricType === 'time' ? (inStealth ? 0 : totalValue + (member.bonus_hours || 0)) : 0,
             totalDistance: metricType !== 'time' ? (inStealth ? 0 : totalValue) : 0,
             isCurrentUser: member.user_id === user.id,
             inStealth
@@ -880,104 +949,109 @@ export class APIClient {
         return [];
       }
   
-      // Get team data
-      const teamData = await Promise.all(
-        teams.map(async (team: any) => {
-          // Get team members
-          const { data: members } = await this.supabase
-            .from('league_memberships')
-            .select('user_id, stealth_until, double_up_date')
-            .eq('team_id', team.id);
-  
-          const memberCount = members?.length || 0;
-          const now = new Date();
-  
-          let totalValue = 0;
-          
-          for (const member of members || []) {
-            const inStealth = member.stealth_until && new Date(member.stealth_until) > now;
+// Get team data
+const teamData = await Promise.all(
+  teams.map(async (team: any) => {
+    // Get team members
+    const { data: members } = await this.supabase
+      .from('league_memberships')
+      .select('user_id, stealth_until, double_up_date, bonus_hours')
+      .eq('team_id', team.id);
+
+    const memberCount = members?.length || 0;
+    const now = new Date();
+
+    let totalValue = 0;
+    
+    for (const member of members || []) {
+      const inStealth = member.stealth_until && new Date(member.stealth_until) > now;
+      
+      if (!inStealth) {
+        let workoutsQuery = this.supabase
+          .from('workouts')
+          .select('duration_min, distance_km, created_at, type')
+          .eq('user_id', member.user_id)
+          .gte('created_at', startDate)
+          .lte('created_at', endDate);
+
+        // Filter by sport type if distance metric (case-insensitive)
+        if (metricType === 'distance_run') {
+          workoutsQuery = workoutsQuery.ilike('type', 'running');
+        } else if (metricType === 'distance_cycle') {
+          workoutsQuery = workoutsQuery.ilike('type', 'cycling');
+        } else if (league.allowed_sports && league.allowed_sports.length > 0) {
+          // Filter by allowed sports for time metric
+          workoutsQuery = workoutsQuery.in('type', league.allowed_sports);
+        }
+
+        const { data: workouts } = await workoutsQuery;
+
+        if (metricType === 'time') {
+          // Calculate time in hours
+          const minutes = (workouts || []).reduce((sum: number, w: any) => {
+            let minutes = w.duration_min || 0;
             
-            if (!inStealth) {
-              let workoutsQuery = this.supabase
-                .from('workouts')
-                .select('duration_min, distance_km, created_at, type')
-                .eq('user_id', member.user_id)
-                .gte('created_at', startDate)
-                .lte('created_at', endDate);
-  
-              // Filter by sport type if distance metric (case-insensitive)
-              if (metricType === 'distance_run') {
-                workoutsQuery = workoutsQuery.ilike('type', 'running');
-              } else if (metricType === 'distance_cycle') {
-                workoutsQuery = workoutsQuery.ilike('type', 'cycling');
-              } else if (league.allowed_sports && league.allowed_sports.length > 0) {
-                // Filter by allowed sports for time metric
-                workoutsQuery = workoutsQuery.in('type', league.allowed_sports);
-              }
-  
-              const { data: workouts } = await workoutsQuery;
-  
-              if (metricType === 'time') {
-                // Calculate time in hours
-                const minutes = (workouts || []).reduce((sum: number, w: any) => {
-                  let minutes = w.duration_min || 0;
-                  
-                  // Apply double up multiplier if applicable
-                  if (member.double_up_date) {
-                    const workoutDate = new Date(w.created_at).toDateString();
-                    const doubleUpDate = new Date(member.double_up_date).toDateString();
-                    if (workoutDate === doubleUpDate) {
-                      minutes *= 2;
-                    }
-                  }
-                  
-                  return sum + minutes;
-                }, 0);
-                
-                totalValue += minutes / 60; // Convert to hours
-              } else {
-                // Calculate distance in km
-                const distance = (workouts || []).reduce((sum: number, w: any) => {
-                  let distance = w.distance_km || 0;
-                  
-                  // Apply double up multiplier if applicable
-                  if (member.double_up_date) {
-                    const workoutDate = new Date(w.created_at).toDateString();
-                    const doubleUpDate = new Date(member.double_up_date).toDateString();
-                    if (workoutDate === doubleUpDate) {
-                      distance *= 2;
-                    }
-                  }
-                  
-                  return sum + distance;
-                }, 0);
-                
-                totalValue += distance;
+            // Apply double up multiplier if applicable
+            if (member.double_up_date) {
+              const workoutDate = new Date(w.created_at).toDateString();
+              const doubleUpDate = new Date(member.double_up_date).toDateString();
+              if (workoutDate === doubleUpDate) {
+                minutes *= 2;
               }
             }
-          }
-  
-          const isCurrentUserTeam = members?.some((m: any) => m.user_id === user.id) || false;
-  
-          return {
-            teamId: team.id,
-            teamName: team.name,
-            totalHours: metricType === 'time' ? totalValue : 0,
-            totalDistance: metricType !== 'time' ? totalValue : 0,
-            memberCount,
-            isCurrentUserTeam
-          };
-        })
-      );
-  
-      // Sort by appropriate metric and assign ranks
-      const sortKey = metricType === 'time' ? 'totalHours' : 'totalDistance';
-      const sorted = teamData
-        .sort((a, b) => b[sortKey] - a[sortKey])
-        .map((entry, index) => ({
-          ...entry,
-          rank: index + 1
-        }));
+            
+            return sum + minutes;
+          }, 0);
+          
+          totalValue += minutes / 60; // Convert to hours
+          // ✅ ADD BONUS HOURS TO TEAM TOTAL (only for time metric)
+          totalValue += (member.bonus_hours || 0);
+        } else {
+          // Calculate distance in km
+          const distance = (workouts || []).reduce((sum: number, w: any) => {
+            let distance = w.distance_km || 0;
+            
+            // Apply double up multiplier if applicable
+            if (member.double_up_date) {
+              const workoutDate = new Date(w.created_at).toDateString();
+              const doubleUpDate = new Date(member.double_up_date).toDateString();
+              if (workoutDate === doubleUpDate) {
+                distance *= 2;
+              }
+            }
+            
+            return sum + distance;
+          }, 0);
+          
+          totalValue += distance;
+        }
+      }
+    }
+
+    const isCurrentUserTeam = members?.some((m: any) => m.user_id === user.id) || false;
+
+    return {
+      teamId: team.id,
+      teamName: team.name,
+      totalHours: metricType === 'time' ? totalValue : 0,
+      totalDistance: metricType !== 'time' ? totalValue : 0,
+      memberCount,
+      isCurrentUserTeam
+    };
+  })
+);
+
+// Sort by appropriate metric and assign ranks
+const sortKey = metricType === 'time' ? 'totalHours' : 'totalDistance';
+const sorted = teamData
+  .sort((a, b) => b[sortKey] - a[sortKey])
+  .map((entry, index) => ({
+    ...entry,
+    rank: index + 1
+  }));
+
+console.log('✅ Team leaderboard fetched:', sorted);
+return sorted;
   
       console.log('✅ Team leaderboard fetched:', sorted);
       return sorted;
@@ -1043,6 +1117,24 @@ export class APIClient {
       console.error('❌ Failed to delete league:', error);
       throw error;
     }
+  }
+
+    // In api.tsx, add:
+    async updateMemberBonusHours(leagueId: string, userId: string, bonusHours: number) {
+    const { data, error } = await this.supabase
+      .from('league_memberships')
+      .update({ bonus_hours: bonusHours })
+      .eq('league_id', leagueId)
+      .eq('user_id', userId)
+      .select()
+      .single();
+  
+    if (error) {
+      console.error('Error updating bonus hours:', error);
+      throw new Error(error.message || 'Failed to update bonus hours');
+    }
+  
+    return data;
   }
 
   async leaveLeague(leagueId: string) {

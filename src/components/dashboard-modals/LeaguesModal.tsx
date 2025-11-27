@@ -1,5 +1,5 @@
 import { memo, useEffect, useState, useMemo } from "react";
-import { Users, Trophy, ArrowLeft, Check, EyeOff, Star, Share2, Copy, Settings, Trash2, LogOut } from "lucide-react";
+import { Users, Trophy, ArrowLeft, Check, EyeOff, Star, Share2, Copy, Settings, Trash2, LogOut, Gift, X, Plus, Minus } from "lucide-react";
 import { toast } from "sonner";
 import { useApp } from "../../utils/AppContext";
 import { useAuth } from "../../utils/auth";
@@ -34,6 +34,196 @@ function Switch({ checked, onCheckedChange }: { checked: boolean; onCheckedChang
   );
 }
 
+// BonusHoursModal Component
+interface BonusHoursMember {
+  userId: string;
+  userName: string;
+  bonusHours: number;
+}
+
+interface BonusHoursModalProps {
+  leagueId: string;
+  leagueName: string;
+  accessToken: string;
+  onClose: () => void;
+}
+
+function BonusHoursModal({ leagueId, leagueName, accessToken, onClose }: BonusHoursModalProps) {
+  const [members, setMembers] = useState<BonusHoursMember[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [bonusHoursChanges, setBonusHoursChanges] = useState<Record<string, number>>({});
+
+  const api = useMemo(() => new APIClient(accessToken), [accessToken]);
+
+  // Load league members with current bonus hours
+  useEffect(() => {
+    const loadMembers = async () => {
+      try {
+        setLoading(true);
+        const leagueMembers = await api.getLeagueMembers(leagueId);
+        const membersWithBonusHours: BonusHoursMember[] = leagueMembers.map((member: any) => ({
+          userId: member.user_id,
+          userName: member.name || member.full_name || 'Unknown User',
+          bonusHours: member.bonus_hours || 0,  // ✅ This will now get the actual value from DB
+        }));
+        
+        setMembers(membersWithBonusHours);
+      } catch (error) {
+        console.error('Failed to load members:', error);
+        toast.error('Failed to load members', {
+          description: error instanceof Error ? error.message : 'Please try again',
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadMembers();
+  }, [leagueId, api]);
+
+  const handleBonusHoursChange = (userId: string, currentHours: number, delta: number) => {
+    const newValue = Math.max(0, currentHours + delta);
+    setBonusHoursChanges(prev => ({
+      ...prev,
+      [userId]: newValue,
+    }));
+  };
+
+  const getCurrentBonusHours = (userId: string, originalHours: number) => {
+    return bonusHoursChanges[userId] !== undefined ? bonusHoursChanges[userId] : originalHours;
+  };
+
+  const handleSave = async () => {
+    if (Object.keys(bonusHoursChanges).length === 0) {
+      toast.info('No changes to save');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      
+      // Update each member's bonus hours
+      for (const [userId, bonusHours] of Object.entries(bonusHoursChanges)) {
+        await api.updateMemberBonusHours(leagueId, userId, bonusHours);
+      }
+      
+      toast.success('Bonus Hours Updated!', {
+        description: `Updated ${Object.keys(bonusHoursChanges).length} member(s)`,
+      });
+      
+      // Refresh members list
+      const leagueMembers = await api.getLeagueMembers(leagueId);
+        const membersWithBonusHours: BonusHoursMember[] = leagueMembers.map((member: any) => ({
+        userId: member.user_id,
+        userName: member.name || member.full_name || 'Unknown User',
+        bonusHours: member.bonus_hours || 0,  // ✅ This will now get the actual value from DB
+      }));
+      setMembers(membersWithBonusHours);
+      setBonusHoursChanges({});
+      
+    } catch (error) {
+      console.error('Failed to update bonus hours:', error);
+      toast.error('Failed to update bonus hours', {
+        description: error instanceof Error ? error.message : 'Please try again',
+      });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="bg-[#1a1a1a] rounded-3xl p-6 max-w-md w-full max-h-[80vh] flex flex-col border border-white/20 shadow-2xl">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4 flex-shrink-0">
+        <div className="flex items-center gap-2">
+          <Gift className="w-5 h-5 text-white" strokeWidth={2} />
+          <h2 className="text-white text-lg font-medium">Bonus Hours</h2>
+        </div>
+        <button
+          onClick={onClose}
+          className="p-2 rounded-full hover:bg-white/10 transition-colors"
+        >
+          <X className="w-5 h-5 text-white" strokeWidth={2} />
+        </button>
+      </div>
+
+      <p className="text-white/70 text-sm mb-4 flex-shrink-0">{leagueName}</p>
+
+      {/* Members List */}
+      <div className="flex-1 overflow-y-auto scrollbar-hide space-y-2 mb-4 min-h-0">
+        {loading ? (
+          <div className="flex items-center justify-center py-8">
+            <p className="text-white/50 text-sm">Loading members...</p>
+          </div>
+        ) : members.length === 0 ? (
+          <div className="flex items-center justify-center py-8">
+            <p className="text-white/50 text-sm">No members found</p>
+          </div>
+        ) : (
+          members.map((member) => {
+            const currentHours = getCurrentBonusHours(member.userId, member.bonusHours);
+            const hasChanges = bonusHoursChanges[member.userId] !== undefined;
+            
+            return (
+              <div
+                key={member.userId}
+                className={`p-3 rounded-2xl backdrop-blur-sm border transition-all ${
+                  hasChanges
+                    ? 'bg-white/20 border-white/40'
+                    : 'bg-white/5 border-white/10'
+                }`}
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <p className="text-white text-sm font-medium">{member.userName}</p>
+                    <p className="text-white/50 text-xs">Current: {member.bonusHours} hours</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleBonusHoursChange(member.userId, currentHours, -1)}
+                      disabled={currentHours === 0}
+                      className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-all"
+                    >
+                      <Minus className="w-4 h-4 text-white" strokeWidth={2} />
+                    </button>
+                    <div className="w-12 text-center">
+                      <span className="text-white font-medium">{currentHours}</span>
+                    </div>
+                    <button
+                      onClick={() => handleBonusHoursChange(member.userId, currentHours, 1)}
+                      className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all"
+                    >
+                      <Plus className="w-4 h-4 text-white" strokeWidth={2} />
+                    </button>
+                  </div>
+                </div>
+              </div>
+            );
+          })
+        )}
+      </div>
+
+      {/* Actions */}
+      <div className="flex gap-2 flex-shrink-0">
+        <button
+          onClick={onClose}
+          className="flex-1 px-4 py-2 rounded-full bg-white/10 hover:bg-white/20 text-white text-sm border border-white/20 transition-all"
+        >
+          Cancel
+        </button>
+        <button
+          onClick={handleSave}
+          disabled={saving || Object.keys(bonusHoursChanges).length === 0}
+          className="flex-1 px-4 py-2 rounded-full bg-white/20 hover:bg-white/30 text-white text-sm border border-white/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {saving ? 'Saving...' : 'Save Changes'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
 interface League {
   name: string;
   rank: number;
@@ -44,6 +234,7 @@ interface League {
   ownerId?: string;
   allowStealthMode?: boolean;
   allowDoubleUp?: boolean;
+  allowBonusHours?: boolean;
 }
 
 interface Sport {
@@ -78,6 +269,8 @@ interface LeaguesModalProps {
   setStealthMode: (value: boolean) => void;
   doubleUp: boolean;
   setDoubleUp: (value: boolean) => void;
+  bonusHours: boolean;
+  setBonusHours: (value: boolean) => void;
   sports: Sport[];
   selectedLeagueSports: string[];
   toggleLeagueSport: (sportName: string) => void;
@@ -110,6 +303,8 @@ function LeaguesModalComponent({
   setStealthMode,
   doubleUp,
   setDoubleUp,
+  bonusHours,
+  setBonusHours,
   sports,
   selectedLeagueSports,
   toggleLeagueSport,
@@ -127,6 +322,10 @@ function LeaguesModalComponent({
   // Teams modal state
   const [showTeamsModal, setShowTeamsModal] = useState(false);
   const [selectedLeagueForTeams, setSelectedLeagueForTeams] = useState<{ id: string; name: string } | null>(null);
+
+  // Bonus hours modal state
+  const [showBonusHoursModal, setShowBonusHoursModal] = useState(false);
+  const [selectedLeagueForBonusHours, setSelectedLeagueForBonusHours] = useState<{ id: string; name: string } | null>(null);
 
   // Membership status for selected league
   const [membershipStatus, setMembershipStatus] = useState<MembershipStatus | null>(null);
@@ -166,46 +365,46 @@ function LeaguesModalComponent({
     loadMembershipStatus();
   }, [selectedLeague?.id, modalStep, api]);
 
- // Fetch league properties when viewing a league
-useEffect(() => {
-  if (!selectedLeague || modalStep !== 2) return;
-  
-  const fullLeague = userLeagues.find(l => l.id === selectedLeague.id);
-  
-  console.log('🔍 useEffect running - selectedLeague.id:', selectedLeague.id);
-  console.log('🔍 userLeagues length:', userLeagues.length);
-  console.log('🔍 Found fullLeague:', fullLeague);
-  
-  if (fullLeague) {
-    console.log('🔍 fullLeague.allowStealthMode:', fullLeague.allowStealthMode);
-    console.log('🔍 fullLeague.allowDoubleUp:', fullLeague.allowDoubleUp);
-    console.log('🔍 selectedLeague.allowStealthMode:', selectedLeague.allowStealthMode);
-    console.log('🔍 selectedLeague.allowDoubleUp:', selectedLeague.allowDoubleUp);
+  // Fetch league properties when viewing a league
+  useEffect(() => {
+    if (!selectedLeague || modalStep !== 2) return;
     
-    // Check if we need to update
-    const needsUpdate = 
-      selectedLeague.allowStealthMode === undefined ||
-      selectedLeague.allowDoubleUp === undefined ||
-      selectedLeague.allowStealthMode !== fullLeague.allowStealthMode ||
-      selectedLeague.allowDoubleUp !== fullLeague.allowDoubleUp ||
-      !selectedLeague.code;
+    const fullLeague = userLeagues.find(l => l.id === selectedLeague.id);
     
-    console.log('🔍 needsUpdate:', needsUpdate);
+    console.log('🔍 useEffect running - selectedLeague.id:', selectedLeague.id);
+    console.log('🔍 userLeagues length:', userLeagues.length);
+    console.log('🔍 Found fullLeague:', fullLeague);
     
-    if (needsUpdate) {
-      console.log('🔄 Updating selectedLeague with properties from userLeagues');
-      setSelectedLeague({
-        ...selectedLeague,
-        code: fullLeague.code || fullLeague.leagueCode,
-        allowStealthMode: fullLeague.allowStealthMode,
-        allowDoubleUp: fullLeague.allowDoubleUp,
-        ownerId: fullLeague.ownerId,
-      });
+    if (fullLeague) {
+      console.log('🔍 fullLeague.allowStealthMode:', fullLeague.allowStealthMode);
+      console.log('🔍 fullLeague.allowDoubleUp:', fullLeague.allowDoubleUp);
+      console.log('🔍 selectedLeague.allowStealthMode:', selectedLeague.allowStealthMode);
+      console.log('🔍 selectedLeague.allowDoubleUp:', selectedLeague.allowDoubleUp);
+      
+      // Check if we need to update
+      const needsUpdate = 
+        selectedLeague.allowStealthMode === undefined ||
+        selectedLeague.allowDoubleUp === undefined ||
+        selectedLeague.allowStealthMode !== fullLeague.allowStealthMode ||
+        selectedLeague.allowDoubleUp !== fullLeague.allowDoubleUp ||
+        !selectedLeague.code;
+      
+      console.log('🔍 needsUpdate:', needsUpdate);
+      
+      if (needsUpdate) {
+        console.log('🔄 Updating selectedLeague with properties from userLeagues');
+        setSelectedLeague({
+          ...selectedLeague,
+          code: fullLeague.code || fullLeague.leagueCode,
+          allowStealthMode: fullLeague.allowStealthMode,
+          allowDoubleUp: fullLeague.allowDoubleUp,
+          ownerId: fullLeague.ownerId,
+        });
+      }
+    } else {
+      console.log('❌ fullLeague not found in userLeagues!');
     }
-  } else {
-    console.log('❌ fullLeague not found in userLeagues!');
-  }
-}, [selectedLeague?.id, userLeagues, modalStep]);
+  }, [selectedLeague?.id, userLeagues, modalStep]);
 
   // Calculate stealth time remaining
   const getStealthTimeRemaining = () => {
@@ -366,7 +565,8 @@ useEffect(() => {
         isPrivate, 
         allowTeams, 
         stealthMode, 
-        doubleUp 
+        doubleUp,
+        bonusHours
       });
      
       // Calculate dates based on duration
@@ -406,6 +606,7 @@ useEffect(() => {
         allowTeams: allowTeams,
         allowStealthMode: stealthMode,
         allowDoubleUp: doubleUp,
+        allowBonusHours: bonusHours,
       });
   
       console.log('✅ League created:', result);
@@ -471,6 +672,21 @@ useEffect(() => {
             onClose={() => {
               setShowTeamsModal(false);
               setSelectedLeagueForTeams(null);
+            }}
+          />
+        </div>
+      )}
+
+      {/* Bonus Hours Modal Overlay */}
+      {showBonusHoursModal && selectedLeagueForBonusHours && accessToken && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70]" onClick={(e) => e.stopPropagation()}>
+          <BonusHoursModal
+            leagueId={selectedLeagueForBonusHours.id}
+            leagueName={selectedLeagueForBonusHours.name}
+            accessToken={accessToken}
+            onClose={() => {
+              setShowBonusHoursModal(false);
+              setSelectedLeagueForBonusHours(null);
             }}
           />
         </div>
@@ -591,6 +807,14 @@ useEffect(() => {
                     <span className="text-white/50 text-[8px]">Hide for 3 days</span>
                   </div>
                   <Switch checked={stealthMode} onCheckedChange={setStealthMode} />
+                </div>
+
+                <div className="flex items-center justify-between bg-[#2d332d]/40 backdrop-blur-sm border border-white/10 rounded-full px-3 py-2">
+                  <div className="flex flex-col items-start">
+                    <label className="text-white text-[10px]">Bonus Hours</label>
+                    <span className="text-white/50 text-[8px]">Award extra points</span>
+                  </div>
+                  <Switch checked={bonusHours} onCheckedChange={setBonusHours} />
                 </div>
                 
                 <div className="flex items-center justify-between bg-[#2d332d]/40 backdrop-blur-sm border border-white/10 rounded-full px-3 py-2">
@@ -746,6 +970,18 @@ useEffect(() => {
                           <Users className="w-3 h-3" strokeWidth={2} />
                           Teams
                         </button>
+                        {league.ownerId === profile?.id && (
+                          <button
+                            onClick={() => {
+                              setSelectedLeagueForBonusHours({ id: league.id, name: league.name });
+                              setShowBonusHoursModal(true);
+                            }}
+                            className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm text-white text-[10px] border border-white/20 hover:bg-white/20 transition-all flex items-center gap-1"
+                          >
+                            <Gift className="w-3 h-3" strokeWidth={2} />
+                            Bonus
+                          </button>
+                        )}
                         {league.ownerId === profile?.id ? (
                           <button
                             onClick={async () => {
