@@ -1,7 +1,8 @@
-import { memo, useState } from "react";
-import { ArrowLeft, Check, Camera } from "lucide-react";
+import { memo, useState, useRef } from "react";
+import { ArrowLeft, Check, Camera, X } from "lucide-react";
 import { toast } from "sonner@2.0.3";
 import { useApp } from "../../utils/AppContext";
+import { APIClient } from "../../utils/api";
 
 interface Sport {
   name: string;
@@ -51,9 +52,53 @@ function LogWorkoutModalComponent({
 }: LogWorkoutModalProps) {
   const { createWorkout, currentLeague, refreshActivities } = useApp();
   const [saving, setSaving] = useState(false);
+  const [uploadedPhoto, setUploadedPhoto] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be less than 5MB');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const api = new APIClient();
+      const photoUrl = await api.uploadWorkoutPhoto(file);
+      setUploadedPhoto(photoUrl);
+      toast.success('Photo uploaded!');
+      setShowPhotoUpload(false);
+    } catch (error) {
+      console.error('Failed to upload photo:', error);
+      toast.error('Failed to upload photo');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
     <>
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        onChange={handlePhotoUpload}
+        className="hidden"
+      />
+
       {/* Modal Content */}
       <div className="w-96 h-96 rounded-full bg-transparent border-2 border-white/40 flex items-center justify-center p-8 shadow-2xl">
         {/* Step 1: Sport Selection */}
@@ -154,7 +199,7 @@ function LogWorkoutModalComponent({
         )}
 
         {/* Step 5: Review Activity */}
-        {modalStep === 5 && selectedSport && (
+        {modalStep === 5 && selectedSport && !showPhotoUpload && (
           <div className="flex flex-col items-center text-center space-y-4 w-full px-4">
             <div className="mb-4">
               <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center">
@@ -186,7 +231,36 @@ function LogWorkoutModalComponent({
                   <span className="text-white text-xs">{logNotes}</span>
                 </div>
               )}
+              {uploadedPhoto && (
+                <div className="pt-2 border-t border-white/10">
+                  <span className="text-white/70 text-xs block mb-1">Photo:</span>
+                  <span className="text-green-400 text-xs">✓ Uploaded</span>
+                </div>
+              )}
             </div>
+          </div>
+        )}
+
+        {/* Photo Upload View */}
+        {showPhotoUpload && (
+          <div className="flex flex-col items-center text-center space-y-4 w-full px-4">
+            <p className="text-white text-sm mb-2">Add Workout Photo</p>
+            
+            {uploading ? (
+              <div className="flex flex-col items-center gap-2">
+                <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                <p className="text-white/70 text-xs">Uploading...</p>
+              </div>
+            ) : (
+              <button
+                onClick={() => fileInputRef.current?.click()}
+                className="w-24 h-24 rounded-full bg-white/10 backdrop-blur-sm border-2 border-dashed border-white/40 flex items-center justify-center hover:bg-white/20 transition-all"
+              >
+                <Camera className="w-10 h-10 text-white" strokeWidth={1.5} />
+              </button>
+            )}
+            
+            <p className="text-white/50 text-xs">Tap to capture or select photo</p>
           </div>
         )}
       </div>
@@ -278,6 +352,7 @@ function LogWorkoutModalComponent({
                       date: new Date().toISOString(),
                       notes: logNotes,
                       leagueId: currentLeague?.id,
+                      photo: uploadedPhoto, // Include uploaded photo
                     };
                     
                     if (editingWorkoutId && onUpdate) {
@@ -318,7 +393,7 @@ function LogWorkoutModalComponent({
               >
                 <Camera className="w-7 h-7 text-white" strokeWidth={2} />
               </button>
-              <span className="text-white text-[10px] text-center">Add Photo</span>
+              <span className="text-white text-[10px] text-center">{uploadedPhoto ? 'Change' : 'Add Photo'}</span>
             </div>
             <div className="flex flex-col items-center gap-1.5">
               <button
@@ -328,6 +403,24 @@ function LogWorkoutModalComponent({
                 <Check className="w-7 h-7 text-white" strokeWidth={2} />
               </button>
               <span className="text-white text-[10px] text-center">Done</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* External Buttons - Photo Upload View */}
+      {showPhotoUpload && (
+        <div className="fixed bottom-8 right-4 z-[60]" onClick={(e) => e.stopPropagation()}>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col items-center gap-1.5">
+              <button
+                onClick={() => setShowPhotoUpload(false)}
+                disabled={uploading}
+                className="w-20 h-20 rounded-full bg-[#2d2d2d] backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 hover:bg-[#2d2d2d]/90 shadow-lg disabled:opacity-50"
+              >
+                <X className="w-7 h-7 text-white" strokeWidth={2} />
+              </button>
+              <span className="text-white text-[10px] text-center">Cancel</span>
             </div>
           </div>
         </div>

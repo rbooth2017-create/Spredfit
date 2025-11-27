@@ -307,7 +307,7 @@ function MainActionCardsComponent({ onModalOpen }: MainActionCardsProps) {
   return (
     <div className="absolute bottom-8 left-0 right-0 z-[80] pointer-events-none">
       <div className="max-w-md mx-auto px-4">
-        <div className="grid grid-cols-4 gap-3 w-fit pointer-events-auto mx-auto">
+        <div className="grid grid-cols-3 gap-3 w-fit pointer-events-auto mx-auto">
           {/* Single Row - Board, Leagues, Record, Log */}
           <div className="flex flex-col items-center gap-2">
             <button
@@ -335,17 +335,6 @@ function MainActionCardsComponent({ onModalOpen }: MainActionCardsProps) {
               <Users className="w-7 h-7 text-white" strokeWidth={2} />
             </button>
             <span className="text-xs text-[#eef0ed]">Leagues</span>
-          </div>
-
-          <div className="flex flex-col items-center gap-2">
-            <button
-              onClick={() => onModalOpen('start')}
-              className="w-20 h-20 rounded-full bg-transparent border-2 border-white/40 flex items-center justify-center transition-all shadow-none relative overflow-hidden"
-              data-tutorial="record-button"
-            >
-              <Play className="w-7 h-7 text-white" strokeWidth={2} />
-            </button>
-            <span className="text-xs text-[#eef0ed]">Record</span>
           </div>
 
           <div className="flex flex-col items-center gap-2">

@@ -222,58 +222,98 @@ export class APIClient {
     }
   }
 
-  async createWorkout(workout: {
-    type: string;
-    duration: number;
-    distance?: number;
-    date: string;
-    notes?: string;
-  }) {
-    console.log('🔵 API Client: Creating workout with token:', this.accessToken ? '✅ Present' : '❌ Missing');
-    console.log('🔵 API Client: Workout data:', workout);
-    
+    async uploadWorkoutPhoto(file: File): Promise<string> {
+    console.log('🔵 API Client: Uploading workout photo');
     try {
       const { data: { user } } = await this.supabase.auth.getUser();
       
       if (!user) {
-        console.error('❌ No user found');
         throw new Error('No user found');
       }
-
-      console.log('🔵 User ID:', user.id);
-
-      // Generate stock image URL based on workout type
-      const sportType = workout.type.toLowerCase().replace(/\s+/g, '-');
-      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.spredfit.com';
-      const photoUrl = `${origin}/workout/workout-${sportType}.png`;
-
-      const { data, error } = await this.supabase
-        .from('workouts')
-        .insert([
-          {
-            user_id: user.id,
-            type: workout.type,
-            duration_min: workout.duration,
-            distance_km: workout.distance,
-            notes: workout.notes,
-            photo_url: photoUrl,
-          },
-        ])
-        .select()
-        .single();
-
-      if (error) {
-        console.error('❌ Supabase error:', error);
-        throw error;
+  
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+  
+      // Upload to workout-media bucket
+      const { error: uploadError } = await this.supabase.storage
+        .from('workout-media')
+        .upload(filePath, file, { upsert: true });
+  
+      if (uploadError) {
+        console.error('❌ Upload error:', uploadError);
+        throw uploadError;
       }
-
-      console.log('✅ Workout created with image:', data);
-      return data;
+  
+      // Get public URL from workout-media bucket
+      const { data: { publicUrl } } = this.supabase.storage
+        .from('workout-media')
+        .getPublicUrl(filePath);
+  
+      console.log('✅ Workout photo uploaded:', publicUrl);
+      return publicUrl;
     } catch (error) {
-      console.error('❌ Failed to create workout:', error);
+      console.error('❌ Failed to upload workout photo:', error);
       throw error;
     }
   }
+
+ async createWorkout(workout: {
+  type: string;
+  duration: number;
+  distance?: number;
+  date: string;
+  notes?: string;
+  photo?: string | null; // Add this parameter
+}) {
+  console.log('🔵 API Client: Creating workout with token:', this.accessToken ? '✅ Present' : '❌ Missing');
+  console.log('🔵 API Client: Workout data:', workout);
+  
+  try {
+    const { data: { user } } = await this.supabase.auth.getUser();
+    
+    if (!user) {
+      console.error('❌ No user found');
+      throw new Error('No user found');
+    }
+
+    console.log('🔵 User ID:', user.id);
+
+    // Use provided photo or generate stock image URL based on workout type
+    let photoUrl = workout.photo;
+    if (!photoUrl) {
+      const sportType = workout.type.toLowerCase().replace(/\s+/g, '-');
+      const origin = typeof window !== 'undefined' ? window.location.origin : 'https://www.spredfit.com';
+      photoUrl = `${origin}/workout/workout-${sportType}.png`;
+    }
+
+    const { data, error } = await this.supabase
+      .from('workouts')
+      .insert([
+        {
+          user_id: user.id,
+          type: workout.type,
+          duration_min: workout.duration,
+          distance_km: workout.distance,
+          notes: workout.notes,
+          photo_url: photoUrl, // Save the photo URL
+        },
+      ])
+      .select()
+      .single();
+
+    if (error) {
+      console.error('❌ Supabase error:', error);
+      throw error;
+    }
+
+    console.log('✅ Workout created with photo:', data);
+    return data;
+  } catch (error) {
+    console.error('❌ Failed to create workout:', error);
+    throw error;
+  }
+}
 
   async getUserWorkouts() {
     console.log('🔵 API Client: Fetching user workouts');
@@ -1618,4 +1658,30 @@ return sorted;
       throw error;
     }
   }
+
+    async updateWorkoutPhoto(workoutId: string, file: File): Promise<string> {
+    console.log('🔵 API Client: Updating workout photo');
+    try {
+      // First upload the photo
+      const photoUrl = await this.uploadWorkoutPhoto(file);
+      
+      // Then update the workout record
+      const { error } = await this.supabase
+        .from('workouts')
+        .update({ photo_url: photoUrl })
+        .eq('id', workoutId);
+  
+      if (error) {
+        console.error('❌ Error updating workout photo:', error);
+        throw error;
+      }
+  
+      console.log('✅ Workout photo updated');
+      return photoUrl;
+    } catch (error) {
+      console.error('❌ Failed to update workout photo:', error);
+      throw error;
+    }
+  }
+
 }
