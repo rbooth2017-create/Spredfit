@@ -698,25 +698,25 @@ export class APIClient {
     }
   }
 
-  async getLeagueLeaderboard(leagueId: string, period: 'total' | 'weekly' = 'total') {
+    async getLeagueLeaderboard(leagueId: string, period: 'total' | 'weekly' = 'total', metricType: 'time' | 'distance_run' | 'distance_cycle' = 'time') {
     console.log('🔵 API Client: Fetching league leaderboard');
     try {
       const { data: { user } } = await this.supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
-
+  
       // Get league details
       const { data: league, error: leagueError } = await this.supabase
         .from('leagues')
         .select('start_date, end_date, allowed_sports')
         .eq('id', leagueId)
         .single();
-
+  
       if (leagueError) throw leagueError;
-
+  
       // Calculate date range
       let startDate: string;
       const endDate = league.end_date;
-
+  
       if (period === 'weekly') {
         const now = new Date();
         const weekStart = new Date(now);
@@ -726,7 +726,7 @@ export class APIClient {
       } else {
         startDate = league.start_date;
       }
-
+  
       // Get all members
       const { data: members, error: membersError } = await this.supabase
         .from('league_memberships')
@@ -741,68 +741,96 @@ export class APIClient {
           )
         `)
         .eq('league_id', leagueId);
-
+  
       if (membersError) throw membersError;
-
+  
       const now = new Date();
-
+  
       // Get workouts for each member
       const leaderboardData = await Promise.all(
         (members || []).map(async (member: any) => {
           // Check if in stealth mode
           const inStealth = member.stealth_until && new Date(member.stealth_until) > now;
-
+  
           let workoutsQuery = this.supabase
             .from('workouts')
-            .select('duration_min, created_at, type')
+            .select('duration_min, distance_km, created_at, type')
             .eq('user_id', member.user_id)
             .gte('created_at', startDate)
             .lte('created_at', endDate);
-
-          // Filter by allowed sports if specified
-          if (league.allowed_sports && league.allowed_sports.length > 0) {
+  
+          // Filter by sport type if distance metric (case-insensitive)
+          if (metricType === 'distance_run') {
+            workoutsQuery = workoutsQuery.ilike('type', 'running');
+          } else if (metricType === 'distance_cycle') {
+            workoutsQuery = workoutsQuery.ilike('type', 'cycling');
+          } else if (league.allowed_sports && league.allowed_sports.length > 0) {
+            // Filter by allowed sports for time metric
             workoutsQuery = workoutsQuery.in('type', league.allowed_sports);
           }
-
+  
           const { data: workouts, error: workoutsError } = await workoutsQuery;
-
+  
           if (workoutsError) throw workoutsError;
-
-          let totalMinutes = (workouts || []).reduce((sum: number, w: any) => {
-            let minutes = w.duration_min || 0;
-            
-            // Apply double up multiplier if applicable
-            if (member.double_up_date) {
-              const workoutDate = new Date(w.created_at).toDateString();
-              const doubleUpDate = new Date(member.double_up_date).toDateString();
-              if (workoutDate === doubleUpDate) {
-                minutes *= 2;
+  
+          let totalValue = 0;
+  
+          if (metricType === 'time') {
+            // Calculate time in hours
+            let totalMinutes = (workouts || []).reduce((sum: number, w: any) => {
+              let minutes = w.duration_min || 0;
+              
+              // Apply double up multiplier if applicable
+              if (member.double_up_date) {
+                const workoutDate = new Date(w.created_at).toDateString();
+                const doubleUpDate = new Date(member.double_up_date).toDateString();
+                if (workoutDate === doubleUpDate) {
+                  minutes *= 2;
+                }
               }
-            }
+              
+              return sum + minutes;
+            }, 0);
             
-            return sum + minutes;
-          }, 0);
-          
-          const totalHours = totalMinutes / 60;
-
+            totalValue = totalMinutes / 60; // Convert to hours
+          } else {
+            // Calculate distance in km
+            totalValue = (workouts || []).reduce((sum: number, w: any) => {
+              let distance = w.distance_km || 0;
+              
+              // Apply double up multiplier if applicable
+              if (member.double_up_date) {
+                const workoutDate = new Date(w.created_at).toDateString();
+                const doubleUpDate = new Date(member.double_up_date).toDateString();
+                if (workoutDate === doubleUpDate) {
+                  distance *= 2;
+                }
+              }
+              
+              return sum + distance;
+            }, 0);
+          }
+  
           return {
             userId: member.user_id,
             name: member.profiles?.username || 'User',
-            totalHours: inStealth ? 0 : totalHours,
+            totalHours: metricType === 'time' ? (inStealth ? 0 : totalValue) : 0,
+            totalDistance: metricType !== 'time' ? (inStealth ? 0 : totalValue) : 0,
             isCurrentUser: member.user_id === user.id,
             inStealth
           };
         })
       );
-
-      // Sort and assign ranks
+  
+      // Sort by appropriate metric and assign ranks
+      const sortKey = metricType === 'time' ? 'totalHours' : 'totalDistance';
       const sorted = leaderboardData
-        .sort((a, b) => b.totalHours - a.totalHours)
+        .sort((a, b) => b[sortKey] - a[sortKey])
         .map((entry, index) => ({
           ...entry,
           rank: index + 1
         }));
-
+  
       console.log('✅ Leaderboard fetched:', sorted);
       return sorted;
     } catch (error) {
@@ -810,109 +838,151 @@ export class APIClient {
       throw error;
     }
   }
-
-  async createLeague(leagueData: {
-    name: string;
-    description?: string;
-    startDate?: string;
-    endDate?: string;
-    isPrivate?: boolean;
-    allowedSports?: string[];
-    allowTeams?: boolean;
-    allowDoubleUp?: boolean;
-    allowBonusHours?: boolean;
-    allowStealthMode?: boolean;
-  }) {
-    console.log('🔵 API Client: Creating league');
+  
+  async getLeagueTeamLeaderboard(leagueId: string, period: 'total' | 'weekly' = 'total', metricType: 'time' | 'distance_run' | 'distance_cycle' = 'time') {
+    console.log('🔵 API Client: Fetching team leaderboard');
     try {
       const { data: { user } } = await this.supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error('No user found');
-      }
-
-      // Generate league code
-      const leagueCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-
-      // Create league
-      const { data: newLeague, error: leagueError } = await this.supabase
+      if (!user) throw new Error('Not authenticated');
+  
+      // Get league details
+      const { data: league, error: leagueError } = await this.supabase
         .from('leagues')
-        .insert([
-          {
-            name: leagueData.name,
-            description: leagueData.description,
-            league_code: leagueCode,
-            owner_id: user.id,
-            start_date: leagueData.startDate,
-            end_date: leagueData.endDate,
-            is_private: leagueData.isPrivate || false,
-            allowed_sports: leagueData.allowedSports,
-            allow_teams: leagueData.allowTeams || false,
-            allow_double_up_day: leagueData.allowDoubleUp || false,
-            allow_bonus_hours: leagueData.allowBonusHours || false,
-            allow_stealth_mode: leagueData.allowStealthMode || false,
-          },
-        ])
-        .select()
+        .select('start_date, end_date, allowed_sports')
+        .eq('id', leagueId)
         .single();
-
+  
       if (leagueError) throw leagueError;
-
-      // Add creator as member
-      const { error: memberError } = await this.supabase
-        .from('league_memberships')
-        .insert([
-          {
-            league_id: newLeague.id,
-            user_id: user.id,
-          },
-        ]);
-
-      if (memberError) throw memberError;
-
-      console.log('✅ League created:', newLeague);
-      return newLeague;
-    } catch (error) {
-      console.error('❌ Failed to create league:', error);
-      throw error;
-    }
-  }
-
-  async joinLeague(leagueCode: string) {
-    console.log('🔵 API Client: Joining league');
-    try {
-      const { data: { user } } = await this.supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error('No user found');
+  
+      // Calculate date range
+      let startDate: string;
+      const endDate = league.end_date;
+  
+      if (period === 'weekly') {
+        const now = new Date();
+        const weekStart = new Date(now);
+        weekStart.setDate(now.getDate() - now.getDay());
+        weekStart.setHours(0, 0, 0, 0);
+        startDate = weekStart.toISOString();
+      } else {
+        startDate = league.start_date;
       }
-
-      // Find league by code
-      const { data: league, error: findError } = await this.supabase
-        .from('leagues')
-        .select('id')
-        .eq('league_code', leagueCode)
-        .single();
-
-      if (findError) throw findError;
-      if (!league) throw new Error('League not found');
-
-      // Add user as member
-      const { error: joinError } = await this.supabase
-        .from('league_memberships')
-        .insert([
-          {
-            league_id: league.id,
-            user_id: user.id,
-          },
-        ]);
-
-      if (joinError) throw joinError;
-
-      console.log('✅ Joined league');
-      return league;
+  
+      // Get all teams
+      const { data: teams, error: teamsError } = await this.supabase
+        .from('league_teams')
+        .select('id, name')
+        .eq('league_id', leagueId);
+  
+      if (teamsError) throw teamsError;
+  
+      if (!teams || teams.length === 0) {
+        return [];
+      }
+  
+      // Get team data
+      const teamData = await Promise.all(
+        teams.map(async (team: any) => {
+          // Get team members
+          const { data: members } = await this.supabase
+            .from('league_memberships')
+            .select('user_id, stealth_until, double_up_date')
+            .eq('team_id', team.id);
+  
+          const memberCount = members?.length || 0;
+          const now = new Date();
+  
+          let totalValue = 0;
+          
+          for (const member of members || []) {
+            const inStealth = member.stealth_until && new Date(member.stealth_until) > now;
+            
+            if (!inStealth) {
+              let workoutsQuery = this.supabase
+                .from('workouts')
+                .select('duration_min, distance_km, created_at, type')
+                .eq('user_id', member.user_id)
+                .gte('created_at', startDate)
+                .lte('created_at', endDate);
+  
+              // Filter by sport type if distance metric (case-insensitive)
+              if (metricType === 'distance_run') {
+                workoutsQuery = workoutsQuery.ilike('type', 'running');
+              } else if (metricType === 'distance_cycle') {
+                workoutsQuery = workoutsQuery.ilike('type', 'cycling');
+              } else if (league.allowed_sports && league.allowed_sports.length > 0) {
+                // Filter by allowed sports for time metric
+                workoutsQuery = workoutsQuery.in('type', league.allowed_sports);
+              }
+  
+              const { data: workouts } = await workoutsQuery;
+  
+              if (metricType === 'time') {
+                // Calculate time in hours
+                const minutes = (workouts || []).reduce((sum: number, w: any) => {
+                  let minutes = w.duration_min || 0;
+                  
+                  // Apply double up multiplier if applicable
+                  if (member.double_up_date) {
+                    const workoutDate = new Date(w.created_at).toDateString();
+                    const doubleUpDate = new Date(member.double_up_date).toDateString();
+                    if (workoutDate === doubleUpDate) {
+                      minutes *= 2;
+                    }
+                  }
+                  
+                  return sum + minutes;
+                }, 0);
+                
+                totalValue += minutes / 60; // Convert to hours
+              } else {
+                // Calculate distance in km
+                const distance = (workouts || []).reduce((sum: number, w: any) => {
+                  let distance = w.distance_km || 0;
+                  
+                  // Apply double up multiplier if applicable
+                  if (member.double_up_date) {
+                    const workoutDate = new Date(w.created_at).toDateString();
+                    const doubleUpDate = new Date(member.double_up_date).toDateString();
+                    if (workoutDate === doubleUpDate) {
+                      distance *= 2;
+                    }
+                  }
+                  
+                  return sum + distance;
+                }, 0);
+                
+                totalValue += distance;
+              }
+            }
+          }
+  
+          const isCurrentUserTeam = members?.some((m: any) => m.user_id === user.id) || false;
+  
+          return {
+            teamId: team.id,
+            teamName: team.name,
+            totalHours: metricType === 'time' ? totalValue : 0,
+            totalDistance: metricType !== 'time' ? totalValue : 0,
+            memberCount,
+            isCurrentUserTeam
+          };
+        })
+      );
+  
+      // Sort by appropriate metric and assign ranks
+      const sortKey = metricType === 'time' ? 'totalHours' : 'totalDistance';
+      const sorted = teamData
+        .sort((a, b) => b[sortKey] - a[sortKey])
+        .map((entry, index) => ({
+          ...entry,
+          rank: index + 1
+        }));
+  
+      console.log('✅ Team leaderboard fetched:', sorted);
+      return sorted;
     } catch (error) {
-      console.error('❌ Failed to join league:', error);
+      console.error('❌ Failed to fetch team leaderboard:', error);
       throw error;
     }
   }

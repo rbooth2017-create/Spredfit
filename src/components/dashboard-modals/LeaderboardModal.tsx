@@ -1,5 +1,5 @@
 import { memo, useState, useEffect } from "react";
-import { UserCircle, Users, Trophy, Calendar } from "lucide-react";
+import { UserCircle, Users, Trophy, Calendar, Timer, Footprints, Bike } from "lucide-react";
 import { useAuth } from "../../utils/auth";
 import { APIClient } from "../../utils/api";
 
@@ -14,6 +14,7 @@ interface LeaderboardEntry {
   userId: string;
   name: string;
   totalHours: number;
+  totalDistance?: number;
   rank: number;
   isCurrentUser: boolean;
 }
@@ -22,10 +23,13 @@ interface TeamLeaderboardEntry {
   teamId: string;
   teamName: string;
   totalHours: number;
+  totalDistance?: number;
   memberCount: number;
   rank: number;
   isCurrentUserTeam: boolean;
 }
+
+type MetricType = 'time' | 'distance_run' | 'distance_cycle';
 
 interface LeaderboardModalProps {
   modalStep: number;
@@ -54,8 +58,9 @@ function LeaderboardModalComponent({
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
   const [teamLeaderboardData, setTeamLeaderboardData] = useState<TeamLeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [metricType, setMetricType] = useState<MetricType>('time');
 
-  // Fetch leaderboard data when league, view, or period changes
+  // Fetch leaderboard data when league, view, period, or metric changes
   useEffect(() => {
     async function loadLeaderboard() {
       if (!selectedLeague || !accessToken || modalStep !== 2) {
@@ -67,10 +72,18 @@ function LeaderboardModalComponent({
         const api = new APIClient(accessToken);
         
         if (leaderboardView === 'individual') {
-          const data = await api.getLeagueLeaderboard(selectedLeague.id, leaderboardPeriod);
+          const data = await api.getLeagueLeaderboard(
+            selectedLeague.id, 
+            leaderboardPeriod,
+            metricType
+          );
           setLeaderboardData(data);
         } else {
-          const data = await api.getLeagueTeamLeaderboard(selectedLeague.id, leaderboardPeriod);
+          const data = await api.getLeagueTeamLeaderboard(
+            selectedLeague.id, 
+            leaderboardPeriod,
+            metricType
+          );
           setTeamLeaderboardData(data);
         }
       } catch (error) {
@@ -83,7 +96,30 @@ function LeaderboardModalComponent({
     }
 
     loadLeaderboard();
-  }, [selectedLeague?.id, leaderboardView, leaderboardPeriod, accessToken, modalStep]);
+  }, [selectedLeague?.id, leaderboardView, leaderboardPeriod, metricType, accessToken, modalStep]);
+
+  // Format display value based on metric type
+  const formatMetricValue = (entry: LeaderboardEntry | TeamLeaderboardEntry) => {
+    if (metricType === 'time') {
+      return `${entry.totalHours.toFixed(1)}h`;
+    } else {
+      return `${(entry.totalDistance || 0).toFixed(1)}km`;
+    }
+  };
+
+  // Get metric label
+  const getMetricLabel = () => {
+    switch (metricType) {
+      case 'time':
+        return 'Total Time';
+      case 'distance_run':
+        return 'Distance Run';
+      case 'distance_cycle':
+        return 'Distance Cycled';
+      default:
+        return 'Total Time';
+    }
+  };
 
   return (
     <>
@@ -117,10 +153,13 @@ function LeaderboardModalComponent({
         {modalStep === 2 && selectedLeague && (
           <div className="flex flex-col items-center text-center w-full px-4">
             <p className="text-white text-sm mb-1">{selectedLeague.name}</p>
-            <p className="text-white/70 text-xs mb-4">
-              {leaderboardView === 'individual' ? 'Individual' : 'Team'} • {leaderboardPeriod === 'total' ? 'All Time' : 'This Week'}
+            <p className="text-white/70 text-xs mb-2">
+              {leaderboardView === 'individual' ? 'Individual' : 'Team'}
             </p>
-            <div className="space-y-2 w-full max-h-44 overflow-y-auto scrollbar-hide mb-4">
+            <p className="text-white/60 text-[10px] mb-3">
+              {getMetricLabel()} • {leaderboardPeriod === 'total' ? 'All Time' : 'This Week'}
+            </p>
+            <div className="space-y-2 w-full max-h-40 overflow-y-auto scrollbar-hide mb-4">
               {isLoading ? (
                 <p className="text-white/50 text-xs">Loading...</p>
               ) : leaderboardView === 'individual' ? (
@@ -137,7 +176,7 @@ function LeaderboardModalComponent({
                         <span className="text-white/70 text-xs w-5">#{member.rank}</span>
                         <span className="text-white text-sm">{member.isCurrentUser ? 'You' : member.name}</span>
                       </div>
-                      <span className="text-white text-sm">{member.totalHours.toFixed(1)}h</span>
+                      <span className="text-white text-sm">{formatMetricValue(member)}</span>
                     </div>
                   ))
                 ) : (
@@ -158,7 +197,7 @@ function LeaderboardModalComponent({
                           <span className="text-white/70 text-xs w-5">#{team.rank}</span>
                           <span className="text-white text-sm font-medium">{team.teamName}</span>
                         </div>
-                        <span className="text-white text-sm font-bold">{team.totalHours.toFixed(1)}h</span>
+                        <span className="text-white text-sm font-bold">{formatMetricValue(team)}</span>
                       </div>
                       <div className="flex items-center justify-end gap-1">
                         <Users className="w-3 h-3 text-white/50" />
@@ -181,67 +220,113 @@ function LeaderboardModalComponent({
         )}
       </div>
 
-      {/* External Filter Buttons - Bottom Right (only on step 2) */}
+            {/* External Filter Buttons (only on step 2) */}
       {modalStep === 2 && (
-        <div className="fixed bottom-8 right-4 z-[60]" onClick={(e) => e.stopPropagation()}>
-          <div className="grid grid-cols-2 gap-3">
-            {/* View Type Toggles */}
+        <>
+          {/* Right Side: Metric Type Buttons (3 high, 1 wide) */}
+          <div className="fixed bottom-8 right-4 z-[60] flex flex-col gap-3" onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-col items-center gap-1.5">
               <button
-                onClick={() => setLeaderboardView('individual')}
+                onClick={() => setMetricType('time')}
                 className={`w-20 h-20 rounded-full ${
-                  leaderboardView === 'individual'
+                  metricType === 'time'
                     ? 'bg-[#FFFFFF] border-2 border-white/40'
                     : 'bg-[#2d2d2d] border border-white/20'
                 } backdrop-blur-sm flex items-center justify-center transition-all hover:bg-[#FFFFFF]/80 shadow-lg`}
               >
-                <UserCircle className="w-7 h-7 text-white" strokeWidth={2} />
+                <Timer className="w-7 h-7 text-white" strokeWidth={2} />
               </button>
-              <span className="text-white text-[10px] text-center">Individual</span>
+              <span className="text-white text-[10px] text-center">Time</span>
             </div>
             <div className="flex flex-col items-center gap-1.5">
               <button
-                onClick={() => setLeaderboardView('team')}
+                onClick={() => setMetricType('distance_run')}
                 className={`w-20 h-20 rounded-full ${
-                  leaderboardView === 'team'
+                  metricType === 'distance_run'
                     ? 'bg-[#FFFFFF] border-2 border-white/40'
                     : 'bg-[#2d2d2d] border border-white/20'
                 } backdrop-blur-sm flex items-center justify-center transition-all hover:bg-[#FFFFFF]/80 shadow-lg`}
               >
-                <Users className="w-7 h-7 text-white" strokeWidth={2} />
+                <Footprints className="w-7 h-7 text-white" strokeWidth={2} />
               </button>
-              <span className="text-white text-[10px] text-center">Team</span>
-            </div>
-
-            {/* Period Toggles */}
-            <div className="flex flex-col items-center gap-1.5">
-              <button
-                onClick={() => setLeaderboardPeriod('total')}
-                className={`w-20 h-20 rounded-full ${
-                  leaderboardPeriod === 'total'
-                    ? 'bg-[#FFFFFF] border-2 border-white/40'
-                    : 'bg-[#2d2d2d] border border-white/20'
-                } backdrop-blur-sm flex items-center justify-center transition-all hover:bg-[#FFFFFF]/80 shadow-lg`}
-              >
-                <Trophy className="w-7 h-7 text-white" strokeWidth={2} />
-              </button>
-              <span className="text-white text-[10px] text-center">Total<br />Time</span>
+              <span className="text-white text-[10px] text-center">Run</span>
             </div>
             <div className="flex flex-col items-center gap-1.5">
               <button
-                onClick={() => setLeaderboardPeriod('weekly')}
+                onClick={() => setMetricType('distance_cycle')}
                 className={`w-20 h-20 rounded-full ${
-                  leaderboardPeriod === 'weekly'
+                  metricType === 'distance_cycle'
                     ? 'bg-[#FFFFFF] border-2 border-white/40'
                     : 'bg-[#2d2d2d] border border-white/20'
                 } backdrop-blur-sm flex items-center justify-center transition-all hover:bg-[#FFFFFF]/80 shadow-lg`}
               >
-                <Calendar className="w-7 h-7 text-white" strokeWidth={2} />
+                <Bike className="w-7 h-7 text-white" strokeWidth={2} />
               </button>
-              <span className="text-white text-[10px] text-center">Weekly</span>
+              <span className="text-white text-[10px] text-center">Cycle</span>
             </div>
           </div>
-        </div>
+
+          {/* Left Side: 2x2 Grid Layout */}
+          <div className="fixed bottom-8 left-4 z-[60]" onClick={(e) => e.stopPropagation()}>
+            <div className="grid grid-cols-2 gap-3">
+              {/* Top Row: Individual and Team */}
+              <div className="flex flex-col items-center gap-1.5">
+                <button
+                  onClick={() => setLeaderboardView('individual')}
+                  className={`w-20 h-20 rounded-full ${
+                    leaderboardView === 'individual'
+                      ? 'bg-[#FFFFFF] border-2 border-white/40'
+                      : 'bg-[#2d2d2d] border border-white/20'
+                  } backdrop-blur-sm flex items-center justify-center transition-all hover:bg-[#FFFFFF]/80 shadow-lg`}
+                >
+                  <UserCircle className="w-7 h-7 text-white" strokeWidth={2} />
+                </button>
+                <span className="text-white text-[10px] text-center">Individual</span>
+              </div>
+              <div className="flex flex-col items-center gap-1.5">
+                <button
+                  onClick={() => setLeaderboardView('team')}
+                  className={`w-20 h-20 rounded-full ${
+                    leaderboardView === 'team'
+                      ? 'bg-[#FFFFFF] border-2 border-white/40'
+                      : 'bg-[#2d2d2d] border border-white/20'
+                  } backdrop-blur-sm flex items-center justify-center transition-all hover:bg-[#FFFFFF]/80 shadow-lg`}
+                >
+                  <Users className="w-7 h-7 text-white" strokeWidth={2} />
+                </button>
+                <span className="text-white text-[10px] text-center">Team</span>
+              </div>
+
+              {/* Bottom Row: All Time and Weekly */}
+              <div className="flex flex-col items-center gap-1.5">
+                <button
+                  onClick={() => setLeaderboardPeriod('total')}
+                  className={`w-20 h-20 rounded-full ${
+                    leaderboardPeriod === 'total'
+                      ? 'bg-[#FFFFFF] border-2 border-white/40'
+                      : 'bg-[#2d2d2d] border border-white/20'
+                  } backdrop-blur-sm flex items-center justify-center transition-all hover:bg-[#FFFFFF]/80 shadow-lg`}
+                >
+                  <Trophy className="w-7 h-7 text-white" strokeWidth={2} />
+                </button>
+                <span className="text-white text-[10px] text-center">All<br />Time</span>
+              </div>
+              <div className="flex flex-col items-center gap-1.5">
+                <button
+                  onClick={() => setLeaderboardPeriod('weekly')}
+                  className={`w-20 h-20 rounded-full ${
+                    leaderboardPeriod === 'weekly'
+                      ? 'bg-[#FFFFFF] border-2 border-white/40'
+                      : 'bg-[#2d2d2d] border border-white/20'
+                  } backdrop-blur-sm flex items-center justify-center transition-all hover:bg-[#FFFFFF]/80 shadow-lg`}
+                >
+                  <Calendar className="w-7 h-7 text-white" strokeWidth={2} />
+                </button>
+                <span className="text-white text-[10px] text-center">Weekly</span>
+              </div>
+            </div>
+          </div>
+        </>
       )}
     </>
   );
