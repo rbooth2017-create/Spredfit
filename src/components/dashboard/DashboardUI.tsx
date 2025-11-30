@@ -54,38 +54,9 @@ interface NavigationSidebarProps {
  * 
  * Renders the top header section with:
  * - User name (right aligned)
- * - Coffee and Share App buttons
  */
 function DashboardHeaderComponent({ onModalOpen }: DashboardHeaderProps) {
   const { user } = useAuth();
-
-  const handleShareApp = async () => {
-    const shareData = {
-      text: 'Join my fitness league',
-      url: 'https://www.spredfit.com'
-    };
-
-    if (navigator.share) {
-      try {
-        await navigator.share(shareData);
-        toast.success('Shared successfully!');
-      } catch (err) {
-        if ((err as Error).name !== 'AbortError') {
-          console.error('Error sharing:', err);
-          toast.error('Failed to share');
-        }
-      }
-    } else {
-      // Fallback: copy to clipboard
-      try {
-        await navigator.clipboard.writeText(`Join my fitness league\n\nhttps://www.spredfit.com`);
-        toast.success('Link copied to clipboard!');
-      } catch (err) {
-        console.error('Error copying:', err);
-        toast.error('Failed to copy link');
-      }
-    }
-  };
 
   return (
     <div className="mb-6 flex-shrink-0 relative z-[60]">
@@ -103,17 +74,6 @@ function DashboardHeaderComponent({ onModalOpen }: DashboardHeaderProps) {
             )}
           </h1>
         </div>
-      </div>
-      
-      {/* Share App button - right aligned */}
-      <div className="flex flex-col items-end gap-1">
-        <button
-          onClick={handleShareApp}
-          className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-full hover:bg-white/10 transition-all min-w-[50px]"
-        >
-          <Share2 className="w-5 h-5 text-white" strokeWidth={2} />
-          <span className="text-[9px] text-white text-center leading-tight">Share<br/>App</span>
-        </button>
       </div>
     </div>
   );
@@ -362,15 +322,44 @@ export const MainActionCards = memo(MainActionCardsComponent);
  * - Settings
  * - Metrics
  * - Chat
- * - Training
+ * - Share
  */
 function NavigationSidebarComponent({ onModalOpen, hideButtons }: NavigationSidebarProps) {
+  const handleShareApp = async () => {
+    const shareData = {
+      text: 'Join my fitness league',
+      url: 'https://www.spredfit.com'
+    };
+
+    if (navigator.share) {
+      try {
+        await navigator.share(shareData);
+        toast.success('Shared successfully!');
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          console.error('Error sharing:', err);
+          toast.error('Failed to share');
+        }
+      }
+    } else {
+      // Fallback: copy to clipboard
+      try {
+        await navigator.clipboard.writeText(`Join my fitness league\n\nhttps://www.spredfit.com`);
+        toast.success('Link copied to clipboard!');
+      } catch (err) {
+        console.error('Error copying:', err);
+        toast.error('Failed to copy link');
+      }
+    }
+  };
+
   const navItems = [
     { id: 'profile', icon: UserCircle, label: 'Profile', dataTutorial: 'profile-button' },
     { id: 'activityFeed', icon: Activity, label: 'Activity', dataTutorial: 'activity-button' },
     { id: 'settings', icon: Settings, label: 'Settings', dataTutorial: 'settings-button' },
     { id: 'metrics', icon: TrendingUp, label: 'Metrics', dataTutorial: 'metrics-button' },
     { id: 'chat', icon: MessageCircle, label: 'Chat', dataTutorial: 'chat-button' },
+    { id: 'share', icon: Share2, label: 'Share', dataTutorial: 'share-button', action: handleShareApp },
   ];
 
   return (
@@ -399,10 +388,14 @@ function NavigationSidebarComponent({ onModalOpen, hideButtons }: NavigationSide
               <button
                 key={item.id}
                 onClick={() => {
-                  if (item.id === 'trainingPlans') {
-                    console.log('🎯 Training button clicked!')
+                  if (item.action) {
+                    item.action();
+                  } else {
+                    if (item.id === 'trainingPlans') {
+                      console.log('🎯 Training button clicked!')
+                    }
+                    onModalOpen(item.id);
                   }
-                  onModalOpen(item.id);
                 }}
                 className="flex flex-col items-center gap-0.5 px-2 py-1 rounded-full hover:bg-white/10 transition-all min-w-[50px]"
                 data-tutorial={item.dataTutorial}
