@@ -65,7 +65,7 @@ function BonusHoursModal({ leagueId, leagueName, accessToken, onClose }: BonusHo
         const membersWithBonusHours: BonusHoursMember[] = leagueMembers.map((member: any) => ({
           userId: member.user_id,
           userName: member.name || member.full_name || 'Unknown User',
-          bonusHours: member.bonus_hours || 0,  // ✅ This will now get the actual value from DB
+          bonusHours: member.bonus_hours || 0,
         }));
         
         setMembers(membersWithBonusHours);
@@ -114,10 +114,10 @@ function BonusHoursModal({ leagueId, leagueName, accessToken, onClose }: BonusHo
       
       // Refresh members list
       const leagueMembers = await api.getLeagueMembers(leagueId);
-        const membersWithBonusHours: BonusHoursMember[] = leagueMembers.map((member: any) => ({
+      const membersWithBonusHours: BonusHoursMember[] = leagueMembers.map((member: any) => ({
         userId: member.user_id,
         userName: member.name || member.full_name || 'Unknown User',
-        bonusHours: member.bonus_hours || 0,  // ✅ This will now get the actual value from DB
+        bonusHours: member.bonus_hours || 0,
       }));
       setMembers(membersWithBonusHours);
       setBonusHoursChanges({});
@@ -371,17 +371,7 @@ function LeaguesModalComponent({
     
     const fullLeague = userLeagues.find(l => l.id === selectedLeague.id);
     
-    console.log('🔍 useEffect running - selectedLeague.id:', selectedLeague.id);
-    console.log('🔍 userLeagues length:', userLeagues.length);
-    console.log('🔍 Found fullLeague:', fullLeague);
-    
     if (fullLeague) {
-      console.log('🔍 fullLeague.allowStealthMode:', fullLeague.allowStealthMode);
-      console.log('🔍 fullLeague.allowDoubleUp:', fullLeague.allowDoubleUp);
-      console.log('🔍 selectedLeague.allowStealthMode:', selectedLeague.allowStealthMode);
-      console.log('🔍 selectedLeague.allowDoubleUp:', selectedLeague.allowDoubleUp);
-      
-      // Check if we need to update
       const needsUpdate = 
         selectedLeague.allowStealthMode === undefined ||
         selectedLeague.allowDoubleUp === undefined ||
@@ -389,20 +379,15 @@ function LeaguesModalComponent({
         selectedLeague.allowDoubleUp !== fullLeague.allowDoubleUp ||
         !selectedLeague.code;
       
-      console.log('🔍 needsUpdate:', needsUpdate);
-      
       if (needsUpdate) {
-        console.log('🔄 Updating selectedLeague with properties from userLeagues');
         setSelectedLeague({
           ...selectedLeague,
-          code: fullLeague.code || fullLeague.leagueCode,
+          code: fullLeague.code,
           allowStealthMode: fullLeague.allowStealthMode,
           allowDoubleUp: fullLeague.allowDoubleUp,
           ownerId: fullLeague.ownerId,
         });
       }
-    } else {
-      console.log('❌ fullLeague not found in userLeagues!');
     }
   }, [selectedLeague?.id, userLeagues, modalStep]);
 
@@ -429,7 +414,6 @@ function LeaguesModalComponent({
   const handleStealthToggle = async () => {
     if (!selectedLeague || !api) return;
 
-    // Check if league allows stealth mode
     if (!selectedLeague.allowStealthMode) {
       toast.error('Stealth mode not enabled for this league');
       return;
@@ -440,7 +424,6 @@ function LeaguesModalComponent({
       const isCurrentlyActive = membershipStatus?.stealthUntil && new Date(membershipStatus.stealthUntil) > now;
 
       if (isCurrentlyActive) {
-        // Deactivate stealth
         await api.deactivateStealth(selectedLeague.id);
         setStealthActivated(false);
         setMembershipStatus({
@@ -453,7 +436,6 @@ function LeaguesModalComponent({
           description: 'You\'re now visible on the leaderboard',
         });
       } else {
-        // Activate stealth
         const result = await api.activateStealth(selectedLeague.id);
         setStealthActivated(true);
         setMembershipStatus({
@@ -477,13 +459,11 @@ function LeaguesModalComponent({
   const handleDoubleUpToggle = async () => {
     if (!selectedLeague || !api) return;
 
-    // Check if league allows double up
     if (!selectedLeague.allowDoubleUp) {
       toast.error('Double Up Day not enabled for this league');
       return;
     }
 
-    // Check if already used
     if (membershipStatus?.doubleUpUsed) {
       toast.error('Double Up already used', {
         description: 'You can only use Double Up once per league',
@@ -491,7 +471,6 @@ function LeaguesModalComponent({
       return;
     }
 
-    // Check if already active today
     const now = new Date();
     const isTodayDoubleUp = membershipStatus?.doubleUpDate && 
       new Date(membershipStatus.doubleUpDate).toDateString() === now.toDateString();
@@ -501,7 +480,6 @@ function LeaguesModalComponent({
       return;
     }
 
-    // Confirm activation
     const confirmed = window.confirm(
       'Activate Double Up Day?\n\nAll workouts logged today will count for 2x points. This can only be used once!'
     );
@@ -531,12 +509,11 @@ function LeaguesModalComponent({
   const handleLeaveLeague = async (leagueId: string) => {
     if (window.confirm('Are you sure you want to leave this league?')) {
       try {
-        if (!accessToken) {
-          toast.error('Authentication required');
+        if (!api) {
+          toast.error('Not authenticated');
           return;
         }
         
-        const api = new APIClient(accessToken);
         await api.leaveLeague(leagueId);
         
         toast.success('Left League', {
@@ -560,16 +537,6 @@ function LeaguesModalComponent({
     }
   
     try {
-      console.log('🏆 Creating league:', newLeagueName);
-      console.log('🔧 Toggle states:', { 
-        isPrivate, 
-        allowTeams, 
-        stealthMode, 
-        doubleUp,
-        bonusHours
-      });
-     
-      // Calculate dates based on duration
       const startDate = new Date().toISOString();
       let endDate = new Date();
       
@@ -609,7 +576,6 @@ function LeaguesModalComponent({
         allowBonusHours: bonusHours,
       });
   
-      console.log('✅ League created:', result);
       setCreatedLeagueCode(result.league_code);
       await refreshLeagues();
       setModalStep(5);
@@ -625,7 +591,6 @@ function LeaguesModalComponent({
     }
   };
 
-  // Render stealth button status
   const renderStealthStatus = () => {
     if (loadingStatus) return 'Loading...';
     
@@ -641,7 +606,6 @@ function LeaguesModalComponent({
     return 'Stealth\nMode';
   };
 
-  // Render double up button status
   const renderDoubleUpStatus = () => {
     if (loadingStatus) return 'Loading...';
     
@@ -662,7 +626,6 @@ function LeaguesModalComponent({
 
   return (
     <>
-      {/* Teams Modal Overlay */}
       {showTeamsModal && selectedLeagueForTeams && accessToken && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70]" onClick={(e) => e.stopPropagation()}>
           <TeamsModal
@@ -677,7 +640,6 @@ function LeaguesModalComponent({
         </div>
       )}
 
-      {/* Bonus Hours Modal Overlay */}
       {showBonusHoursModal && selectedLeagueForBonusHours && accessToken && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[70]" onClick={(e) => e.stopPropagation()}>
           <BonusHoursModal
@@ -692,9 +654,7 @@ function LeaguesModalComponent({
         </div>
       )}
 
-      {/* Modal Content */}
       <div className="w-96 h-96 rounded-full bg-transparent border-2 border-white/40 flex items-center justify-center p-8 shadow-2xl overflow-hidden">
-        {/* Step 1: Your Leagues List */}
         {modalStep === 1 && (
           <div className="flex flex-col items-center text-center w-full">
             <p className="text-white text-sm mb-4">Your Leagues</p>
@@ -720,7 +680,6 @@ function LeaguesModalComponent({
           </div>
         )}
 
-        {/* Step 2: League Details */}
         {modalStep === 2 && selectedLeague && (
           <div className="flex flex-col items-center text-center w-full px-4">
             <p className="text-white text-[20px] mb-4">{selectedLeague.name}</p>
@@ -740,7 +699,6 @@ function LeaguesModalComponent({
           </div>
         )}
 
-        {/* Step 3: Join League */}
         {modalStep === 3 && (
           <div className="flex flex-col items-center text-center w-full px-6 space-y-4">
             <p className="text-white text-sm">Join League</p>
@@ -756,12 +714,10 @@ function LeaguesModalComponent({
           </div>
         )}
 
-        {/* Step 4: Create League */}
         {modalStep === 4 && (
           <div className="flex flex-col w-full h-full p-10 max-w-[280px]">
             <p className="text-white text-sm mb-3 text-center flex-shrink-0">Create League</p>
             
-            {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto scrollbar-hide space-y-3 mb-3 min-h-0">
               <input
                 type="text"
@@ -772,7 +728,6 @@ function LeaguesModalComponent({
                 maxLength={30}
               />
               
-              {/* Duration selector */}
               <div className="space-y-1.5">
                 <label className="text-white/80 text-[10px] block text-left">Duration</label>
                 <select
@@ -789,7 +744,6 @@ function LeaguesModalComponent({
                 </select>
               </div>
 
-              {/* Toggle options */}
               <div className="space-y-2">
                 <div className="flex items-center justify-between bg-[#2d332d]/40 backdrop-blur-sm border border-white/10 rounded-full px-3 py-2">
                   <label className="text-white text-[10px]">Allow Teams</label>
@@ -826,7 +780,6 @@ function LeaguesModalComponent({
                 </div>
               </div>
 
-              {/* Sports Selection */}
               <div className="space-y-2">
                 <label className="text-white/80 text-[10px] block text-left">Included Sports</label>
                 <div className="grid grid-cols-2 gap-2">
@@ -854,7 +807,6 @@ function LeaguesModalComponent({
                 </p>
               </div>
 
-              {/* League code preview */}
               <div className="text-center">
                 <p className="text-white/70 text-[9px] mb-1">Your invite code will be:</p>
                 <div className="px-3 py-1.5 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 inline-block">
@@ -865,7 +817,6 @@ function LeaguesModalComponent({
           </div>
         )}
 
-        {/* Step 5: League Created Confirmation */}
         {modalStep === 5 && (
           <div className="flex flex-col items-center justify-center w-full h-full p-10 max-w-[280px]">
             <div className="text-center space-y-4">
@@ -887,7 +838,6 @@ function LeaguesModalComponent({
           </div>
         )}
 
-        {/* Step 6: Manage Leagues */}
         {modalStep === 6 && (() => {
           const managedLeagues = userLeagues;
           return (
@@ -987,12 +937,11 @@ function LeaguesModalComponent({
                             onClick={async () => {
                               if (window.confirm(`Are you sure you want to delete "${league.name}"?\n\nThis action cannot be undone.`)) {
                                 try {
-                                  if (!accessToken) {
-                                    toast.error('Authentication required');
+                                  if (!api) {
+                                    toast.error('Not authenticated');
                                     return;
                                   }
                                   
-                                  const api = new APIClient(accessToken);
                                   await api.deleteLeague(league.id);
                                   
                                   toast.success('League Deleted', {
@@ -1037,10 +986,8 @@ function LeaguesModalComponent({
         })()}
       </div>
 
-      {/* External Buttons - Step 1: Your Leagues List */}
       {modalStep === 1 && (
         <>
-          {/* Left side - Manage button */}
           <div className="fixed bottom-8 left-4 z-[60]" onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-col items-center gap-1.5">
               <button
@@ -1053,7 +1000,6 @@ function LeaguesModalComponent({
             </div>
           </div>
 
-          {/* Right side - Join and Create buttons */}
           <div className="fixed bottom-8 right-4 z-[60]" onClick={(e) => e.stopPropagation()}>
             <div className="flex flex-col gap-3">
               <div className="flex flex-col items-center gap-1.5">
@@ -1079,77 +1025,66 @@ function LeaguesModalComponent({
         </>
       )}
 
-      {/* External Buttons - Step 2: League Detail View */}
       {modalStep === 2 && (
-        <>
-          {console.log('🔍 Button render - selectedLeague:', selectedLeague)}
-          {console.log('🔍 Button render - allowStealthMode:', selectedLeague?.allowStealthMode)}
-          {console.log('🔍 Button render - allowDoubleUp:', selectedLeague?.allowDoubleUp)}
-          {console.log('🔍 Button render - loadingStatus:', loadingStatus)}
-          
-          <div className="fixed bottom-8 right-4 z-[60] flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
-            {/* Explanatory Text */}
-            <div className="flex flex-col gap-3">
-              <div className="px-3 py-2 max-w-[180px]">
-                <p className="text-white text-[9px] leading-tight">
-                  Stealth mode hides your activities for 3 days
-                </p>
-              </div>
-              <div className="px-3 py-2 max-w-[180px]">
-                <p className="text-white text-[9px] leading-tight">
-                  Double your workouts for that day (can use only once)
-                </p>
-              </div>
+        <div className="fixed bottom-8 right-4 z-[60] flex items-center gap-3" onClick={(e) => e.stopPropagation()}>
+          <div className="flex flex-col gap-3">
+            <div className="px-3 py-2 max-w-[180px]">
+              <p className="text-white text-[9px] leading-tight">
+                Stealth mode hides your activities for 3 days
+              </p>
             </div>
-            
-            {/* Buttons */}
-            <div className="flex flex-col gap-3">
-              <div className="flex flex-col items-center gap-1.5">
-                <button
-                  onClick={handleStealthToggle}
-                  disabled={!selectedLeague?.allowStealthMode || loadingStatus}
-                  className={`w-20 h-20 rounded-full backdrop-blur-sm flex items-center justify-center transition-all shadow-lg ${
-                    !selectedLeague?.allowStealthMode || loadingStatus
-                      ? 'bg-white/5 border border-white/10 opacity-50 cursor-not-allowed'
-                      : stealthActivated
-                      ? 'bg-white/30 border-2 border-white/50'
-                      : 'bg-white/10 border border-white/20 hover:bg-white/20'
-                  }`}
-                >
-                  <EyeOff className="w-7 h-7 text-white" strokeWidth={2} />
-                </button>
-                <span className="text-white text-[10px] text-center whitespace-pre-line">
-                  {renderStealthStatus()}
-                </span>
-              </div>
-              <div className="flex flex-col items-center gap-1.5">
-                <button
-                  onClick={handleDoubleUpToggle}
-                  disabled={
-                    !selectedLeague?.allowDoubleUp || 
-                    loadingStatus || 
-                    membershipStatus?.doubleUpUsed === true
-                  }
-                  className={`w-20 h-20 rounded-full backdrop-blur-sm flex items-center justify-center transition-all shadow-lg ${
-                    !selectedLeague?.allowDoubleUp || loadingStatus || membershipStatus?.doubleUpUsed
-                      ? 'bg-white/5 border border-white/10 opacity-50 cursor-not-allowed'
-                      : doubleUpActivated
-                      ? 'bg-white/30 border-2 border-white/50'
-                      : 'bg-white/10 border border-white/20 hover:bg-white/20'
-                  }`}
-                >
-                  <Star className="w-7 h-7 text-white" strokeWidth={2} />
-                </button>
-                <span className="text-white text-[10px] text-center whitespace-pre-line">
-                  {renderDoubleUpStatus()}
-                </span>
-              </div>
+            <div className="px-3 py-2 max-w-[180px]">
+              <p className="text-white text-[9px] leading-tight">
+                Double your workouts for that day (can use only once)
+              </p>
             </div>
           </div>
-        </>
+          
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col items-center gap-1.5">
+              <button
+                onClick={handleStealthToggle}
+                disabled={!selectedLeague?.allowStealthMode || loadingStatus}
+                className={`w-20 h-20 rounded-full backdrop-blur-sm flex items-center justify-center transition-all shadow-lg ${
+                  !selectedLeague?.allowStealthMode || loadingStatus
+                    ? 'bg-white/5 border border-white/10 opacity-50 cursor-not-allowed'
+                    : stealthActivated
+                    ? 'bg-white/30 border-2 border-white/50'
+                    : 'bg-white/10 border border-white/20 hover:bg-white/20'
+                }`}
+              >
+                <EyeOff className="w-7 h-7 text-white" strokeWidth={2} />
+              </button>
+              <span className="text-white text-[10px] text-center whitespace-pre-line">
+                {renderStealthStatus()}
+              </span>
+            </div>
+            <div className="flex flex-col items-center gap-1.5">
+              <button
+                onClick={handleDoubleUpToggle}
+                disabled={
+                  !selectedLeague?.allowDoubleUp || 
+                  loadingStatus || 
+                  membershipStatus?.doubleUpUsed === true
+                }
+                className={`w-20 h-20 rounded-full backdrop-blur-sm flex items-center justify-center transition-all shadow-lg ${
+                  !selectedLeague?.allowDoubleUp || loadingStatus || membershipStatus?.doubleUpUsed
+                    ? 'bg-white/5 border border-white/10 opacity-50 cursor-not-allowed'
+                    : doubleUpActivated
+                    ? 'bg-white/30 border-2 border-white/50'
+                    : 'bg-white/10 border border-white/20 hover:bg-white/20'
+                }`}
+              >
+                <Star className="w-7 h-7 text-white" strokeWidth={2} />
+              </button>
+              <span className="text-white text-[10px] text-center whitespace-pre-line">
+                {renderDoubleUpStatus()}
+              </span>
+            </div>
+          </div>
+        </div>
       )}
 
-      {/* External Buttons - Step 3: Join League */}
       {modalStep === 3 && (
         <div className="fixed bottom-8 right-4 z-[60]" onClick={(e) => e.stopPropagation()}>
           <div className="flex flex-col gap-3">
@@ -1164,22 +1099,46 @@ function LeaguesModalComponent({
             </div>
             <div className="flex flex-col items-center gap-1.5">
               <button
-                onClick={async () => {
+                                onClick={async () => {
+                  console.log('🔵 Join button clicked!');
+                  console.log('🔵 joinLeagueCode:', joinLeagueCode);
+                  console.log('🔵 api:', api);
+                  
                   if (joinLeagueCode.length >= 4) {
                     try {
-                      const api = new APIClient(accessToken!);
-                      await api.joinLeague(joinLeagueCode);
-                      toast.success('Joined League!', {
-                        description: `You've joined with code ${joinLeagueCode}`,
+                      if (!api) {
+                        console.log('🔴 No API client available');
+                        toast.error('Not authenticated');
+                        return;
+                      }
+                      
+                      console.log('🔵 Calling api.joinLeague...');
+                      const result = await api.joinLeague(joinLeagueCode);
+                      console.log('🔵 Join result:', result);
+                      
+                      const leagueName = result?.league_name || 'league';
+                      toast.success('🎉 Welcome to the League!', {
+                        description: `You've successfully joined ${leagueName}`,
+                        duration: 3000,
                       });
+                      
                       await refreshLeagues();
                       setJoinLeagueCode('');
-                      setModalStep(1);
+                      
+                      setTimeout(() => {
+                        onClose();
+                      }, 1500);
                     } catch (error: any) {
-                      toast.error(error.message || 'Failed to join league');
+                      console.error('🔴 Join league error:', error);
+                      toast.error('Failed to Join League', {
+                        description: error.message || 'Please check the code and try again',
+                      });
                     }
                   } else {
-                    toast.error('Please enter a valid code');
+                    console.log('🔴 Invalid code length:', joinLeagueCode.length);
+                    toast.error('Invalid Code', {
+                      description: 'Please enter a valid league code (at least 4 characters)',
+                    });
                   }
                 }}
                 className={`w-20 h-20 rounded-full backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 shadow-lg ${
@@ -1196,7 +1155,6 @@ function LeaguesModalComponent({
         </div>
       )}
 
-      {/* External Buttons - Step 4: Create League */}
       {modalStep === 4 && (
         <div className="fixed bottom-8 right-4 z-[60]" onClick={(e) => e.stopPropagation()}>
           <div className="flex flex-col gap-3">
@@ -1227,7 +1185,6 @@ function LeaguesModalComponent({
         </div>
       )}
 
-      {/* External Buttons - Step 5: League Created Confirmation */}
       {modalStep === 5 && (
         <div className="fixed bottom-8 right-4 z-[60]" onClick={(e) => e.stopPropagation()}>
           <div className="flex flex-col gap-3">
@@ -1295,7 +1252,6 @@ function LeaguesModalComponent({
         </div>
       )}
 
-      {/* External Buttons - Step 6: Manage Leagues */}
       {modalStep === 6 && (
         <div className="fixed bottom-8 right-4 z-[60]" onClick={(e) => e.stopPropagation()}>
           <div className="flex flex-col items-center gap-1.5">

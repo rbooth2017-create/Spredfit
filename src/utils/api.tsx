@@ -577,6 +577,59 @@ export class APIClient {
   }
 }
 
+async joinLeague(leagueCode: string) {
+  console.log('🔵 API Client: Joining league with code', leagueCode);
+  
+  try {
+    const { data: { user } } = await this.supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('Not authenticated');
+    }
+
+    // First, find the league by code
+    const { data: league, error: leagueError } = await this.supabase
+      .from('leagues')
+      .select('id, name')
+      .eq('league_code', leagueCode)
+      .single();
+
+    if (leagueError || !league) {
+      throw new Error('League not found. Please check the code and try again.');
+    }
+
+    // Check if user is already a member
+    const { data: existingMember } = await this.supabase
+      .from('league_memberships')
+      .select('id')
+      .eq('league_id', league.id)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (existingMember) {
+      throw new Error('You are already a member of this league');
+    }
+
+    // Join the league
+    const { error: joinError } = await this.supabase
+      .from('league_memberships')
+      .insert({
+        league_id: league.id,
+        user_id: user.id,
+      });
+
+    if (joinError) throw joinError;
+    
+    console.log('✅ Joined league successfully');
+    return {
+      league_name: league.name,
+    };
+  } catch (error) {
+    console.error('❌ Failed to join league:', error);
+    throw error;
+  }
+}
+
 async createLeague(leagueData: {
   name: string;
   description?: string;
