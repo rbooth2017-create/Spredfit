@@ -1,5 +1,4 @@
-// src/components/ResetPassword.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { Label } from './ui/label';
@@ -13,22 +12,35 @@ export function ResetPassword() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    // Handle the hash parameters from email link
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const accessToken = hashParams.get('access_token');
+    
+    if (accessToken) {
+      // Session will be automatically restored by Supabase
+      console.log('✅ Recovery token detected');
+    }
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError('');
     
     if (!newPassword || !confirmPassword) {
-      toast.error("Please fill in all fields");
+      setError("Please fill in all fields");
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      toast.error("Passwords don't match");
+      setError("Passwords don't match");
       return;
     }
 
     if (newPassword.length < 6) {
-      toast.error("Password must be at least 6 characters");
+      setError("Password must be at least 6 characters");
       return;
     }
 
@@ -45,9 +57,7 @@ export function ResetPassword() {
         window.location.href = '/';
       }, 2000);
     } catch (error: any) {
-      toast.error("Failed to reset password", {
-        description: error.message || "Please try again"
-      });
+      setError(error.message || "Failed to reset password");
     } finally {
       setLoading(false);
     }
@@ -111,6 +121,12 @@ export function ResetPassword() {
                 </button>
               </div>
             </div>
+
+            {error && (
+              <div className="text-red-400 text-sm bg-red-500/10 border border-red-500/20 rounded-lg p-3">
+                {error}
+              </div>
+            )}
 
             <Button
               type="submit"
