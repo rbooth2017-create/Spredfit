@@ -156,38 +156,40 @@ function ChatModalComponent({
         </div>
       </div>
 
-      {/* External Filter Buttons - Bottom Right */}
-      <div className="fixed bottom-8 right-4 z-[60]" onClick={(e) => e.stopPropagation()}>
-        <div className="flex flex-col gap-3">
-          <div className="flex flex-col items-center gap-1.5">
-            <button
-              onClick={() => setChatFilter('leagues')}
-              className={`w-20 h-20 rounded-full backdrop-blur-sm flex items-center justify-center transition-all border shadow-lg ${
-                chatFilter === 'leagues'
-                  ? 'bg-[#2d2d2d] border-white/40'
-                  : 'bg-[#2d2d2d]/40 border-white/20 hover:bg-[#2d2d2d]/60'
-              }`}
-            >
-              <Trophy className="w-7 h-7 text-white" strokeWidth={2} />
-            </button>
-            <span className="text-white text-[10px] text-center">Leagues</span>
+              {/* External Filter Buttons - Bottom Right */}
+        {!selectedChat && (
+          <div className="fixed bottom-8 right-4 z-[60]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex flex-col gap-3">
+              <div className="flex flex-col items-center gap-1.5">
+                <button
+                  onClick={() => setChatFilter('leagues')}
+                  className={`w-20 h-20 rounded-full backdrop-blur-sm flex items-center justify-center transition-all border shadow-lg ${
+                    chatFilter === 'leagues'
+                      ? 'bg-[#2d2d2d] border-white/40'
+                      : 'bg-[#2d2d2d]/40 border-white/20 hover:bg-[#2d2d2d]/60'
+                  }`}
+                >
+                  <Trophy className="w-7 h-7 text-white" strokeWidth={2} />
+                </button>
+                <span className="text-white text-[10px] text-center">Leagues</span>
+              </div>
+              <div className="flex flex-col items-center gap-1.5">
+                <button
+                  onClick={() => setChatFilter('teams')}
+                  className={`w-20 h-20 rounded-full backdrop-blur-sm flex items-center justify-center transition-all border shadow-lg ${
+                    chatFilter === 'teams'
+                      ? 'bg-[#2d2d2d] border-white/40'
+                      : 'bg-[#2d2d2d]/40 border-white/20 hover:bg-[#2d2d2d]/60'
+                  }`}
+                >
+                  <Users className="w-7 h-7 text-white" strokeWidth={2} />
+                </button>
+                <span className="text-white text-[10px] text-center">Teams</span>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-col items-center gap-1.5">
-            <button
-              onClick={() => setChatFilter('teams')}
-              className={`w-20 h-20 rounded-full backdrop-blur-sm flex items-center justify-center transition-all border shadow-lg ${
-                chatFilter === 'teams'
-                  ? 'bg-[#2d2d2d] border-white/40'
-                  : 'bg-[#2d2d2d]/40 border-white/20 hover:bg-[#2d2d2d]/60'
-              }`}
-            >
-              <Users className="w-7 h-7 text-white" strokeWidth={2} />
-            </button>
-            <span className="text-white text-[10px] text-center">Teams</span>
-          </div>
-        </div>
-      </div>
-    </>
+        )}
+      </>
   );
 }
 

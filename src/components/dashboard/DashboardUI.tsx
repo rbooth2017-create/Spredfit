@@ -169,6 +169,15 @@ function ActivityCarouselComponent({
                       <h2 className="text-[#eef0ed] mb-2 font-semibold text-xl">
                         {activity.userName}
                       </h2>
+
+                      {/* 2.5. Date */}
+                     <p className="text-[#eef0ed]/60 mb-2 text-xs">
+                      {new Date(activity.date || activity.time).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                       })}
+                          </p>
                       
                       {/* 3. Distance and Time (or just time) */}
                       {activity.type === 'workout' && (

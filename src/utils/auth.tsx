@@ -204,7 +204,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           supaUser.user_metadata?.name ||
           supaUser.email ||
           "User",
-        username: profile?.username,
+          username: profile?.full_name || profile?.username,
         avatar_url: profile?.avatar_url,
       };
 

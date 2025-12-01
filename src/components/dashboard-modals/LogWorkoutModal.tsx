@@ -15,6 +15,8 @@ interface LogWorkoutModalProps {
   sports: Sport[];
   selectedSport: string | null;
   setSelectedSport: (sport: string | null) => void;
+  logDate: string;
+  setLogDate: (date: string) => void;
   logDistance: string;
   setLogDistance: (distance: string) => void;
   logHours: string;
@@ -37,6 +39,8 @@ function LogWorkoutModalComponent({
   sports,
   selectedSport,
   setSelectedSport,
+  logDate,
+  setLogDate,
   logDistance,
   setLogDistance,
   logHours,
@@ -108,7 +112,7 @@ function LogWorkoutModalComponent({
           type: selectedSport!,
           duration: (parseInt(logHours) || 0) * 60 + (parseInt(logMinutes) || 0),
           distance: parseFloat(logDistance) || 0,
-          date: new Date().toISOString(),
+          created_at: new Date(logDate).toISOString(),
           notes: logNotes,
           photo_url: photoUrl,
         });
@@ -178,11 +182,7 @@ function LogWorkoutModalComponent({
                     <button
                       onClick={() => {
                         setSelectedSport(sport.name);
-                        if (['Running', 'Cycling', 'Swimming'].includes(sport.name)) {
-                          setModalStep(2);
-                        } else {
-                          setModalStep(3);
-                        }
+                        setModalStep(2); // Always go to date selection
                       }}
                       className="w-14 h-14 rounded-full bg-transparent backdrop-blur-sm hover:bg-white/10 flex items-center justify-center transition-all border border-white/20"
                     >
@@ -196,8 +196,26 @@ function LogWorkoutModalComponent({
           </div>
         )}
 
-        {/* Step 2: Distance Entry */}
+        {/* Step 2: Date Selection */}
         {modalStep === 2 && selectedSport && (
+          <div className="flex flex-col items-center text-center space-y-4 w-full">
+            <p className="text-white/70 text-xs">{selectedSport}</p>
+            <p className="text-white text-sm">Select Date</p>
+            <input
+              type="date"
+              value={logDate}
+              onChange={(e) => setLogDate(e.target.value)}
+              max={new Date().toISOString().split('T')[0]}
+              className="px-4 py-2 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 text-white text-center focus:outline-none focus:ring-2 focus:ring-white/40"
+              style={{
+                colorScheme: 'dark'
+              }}
+            />
+          </div>
+        )}
+
+        {/* Step 3: Distance Entry */}
+        {modalStep === 3 && selectedSport && (
           <div className="flex flex-col items-center text-center space-y-4 w-full">
             <p className="text-white/70 text-xs">{selectedSport}</p>
             <p className="text-white text-sm">Enter Distance</p>
@@ -218,8 +236,8 @@ function LogWorkoutModalComponent({
           </div>
         )}
 
-        {/* Step 3: Time Entry */}
-        {modalStep === 3 && selectedSport && (
+        {/* Step 4: Time Entry */}
+        {modalStep === 4 && selectedSport && (
           <div className="flex flex-col items-center text-center space-y-4 w-full">
             <p className="text-white/70 text-xs">{selectedSport}</p>
             <p className="text-white text-sm">Enter Duration</p>
@@ -247,8 +265,8 @@ function LogWorkoutModalComponent({
           </div>
         )}
 
-        {/* Step 4: Notes Entry */}
-        {modalStep === 4 && selectedSport && (
+        {/* Step 5: Notes Entry */}
+        {modalStep === 5 && selectedSport && (
           <div className="flex flex-col items-center text-center space-y-4 w-full px-4">
             <p className="text-white/70 text-xs">{selectedSport}</p>
             <p className="text-white text-sm">Add Notes (Optional)</p>
@@ -262,8 +280,8 @@ function LogWorkoutModalComponent({
           </div>
         )}
 
-        {/* Step 5: Review Activity */}
-        {modalStep === 5 && selectedSport && !showPhotoUpload && (
+        {/* Step 6: Review Activity */}
+        {modalStep === 6 && selectedSport && !showPhotoUpload && (
           <div className="flex flex-col items-center text-center space-y-4 w-full px-4">
             <div className="mb-4">
               <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-white/20 backdrop-blur-sm border border-white/30 flex items-center justify-center">
@@ -276,6 +294,16 @@ function LogWorkoutModalComponent({
               <div className="flex justify-between items-center">
                 <span className="text-white/70 text-xs">Sport:</span>
                 <span className="text-white text-xs">{selectedSport}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-white/70 text-xs">Date:</span>
+                <span className="text-white text-xs">
+                  {new Date(logDate).toLocaleDateString('en-US', {
+                    month: 'short',
+                    day: 'numeric',
+                    year: 'numeric'
+                  })}
+                </span>
               </div>
               {logDistance && (
                 <div className="flex justify-between items-center">
@@ -329,7 +357,7 @@ function LogWorkoutModalComponent({
         )}
       </div>
 
-      {/* External Buttons - Step 2: Distance Entry */}
+      {/* External Buttons - Step 2: Date Selection */}
       {modalStep === 2 && (
         <div className="fixed bottom-8 right-4 z-[60]" onClick={(e) => e.stopPropagation()}>
           <div className="flex flex-col gap-3">
@@ -344,7 +372,13 @@ function LogWorkoutModalComponent({
             </div>
             <div className="flex flex-col items-center gap-1.5">
               <button
-                onClick={() => setModalStep(3)}
+                onClick={() => {
+                  if (['Running', 'Cycling', 'Swimming'].includes(selectedSport!)) {
+                    setModalStep(3); // Go to distance
+                  } else {
+                    setModalStep(4); // Skip distance, go to time
+                  }
+                }}
                 className="w-20 h-20 rounded-full bg-[#2d2d2d] backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 hover:bg-[#2d2d2d]/90 shadow-lg"
               >
                 <ArrowLeft className="w-7 h-7 text-white -scale-x-100" strokeWidth={2} />
@@ -355,19 +389,13 @@ function LogWorkoutModalComponent({
         </div>
       )}
 
-      {/* External Buttons - Step 3: Time Entry */}
+      {/* External Buttons - Step 3: Distance Entry */}
       {modalStep === 3 && (
         <div className="fixed bottom-8 right-4 z-[60]" onClick={(e) => e.stopPropagation()}>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col items-center gap-1.5">
               <button
-                onClick={() => {
-                  if (selectedSport && ['Running', 'Cycling', 'Swimming'].includes(selectedSport)) {
-                    setModalStep(2);
-                  } else {
-                    setModalStep(1);
-                  }
-                }}
+                onClick={() => setModalStep(2)}
                 className="w-20 h-20 rounded-full bg-[#2d2d2d] backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 hover:bg-[#2d2d2d]/90 shadow-lg"
               >
                 <ArrowLeft className="w-7 h-7 text-white" strokeWidth={2} />
@@ -387,13 +415,19 @@ function LogWorkoutModalComponent({
         </div>
       )}
 
-      {/* External Buttons - Step 4: Notes Entry */}
+      {/* External Buttons - Step 4: Time Entry */}
       {modalStep === 4 && (
         <div className="fixed bottom-8 right-4 z-[60]" onClick={(e) => e.stopPropagation()}>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col items-center gap-1.5">
               <button
-                onClick={() => setModalStep(3)}
+                onClick={() => {
+                  if (selectedSport && ['Running', 'Cycling', 'Swimming'].includes(selectedSport)) {
+                    setModalStep(3);
+                  } else {
+                    setModalStep(2);
+                  }
+                }}
                 className="w-20 h-20 rounded-full bg-[#2d2d2d] backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 hover:bg-[#2d2d2d]/90 shadow-lg"
               >
                 <ArrowLeft className="w-7 h-7 text-white" strokeWidth={2} />
@@ -402,17 +436,48 @@ function LogWorkoutModalComponent({
             </div>
             <div className="flex flex-col items-center gap-1.5">
               <button
-                onClick={async () => {
+                onClick={() => setModalStep(5)}
+                className="w-20 h-20 rounded-full bg-[#2d2d2d] backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 hover:bg-[#2d2d2d]/90 shadow-lg"
+              >
+                <ArrowLeft className="w-7 h-7 text-white -scale-x-100" strokeWidth={2} />
+              </button>
+              <span className="text-white text-[10px] text-center">Next</span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* External Buttons - Step 5: Notes Entry */}
+      {modalStep === 5 && (
+        <div className="fixed bottom-8 right-4 z-[60]" onClick={(e) => e.stopPropagation()}>
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-col items-center gap-1.5">
+              <button
+                onClick={() => setModalStep(4)}
+                className="w-20 h-20 rounded-full bg-[#2d2d2d] backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 hover:bg-[#2d2d2d]/90 shadow-lg"
+              >
+                <ArrowLeft className="w-7 h-7 text-white" strokeWidth={2} />
+              </button>
+              <span className="text-white text-[10px] text-center">Back</span>
+            </div>
+            <div className="flex flex-col items-center gap-1.5">
+              <button
+                                onClick={async () => {
                   if (saving) return;
                   
                   setSaving(true);
                   try {
                     const totalMinutes = (parseInt(logHours) || 0) * 60 + (parseInt(logMinutes) || 0);
+                    
+                    // Convert the date string to ISO timestamp
+                    const workoutDate = new Date(logDate);
+                    workoutDate.setHours(12, 0, 0, 0); // Set to noon to avoid timezone issues
+                    
                     const workoutData = {
                       type: selectedSport!,
                       duration: totalMinutes,
                       distance: parseFloat(logDistance) || 0,
-                      date: new Date().toISOString(),
+                      created_at: workoutDate.toISOString(), // Convert to ISO timestamp
                       notes: logNotes,
                       leagueId: currentLeague?.id,
                       photo: uploadedPhoto,
@@ -431,7 +496,7 @@ function LogWorkoutModalComponent({
                     
                     toast.success(editingWorkoutId ? 'Workout Updated!' : 'Workout Logged!');
                     await refreshActivities();
-                    setModalStep(5);
+                    setModalStep(6);
                   } catch (error) {
                     console.error("Failed to save workout:", error);
                     toast.error("Failed to save workout");
@@ -450,15 +515,21 @@ function LogWorkoutModalComponent({
         </div>
       )}
 
-      {/* External Buttons - Step 5: Review Activity */}
-      {modalStep === 5 && !showPhotoUpload && (
+      {/* External Buttons - Step 6: Review Activity */}
+      {modalStep === 6 && !showPhotoUpload && (
         <div className="fixed bottom-8 right-4 z-[60]" onClick={(e) => e.stopPropagation()}>
           <div className="flex flex-col gap-3">
             <div className="flex flex-col items-center gap-1.5">
               <button
                 onClick={() => setShowPhotoUpload(true)}
                 className="w-20 h-20 rounded-full bg-[#2d2d2d] backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 hover:bg-[#2d2d2d]/90 shadow-lg"
-              
+              >
+                <Camera className="w-7 h-7 text-white" strokeWidth={2} />
+              </button>
+              <span className="text-white text-[10px] text-center">Photo</span>
+            </div>
+            <div className="flex flex-col items-center gap-1.5">
+              <button
                 onClick={onClose}
                 className="w-20 h-20 rounded-full bg-[#2d2d2d] backdrop-blur-sm flex items-center justify-center transition-all border border-white/20 hover:bg-[#2d2d2d]/90 shadow-lg"
               >

@@ -102,6 +102,8 @@ export function Dashboard({
   } = useApp();
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
 
+  const [logDate, setLogDate] = useState<string>(new Date().toISOString().split('T')[0]);
+
   // Tutorial state - show if user just signed up
   const [showTutorial, setShowTutorial] = useState(false);
 
@@ -418,13 +420,10 @@ const storePosition = (userId: string, leagueId: string, position: number) => {
             cleanName.charAt(0).toUpperCase() + cleanName.slice(1),
         };
       }
-      // If it's a full name, extract just the first name
-      if (activity.userName?.includes(" ")) {
-        return {
-          ...activity,
-          userName: activity.userName.split(" ")[0],
-        };
-      }
+         // If it's a full name, keep it as-is
+    if (activity.userName?.includes(" ")) {
+      return activity;
+    }
       // Otherwise return as-is
       return activity;
     });
@@ -714,14 +713,15 @@ useEffect(() => {
 // After getting workouts, add league rank information
 
     // Load chat when league changes
-  const loadChat = async () => {
-    if (!selectedChat || !accessToken) return;
+    const loadChat = async () => {
+    if (!selectedChat || !accessToken || !api) return;
     
     try {
-      const api = new APIClient(accessToken);
-      const messages = await api.getLeagueChat(selectedChat);
+      const isTeamChat = chatFilter === 'teams';
+      const messages = isTeamChat 
+        ? await api.getTeamChat(selectedChat)
+        : await api.getLeagueChat(selectedChat);
       
-      // Transform messages to ChatMessage format
       const transformedMessages = messages.map((msg: any) => ({
         id: msg.id,
         sender: msg.userName,
@@ -786,17 +786,44 @@ useEffect(() => {
     }
   }, [activeModal]);
 
-  const teamChats: any[] = [];
+  const [teamChats, setTeamChats] = useState<any[]>([]);
+
+    // Load team chats
+  useEffect(() => {
+    async function loadTeamChats() {
+      if (!accessToken || !api) return;
+      
+      try {
+        const teams = await api.getUserTeams();
+        
+        setTeamChats(teams.map(team => ({
+          id: team.id,
+          name: `${team.name} (${team.leagueName})`,
+          lastMessage: '',
+          time: '',
+          unread: 0,
+        })));
+      } catch (error) {
+        console.error('Failed to load team chats:', error);
+      }
+    }
+    
+    loadTeamChats();
+  }, [accessToken, api]);
 
     // Send message function
-  const sendMessage = async () => {
-    if (!user || !selectedChat || !messageText.trim()) return;
+    const sendMessage = async () => {
+    if (!user || !selectedChat || !messageText.trim() || !api) return;
     
     try {
-      const api = new APIClient(accessToken);
-      await api.sendChatMessage(selectedChat, messageText.trim());
+      const isTeamChat = chatFilter === 'teams';
       
-      // Reload chat to show new message
+      if (isTeamChat) {
+        await api.sendTeamChatMessage(selectedChat, messageText.trim());
+      } else {
+        await api.sendChatMessage(selectedChat, messageText.trim());
+      }
+      
       await loadChat();
       setMessageText('');
       toast.success('Message sent!');
@@ -805,8 +832,6 @@ useEffect(() => {
       toast.error('Failed to send message');
     }
   };
-  
-
   // ✅ Use custom hooks for handlers and timers
   const handlers = useDashboardHandlers(state);
   useWorkoutTimer(
@@ -1048,6 +1073,8 @@ useEffect(() => {
                 handleFileSelect={handleFileSelect}
                 accessToken={accessToken}   // ✅ pass token into the modal
                 editingWorkoutId={editingWorkoutId}
+                logDate={logDate}
+                setLogDate={setLogDate}
                 onUpdate={async (workoutId, data) => {
                   if (!accessToken) {
                     toast.error("Not authenticated");
@@ -1068,12 +1095,16 @@ useEffect(() => {
                   await refreshProfile();
 
                   setEditingWorkoutId(null);
+                  setLogDate(new Date().toISOString().split('T')[0]);
                   toast.success("Workout updated!");
                   closeModal();
                 }}
-                onClose={closeModal}
-              />
-            )}
+                    onClose={() => {
+                    closeModal();
+                    setLogDate(new Date().toISOString().split('T')[0]);
+                  }}
+                  />
+                )}
 
             {/* Leaderboard Modal */}
             {activeModal === "leaderboard" && (

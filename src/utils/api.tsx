@@ -287,7 +287,7 @@ export class APIClient {
       photoUrl = `${origin}/workout/workout-${sportType}.png`;
     }
 
-    const { data, error } = await this.supabase
+        const { data, error } = await this.supabase
       .from('workouts')
       .insert([
         {
@@ -296,7 +296,8 @@ export class APIClient {
           duration_min: workout.duration,
           distance_km: workout.distance,
           notes: workout.notes,
-          photo_url: photoUrl, // Save the photo URL
+          photo_url: photoUrl,
+          created_at: workout.created_at,
         },
       ])
       .select()
@@ -387,7 +388,7 @@ export class APIClient {
       photoUrl = `/workout/workout-${sportType}.png`;
     }
     
-    const { data, error } = await this.supabase
+        const { data, error } = await this.supabase
       .from('workouts')
       .update({
         type: workoutData.type,
@@ -395,6 +396,7 @@ export class APIClient {
         distance_km: workoutData.distance,
         notes: workoutData.notes,
         photo_url: photoUrl,
+        created_at: workout.created_at,
       })
       .eq('id', workoutId)
       .select()
@@ -1208,6 +1210,116 @@ return sorted;
       console.log('✅ League deleted');
     } catch (error) {
       console.error('❌ Failed to delete league:', error);
+      throw error;
+    }
+  }
+
+    // Get team chat messages
+  async getTeamChat(teamId: string) {
+    console.log('🔵 API Client: Fetching team chat');
+    try {
+      const { data: messages, error } = await this.supabase
+        .from('league_chat')
+        .select(`
+          id,
+          message,
+          created_at,
+          user_id,
+          profiles:user_id (
+            username,
+            full_name
+          )
+        `)
+        .eq('team_id', teamId)
+        .order('created_at', { ascending: true });
+  
+      if (error) throw error;
+  
+      return messages.map((msg: any) => ({
+        id: msg.id,
+        message: msg.message,
+        timestamp: msg.created_at,
+        userId: msg.user_id,
+        userName: msg.profiles?.full_name || msg.profiles?.username || 'User',
+      }));
+    } catch (error) {
+      console.error('❌ Failed to fetch team chat:', error);
+      throw error;
+    }
+  }
+  
+    // Send team chat message
+  async sendTeamChatMessage(teamId: string, message: string) {
+    console.log('🔵 API Client: Sending team chat message');
+    console.log('🔵 Team ID:', teamId);
+    console.log('🔵 Message:', message);
+    
+    try {
+      const { data: { user } } = await this.supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+  
+      console.log('🔵 User ID:', user.id);
+  
+      const insertData = {
+        team_id: teamId,
+        user_id: user.id,
+        message: message.trim(),
+      };
+      
+      console.log('🔵 Insert data:', insertData);
+  
+      const { data, error } = await this.supabase
+        .from('league_chat')
+        .insert([insertData])
+        .select()
+        .single();
+  
+      if (error) {
+        console.error('🔴 Insert error:', error);
+        throw error;
+      }
+  
+      console.log('✅ Team chat message sent:', data);
+      return data;
+    } catch (error) {
+      console.error('❌ Failed to send team chat message:', error);
+      throw error;
+    }
+  }
+  
+  // Get user's teams
+  async getUserTeams() {
+    console.log('🔵 API Client: Fetching user teams');
+    try {
+      const { data: { user } } = await this.supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+  
+      const { data: memberships, error } = await this.supabase
+        .from('league_memberships')
+        .select(`
+          team_id,
+          league_teams!inner (
+            id,
+            name,
+            league_id,
+            leagues (
+              name
+            )
+          )
+        `)
+        .eq('user_id', user.id)
+        .not('team_id', 'is', null);
+  
+      if (error) throw error;
+  
+      return memberships?.map((m: any) => ({
+        id: m.league_teams.id,
+        name: m.league_teams.name,
+        leagueName: m.league_teams.leagues?.name,
+        leagueId: m.league_teams.league_id,
+      })) || [];
+    } catch (error) {
+      console.error('❌ Failed to fetch user teams:', error);
       throw error;
     }
   }
