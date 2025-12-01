@@ -42,7 +42,7 @@ const supabase = createClient(supabaseUrl, publicAnonKey, {
   auth: {
     persistSession: true,
     autoRefreshToken: true,
-    detectSessionInUrl: false,
+    detectSessionInUrl: true,
     storage: typeof window !== 'undefined' ? window.localStorage : undefined
   }
 });
