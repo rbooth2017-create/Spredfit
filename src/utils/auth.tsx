@@ -24,6 +24,7 @@ interface AuthContextType {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, name: string, username: string) => Promise<void>;
   signOut: () => Promise<void>;
+  resetPassword: (email: string) => Promise<void>; 
   refreshSession: () => Promise<void>;
   justSignedUp: boolean;
   clearJustSignedUp: () => void;
@@ -266,6 +267,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
   };
 
+        const resetPassword = async (email: string) => {
+        console.log('🔵🔵🔵 auth.tsx: resetPassword CALLED');
+        console.log('🔵 Email parameter:', email);
+        console.log('🔵 Supabase client exists?', !!supabase);
+        console.log('🔵 Redirect URL:', `${window.location.origin}/reset-password`);
+        
+        try {
+          console.log('🔵 About to call supabase.auth.resetPasswordForEmail...');
+          
+          const { data, error } = await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: `${window.location.origin}/reset-password`,
+          });
+      
+          console.log('🔵 Reset password response DATA:', data);
+          console.log('🔵 Reset password response ERROR:', error);
+      
+          if (error) {
+            console.error('❌ auth.tsx: Password reset error:', error);
+            throw error;
+          }
+      
+          console.log('✅ auth.tsx: Password reset email request completed');
+        } catch (error) {
+          console.error('❌ auth.tsx: Exception in resetPassword:', error);
+          throw error;
+        }
+      };
+
   /* ---------- SIGN UP ---------- */
 
   const signUp = async (email: string, password: string, name: string, username: string) => {
@@ -371,6 +400,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     signIn,
     signUp,
     signOut,
+    resetPassword,
     refreshSession,
     justSignedUp,
     clearJustSignedUp,

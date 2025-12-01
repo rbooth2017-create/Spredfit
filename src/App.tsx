@@ -64,7 +64,7 @@ interface LeagueData {
 }
 
 function AppContent() {
-  const { user, signIn, signUp, signOut, loading: authLoading } = useAuth();
+const { user, signIn, signUp, signOut, resetPassword, loading: authLoading } = useAuth();
 
   console.log('🔵 App.tsx: user state:', user);
 
@@ -349,6 +349,34 @@ if (authLoading) {
                         )}
                       </button>
                     </div>
+                    
+                    {/* ADD THIS - Forgot Password Link */}
+                   <button
+  onClick={async () => {
+    if (!loginEmail) {
+      toast.error("Please enter your email first");
+      return;
+    }
+
+    try {
+      console.log("🔵 Forgot password clicked for:", loginEmail);
+      await resetPassword(loginEmail); // ✅ THIS is the important call
+
+      toast.success("Password reset link sent!", {
+        description: "Check your inbox (and spam) for the reset email.",
+      });
+    } catch (error: any) {
+      console.error("🔴 Failed to send reset email:", error);
+      toast.error("Failed to send reset email", {
+        description: error.message || "Please try again",
+      });
+    }
+  }}
+  className="text-white/60 hover:text-emerald-400 text-xs transition-colors"
+>
+  Forgot password?
+</button>
+
                     
                     <div className="flex items-center justify-between">
                       <Checkbox
