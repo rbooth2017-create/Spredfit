@@ -1003,16 +1003,38 @@ useEffect(() => {
         />
       )}
 
-      {/* Circular Pop-up Modals */}
+            {/* Circular Pop-up Modals */}
       {activeModal && (
         <div
-          className="fixed inset-0 z-50 flex items-start pt-16 justify-center bg-black/60 backdrop-blur-sm"
+          className="fixed inset-0 z-50 flex items-start pt-16 justify-left bg-black/60 backdrop-blur-sm"
           onClick={closeModal}
         >
+          {/* Universal Back Button - Top Left */}
+          <button
+            onClick={closeModal}
+            className="fixed top-6 left-6 z-[60] w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm border border-white/20 flex items-center justify-center hover:bg-white/20 transition-all"
+            aria-label="Close modal"
+          >
+            <svg
+              className="w-6 h-6 text-white"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M15 19l-7-7 7-7"
+              />
+            </svg>
+          </button>
+      
           <div
             className="relative"
             onClick={(e) => e.stopPropagation()}
           >
+            
             {/* Start Workout Modal */}
             {activeModal === "start" && (
               <StartWorkoutModal
