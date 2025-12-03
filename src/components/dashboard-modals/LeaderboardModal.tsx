@@ -151,15 +151,19 @@ function LeaderboardModalComponent({
 
         {/* Step 2: Full League Leaderboard */}
         {modalStep === 2 && selectedLeague && (
-          <div className="flex flex-col items-center text-center w-full px-4">
+            <div className="flex flex-col items-center text-center w-full px-4">
             <p className="text-white text-sm mb-1">{selectedLeague.name}</p>
-            <p className="text-white/70 text-xs mb-2">
+            <p className="text-white/70 text-xs mb-1">
               {leaderboardView === 'individual' ? 'Individual' : 'Team'}
             </p>
-            <p className="text-white/60 text-[10px] mb-3">
+            <p className="text-white/60 text-[10px] mb-2">
               {getMetricLabel()} • {leaderboardPeriod === 'total' ? 'All Time' : 'This Week'}
             </p>
-            <div className="space-y-2 w-full max-h-40 overflow-y-auto scrollbar-hide mb-4">
+              <div className="space-y-2 w-full max-h-56 overflow-y-auto mb-4" style={{
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              WebkitOverflowScrolling: 'touch'
+            }}>
               {isLoading ? (
                 <p className="text-white/50 text-xs">Loading...</p>
               ) : leaderboardView === 'individual' ? (

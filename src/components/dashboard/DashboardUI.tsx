@@ -127,6 +127,9 @@ function ActivityCarouselComponent({
                 } else if (activity.type === 'streak') {
                   activityLabel = 'Streak';
                   Icon = Flame;
+                } else if (activity.type === 'pr') {
+                  activityLabel = 'Personal Record';
+                  Icon = Zap; // Lightning bolt for PRs
                 } else if (activity.type === 'plan_complete') {
                   activityLabel = 'Training Plan';
                   Icon = Calendar;
@@ -162,7 +165,12 @@ function ActivityCarouselComponent({
                     <div className="relative z-10 px-6">
                       {/* 1. Sport Icon */}
                       <div className="mb-3">
-                        <Icon className="w-12 h-12 text-[#eef0ed] mx-auto" strokeWidth={1.5} />
+                        <Icon className={`w-12 h-12 mx-auto ${
+                          activity.type === 'streak' ? 'text-orange-400' : 
+                          activity.type === 'achievement' ? 'text-yellow-400' : 
+                          activity.type === 'pr' ? 'text-purple-400' :
+                          'text-[#eef0ed]'
+                        }`} strokeWidth={1.5} />
                       </div>
                       
                       {/* 2. User Name */}
@@ -171,15 +179,57 @@ function ActivityCarouselComponent({
                       </h2>
 
                       {/* 2.5. Date */}
-                     <p className="text-[#eef0ed]/60 mb-2 text-xs">
-                      {new Date(activity.date || activity.time).toLocaleDateString('en-US', {
-                      month: 'short',
-                      day: 'numeric',
-                      year: 'numeric'
-                       })}
-                          </p>
+                      <p className="text-[#eef0ed]/60 mb-2 text-xs">
+                        {new Date(activity.date || activity.time).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric'
+                        })}
+                      </p>
                       
-                      {/* 3. Distance and Time (or just time) */}
+                      {/* 3. Streak Display */}
+                      {activity.type === 'streak' && (
+                        <div className="mb-4">
+                          <p className="text-orange-400 font-bold text-3xl mb-1">
+                            {activity.streak} Day{activity.streak !== 1 ? 's' : ''}
+                          </p>
+                          <p className="text-[#eef0ed]/80 text-sm">
+                            On Fire! 🔥
+                          </p>
+                        </div>
+                      )}
+
+                      {/* 3. Achievement Display */}
+                      {activity.type === 'achievement' && (
+                        <div className="mb-4">
+                          <p className="text-yellow-400 font-bold text-2xl mb-1">
+                            {activity.achievement}
+                          </p>
+                          <p className="text-[#eef0ed]/80 text-sm">
+                            Milestone Unlocked! 🏆
+                          </p>
+                        </div>
+                      )}
+
+                      {/* 3. PR Display */}
+                      {activity.type === 'pr' && (
+                        <div className="mb-4">
+                          <p className="text-purple-400 font-bold text-2xl mb-1">
+                            {activity.prType === 'distance' 
+                              ? `${activity.prValue.toFixed(1)} km` 
+                              : `${Math.round(activity.prValue)} min`
+                            }
+                          </p>
+                          <p className="text-[#eef0ed]/80 text-sm mb-1">
+                            Longest {activity.sport}!
+                          </p>
+                          <p className="text-purple-400 text-xs">
+                            ⚡ New Record!
+                          </p>
+                        </div>
+                      )}
+                      
+                      {/* 3. Distance and Time (for workouts only) */}
                       {activity.type === 'workout' && (
                         <p className="text-[#eef0ed]/90 mb-2 font-medium text-base">
                           {activity.distance && activity.distance > 0 
@@ -189,8 +239,8 @@ function ActivityCarouselComponent({
                         </p>
                       )}
                       
-                      {/* 4. Primary League Info */}
-                      {activity.primaryLeague ? (
+                      {/* 4. Primary League Info (only for workouts) */}
+                      {activity.type === 'workout' && activity.primaryLeague ? (
                         <div className="mb-4">
                           {/* League Name */}
                           <p className="text-[#eef0ed]/70 mb-2 text-sm">
@@ -214,12 +264,12 @@ function ActivityCarouselComponent({
                             </p>
                           )}
                         </div>
-                      ) : (
+                      ) : activity.type === 'workout' ? (
                         /* Fallback - show current league or no league message */
                         <p className="text-[#eef0ed]/70 mb-4 text-sm">
                           {currentLeague?.name || 'No active league'}
                         </p>
-                      )}
+                      ) : null}
 
                       {/* 5. Last 3 Comments */}
                       {recentComments.length > 0 && (
@@ -260,7 +310,8 @@ function ActivityCarouselComponent({
   );
 }
 export const ActivityCarousel = memo(ActivityCarouselComponent);
-
+              
+          
 /**
  * MainActionCards Component
  * 

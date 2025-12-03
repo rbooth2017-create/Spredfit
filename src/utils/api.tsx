@@ -373,7 +373,7 @@ export class APIClient {
     if (error) throw error;
   }
 
-  async updateWorkout(workoutId: string, workoutData: {
+    async updateWorkout(workoutId: string, workoutData: {
     type: string;
     duration: number;
     distance?: number;
@@ -388,7 +388,7 @@ export class APIClient {
       photoUrl = `/workout/workout-${sportType}.png`;
     }
     
-        const { data, error } = await this.supabase
+    const { data, error } = await this.supabase
       .from('workouts')
       .update({
         type: workoutData.type,
@@ -396,12 +396,12 @@ export class APIClient {
         distance_km: workoutData.distance,
         notes: workoutData.notes,
         photo_url: photoUrl,
-        created_at: workout.created_at,
+        created_at: workoutData.date,  // ✅ Fixed: was workout.created_at
       })
       .eq('id', workoutId)
       .select()
       .single();
-
+  
     if (error) throw error;
     return data;
   }
@@ -443,6 +443,132 @@ export class APIClient {
     }
   }
 
+        async getLeagueMembersWithStats(leagueId: string) {
+      console.log('🔵 API Client: Fetching league members with stats');
+      try {
+        const { data: { user } } = await this.supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+    
+        const { data: members, error } = await this.supabase
+          .from('league_memberships')
+          .select(`
+            user_id,
+            profiles!league_memberships_user_id_fkey (
+              id,
+              username,
+              avatar_url
+            )
+          `)
+          .eq('league_id', leagueId);
+    
+        if (error) throw error;
+    
+        // Get stats for each member
+        const membersWithStats = await Promise.all(
+          (members || []).map(async (member: any) => {
+            // Get all workouts with type, distance, and duration
+            const { data: allWorkouts } = await this.supabase
+              .from('workouts')
+              .select('created_at, type, distance_km, duration_min')
+              .eq('user_id', member.user_id)
+              .order('created_at', { ascending: false });
+    
+            // Calculate streak
+            let streak = 0;
+            const streakData = allWorkouts || [];
+            if (streakData.length > 0) {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0);
+              
+              let currentDate = new Date(today);
+              
+              for (const workout of streakData) {
+                const workoutDate = new Date(workout.created_at);
+                workoutDate.setHours(0, 0, 0, 0);
+                
+                const daysDiff = Math.floor((currentDate.getTime() - workoutDate.getTime()) / (1000 * 60 * 60 * 24));
+                
+                if (daysDiff === 0) {
+                  streak++;
+                  currentDate.setDate(currentDate.getDate() - 1);
+                } else if (daysDiff === 1) {
+                  streak++;
+                  currentDate = new Date(workoutDate);
+                  currentDate.setDate(currentDate.getDate() - 1);
+                } else {
+                  break;
+                }
+              }
+            }
+    
+            // Find recent PRs (last 7 days)
+            const sevenDaysAgo = new Date();
+            sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+            
+            const recentPRs: any[] = [];
+            const sportPRs = new Map<string, { distance: number; duration: number }>();
+    
+            // Build PR map for each sport
+            (allWorkouts || []).forEach(workout => {
+              const sport = workout.type;
+              const current = sportPRs.get(sport) || { distance: 0, duration: 0 };
+              
+              if (workout.distance_km && workout.distance_km > current.distance) {
+                current.distance = workout.distance_km;
+              }
+              if (workout.duration_min && workout.duration_min > current.duration) {
+                current.duration = workout.duration_min;
+              }
+              
+              sportPRs.set(sport, current);
+            });
+    
+            // Check recent workouts for PRs
+            (allWorkouts || []).forEach(workout => {
+              const workoutDate = new Date(workout.created_at);
+              if (workoutDate < sevenDaysAgo) return;
+    
+              const sport = workout.type;
+              const currentPR = sportPRs.get(sport);
+              
+              if (currentPR) {
+                // Check if this workout IS the PR
+                const isDistancePR = workout.distance_km && workout.distance_km === currentPR.distance && workout.distance_km > 0;
+                const isDurationPR = workout.duration_min && workout.duration_min === currentPR.duration && workout.duration_min > 0;
+                
+                if (isDistancePR || isDurationPR) {
+                  recentPRs.push({
+                    sport,
+                    type: isDistancePR ? 'distance' : 'duration',
+                    value: isDistancePR ? workout.distance_km : workout.duration_min,
+                    date: workout.created_at
+                  });
+                }
+              }
+            });
+    
+            const totalWorkouts = allWorkouts?.length || 0;
+            const totalHours = allWorkouts?.reduce((sum: number, w: any) => sum + (w.duration_min || 0), 0) || 0;
+    
+            return {
+              userId: member.user_id,
+              userName: member.profiles?.username || 'User',
+              userAvatar: member.profiles?.avatar_url || '',
+              streak,
+              totalWorkouts,
+              totalHours: Math.round(totalHours / 60),
+              recentPRs // Add PRs to response
+            };
+          })
+        );
+    
+        console.log('✅ Members with stats fetched:', membersWithStats);
+        return membersWithStats;
+      } catch (error) {
+        console.error('❌ Failed to fetch members with stats:', error);
+        throw error;
+      }
+    }
  async getUserLeagues() {
   console.log('🔵 API Client: Fetching user leagues');
   try {

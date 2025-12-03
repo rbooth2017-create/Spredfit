@@ -235,6 +235,49 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return result;
   }, [accessToken, api, refreshProfile]);
 
+    const transformMemberStatsToActivities = (memberStats: any[], leagueId: string) => {
+    const activities: any[] = [];
+    const now = Date.now();
+  
+    memberStats.forEach((member, index) => {
+      // Only show streaks >= 3 days
+      if (member.streak >= 3) {
+        activities.push({
+          id: `streak-${member.userId}-${leagueId}`,
+          userId: member.userId,
+          userName: member.userName,
+          userAvatar: member.userAvatar,
+          type: 'streak',
+          streak: member.streak,
+          date: new Date(now - index * 1000).toISOString(), // Stagger dates for ordering
+          comments: [],
+          photo: null
+        });
+      }
+  
+      // Show milestone achievements (10, 25, 50, 100 workouts)
+      const milestones = [100, 50, 25, 10];
+      const milestone = milestones.find(m => member.totalWorkouts === m);
+      
+      if (milestone) {
+        activities.push({
+          id: `achievement-${member.userId}-${milestone}-${leagueId}`,
+          userId: member.userId,
+          userName: member.userName,
+          userAvatar: member.userAvatar,
+          type: 'achievement',
+          achievement: `${milestone} Workouts`,
+          totalWorkouts: member.totalWorkouts,
+          date: new Date(now - index * 1000).toISOString(),
+          comments: [],
+          photo: null
+        });
+      }
+    });
+  
+    return activities;
+  };
+
   useEffect(() => {
     if (accessToken) {
       setLoading(true);

@@ -637,9 +637,20 @@ useEffect(() => {
         return !workout.inStealthMode;
       });
       
-      const withPhotos = normalizeWorkoutPhotos(visibleWorkouts);
-      
-      // Add league information to each workout with THAT USER'S rank
+const withPhotos = normalizeWorkoutPhotos(visibleWorkouts);
+
+// ✅ Cache leaderboard data to avoid N×M API calls
+const leaderboardCache = new Map<string, any[]>();
+for (const league of leagues) {
+  try {
+    const leaderboard = await api.getLeagueLeaderboard(league.id, 'total');
+    leaderboardCache.set(league.id, leaderboard);
+  } catch (error) {
+    console.error('Failed to cache leaderboard for league:', league.id, error);
+  }
+}
+
+// Add league information to each workout with THAT USER'S rank
       const activitiesWithLeagues = await Promise.all(
         withPhotos.map(async (workout: any) => {
           // Find which leagues this workout counts for
@@ -662,44 +673,115 @@ useEffect(() => {
             
             return true;
           });
-          
-          // Get the workout creator's rank in each applicable league
-          const leagueRanks = await Promise.all(
-            applicableLeagues.map(async (league) => {
-              try {
-                // Fetch the leaderboard for this league
-                const leaderboard = await api.getLeagueLeaderboard(league.id, 'total');
+                    // Get the workout creator's rank in each applicable league
+          const leagueRanks = applicableLeagues.map((league) => {
+            try {
+              // ✅ Use cached leaderboard instead of fetching
+              const leaderboard = leaderboardCache.get(league.id) || [];
+              
+              // Find this user's position in the leaderboard
+              const userEntry = leaderboard.find(entry => entry.userId === workout.userId);
                 
-                // Find this user's position in the leaderboard
-                const userEntry = leaderboard.find(entry => entry.userId === workout.userId);
-                
-                return {
-                  leagueId: league.id,
-                  leagueName: league.name,
-                  rank: userEntry?.rank || league.members?.length || 1,
-                  totalMembers: league.members?.length || leaderboard.length
-                };
-              } catch (error) {
-                console.error('Failed to get leaderboard for league:', league.id, error);
-                return {
-                  leagueId: league.id,
-                  leagueName: league.name,
-                  rank: league.members?.length || 1,
-                  totalMembers: league.members?.length || 0
-                };
-              }
-            })
-          );
+              return {
+                leagueId: league.id,
+                leagueName: league.name,
+                rank: userEntry?.rank || league.members?.length || 1,
+                totalMembers: league.members?.length || leaderboard.length
+              };
+            } catch (error) {
+              console.error('Failed to get leaderboard for league:', league.id, error);
+              return {
+                leagueId: league.id,
+                leagueName: league.name,
+                rank: league.members?.length || 1,
+                totalMembers: league.members?.length || 0
+              };
+            }
+          });
           
           return {
             ...workout,
             applicableLeagues: leagueRanks,
-            primaryLeague: leagueRanks[0] || null // Use first league as primary
+            primaryLeague: leagueRanks[0] || null
           };
         })
       );
       
-      const transformedActivities = transformActivityUserNames(activitiesWithLeagues);
+            // Fetch league member stats and create streak/achievement activities
+      let streakAndAchievementActivities: any[] = [];
+      
+      if (currentLeague?.id) {
+        try {
+          const memberStats = await api.getLeagueMembersWithStats(currentLeague.id);
+          const now = Date.now();
+          
+          memberStats.forEach((member, index) => {
+            // Only show streaks >= 3 days
+            if (member.streak >= 3) {
+              streakAndAchievementActivities.push({
+                id: `streak-${member.userId}-${currentLeague.id}`,
+                userId: member.userId,
+                userName: member.userName,
+                userAvatar: member.userAvatar,
+                type: 'streak',
+                streak: member.streak,
+                date: new Date(now - index * 1000).toISOString(),
+                time: new Date(now - index * 1000).toISOString(),
+                comments: [],
+                photo: null
+              });
+            }
+      
+            // Show milestone achievements (10, 25, 50, 100 workouts)
+            const milestones = [100, 50, 25, 10];
+            const milestone = milestones.find(m => member.totalWorkouts === m);
+            
+            if (milestone) {
+              streakAndAchievementActivities.push({
+                id: `achievement-${member.userId}-${milestone}-${currentLeague.id}`,
+                userId: member.userId,
+                userName: member.userName,
+                userAvatar: member.userAvatar,
+                type: 'achievement',
+                achievement: `${milestone} Workouts`,
+                totalWorkouts: member.totalWorkouts,
+                date: new Date(now - index * 1000).toISOString(),
+                time: new Date(now - index * 1000).toISOString(),
+                comments: [],
+                photo: null
+              });
+            }
+      
+            // Show recent PRs (last 7 days)
+            if (member.recentPRs && member.recentPRs.length > 0) {
+            member.recentPRs.forEach((pr: any, prIndex: number) => {
+              streakAndAchievementActivities.push({
+                id: `pr-${member.userId}-${pr.sport}-${pr.type}-${pr.date}-${currentLeague.id}`,
+                userId: member.userId,
+                userName: member.userName,
+                userAvatar: member.userAvatar,
+                type: 'pr',
+                sport: pr.sport,
+                prType: pr.type,
+                prValue: pr.value,
+                date: pr.date,
+                time: pr.date,
+                comments: [],
+                photo: null
+              });
+            });
+            }
+          });
+        } catch (error) {
+          console.error('Failed to fetch league member stats:', error);
+        }
+      }
+      
+      // Merge workouts with streaks/achievements and sort by date
+      const allActivities = [...activitiesWithLeagues, ...streakAndAchievementActivities]
+        .sort((a, b) => new Date(b.date || b.time).getTime() - new Date(a.date || a.time).getTime());
+      
+      const transformedActivities = transformActivityUserNames(allActivities);
       setActivities(transformedActivities);
     } catch (error) {
       console.error("Failed to load workouts:", error);
@@ -707,10 +789,7 @@ useEffect(() => {
     }
   }
   loadActivities();
-}, [accessToken, setActivities, refreshTrigger, leagues, user?.id]);
-
-// In Dashboard.tsx loadActivities function (around line 620-710)
-// After getting workouts, add league rank information
+}, [accessToken, setActivities, refreshTrigger, leagues, user?.id, currentLeague?.id]);
 
     // Load chat when league changes
     const loadChat = async () => {
