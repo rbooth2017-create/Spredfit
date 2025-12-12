@@ -1,5 +1,5 @@
 import { memo, useState, useEffect } from "react";
-import { UserCircle, Users, Trophy, Calendar, Timer, Footprints, Bike } from "lucide-react";
+import { UserCircle, Users, Trophy, Calendar, Timer, Footprints, Bike, ArrowLeft } from "lucide-react";
 import { useAuth } from "../../utils/auth";
 import { APIClient } from "../../utils/api";
 
@@ -29,6 +29,16 @@ interface TeamLeaderboardEntry {
   isCurrentUserTeam: boolean;
 }
 
+interface UserWorkout {
+  id: string;
+  type: string;
+  title?: string;
+  duration: number;
+  distance?: number;
+  date: string;
+  notes?: string;
+}
+
 type MetricType = 'time' | 'distance_run' | 'distance_cycle';
 
 interface LeaderboardModalProps {
@@ -54,11 +64,16 @@ function LeaderboardModalComponent({
   leaderboardPeriod,
   setLeaderboardPeriod,
 }: LeaderboardModalProps) {
-  const { accessToken } = useAuth();
+  const { accessToken, user } = useAuth();
   const [leaderboardData, setLeaderboardData] = useState<LeaderboardEntry[]>([]);
   const [teamLeaderboardData, setTeamLeaderboardData] = useState<TeamLeaderboardEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [metricType, setMetricType] = useState<MetricType>('time');
+  
+  // New state for user workout list
+  const [selectedUser, setSelectedUser] = useState<LeaderboardEntry | null>(null);
+  const [userWorkouts, setUserWorkouts] = useState<UserWorkout[]>([]);
+  const [loadingWorkouts, setLoadingWorkouts] = useState(false);
 
   // Fetch leaderboard data when league, view, period, or metric changes
   useEffect(() => {
@@ -98,6 +113,29 @@ function LeaderboardModalComponent({
     loadLeaderboard();
   }, [selectedLeague?.id, leaderboardView, leaderboardPeriod, metricType, accessToken, modalStep]);
 
+  // Fetch user workouts when viewing step 3
+  useEffect(() => {
+    async function loadUserWorkouts() {
+      if (!selectedUser || !selectedLeague || !accessToken || modalStep !== 3) {
+        return;
+      }
+
+      setLoadingWorkouts(true);
+      try {
+        const api = new APIClient(accessToken);
+        const workouts = await api.getUserWorkoutsInLeague(selectedUser.userId, selectedLeague.id);
+        setUserWorkouts(workouts);
+      } catch (error) {
+        console.error('Failed to load user workouts:', error);
+        setUserWorkouts([]);
+      } finally {
+        setLoadingWorkouts(false);
+      }
+    }
+
+    loadUserWorkouts();
+  }, [selectedUser?.userId, selectedLeague?.id, accessToken, modalStep]);
+
   // Format display value based on metric type
   const formatMetricValue = (entry: LeaderboardEntry | TeamLeaderboardEntry) => {
     if (metricType === 'time') {
@@ -119,6 +157,18 @@ function LeaderboardModalComponent({
       default:
         return 'Total Time';
     }
+  };
+
+  // Format date for workout display
+  const formatWorkoutDate = (dateString: string) => {
+    const date = new Date(dateString);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  };
+
+  // Handle clicking on a user
+  const handleUserClick = (member: LeaderboardEntry) => {
+    setSelectedUser(member);
+    setModalStep(3);
   };
 
   return (
@@ -151,7 +201,7 @@ function LeaderboardModalComponent({
 
         {/* Step 2: Full League Leaderboard */}
         {modalStep === 2 && selectedLeague && (
-            <div className="flex flex-col items-center text-center w-full px-4">
+          <div className="flex flex-col items-center text-center w-full px-4">
             <p className="text-white text-sm mb-1">{selectedLeague.name}</p>
             <p className="text-white/70 text-xs mb-1">
               {leaderboardView === 'individual' ? 'Individual' : 'Team'}
@@ -159,7 +209,7 @@ function LeaderboardModalComponent({
             <p className="text-white/60 text-[10px] mb-2">
               {getMetricLabel()} • {leaderboardPeriod === 'total' ? 'All Time' : 'This Week'}
             </p>
-              <div className="space-y-2 w-full max-h-56 overflow-y-auto mb-4" style={{
+            <div className="space-y-2 w-full max-h-56 overflow-y-auto mb-4" style={{
               scrollbarWidth: 'none',
               msOverflowStyle: 'none',
               WebkitOverflowScrolling: 'touch'
@@ -167,13 +217,16 @@ function LeaderboardModalComponent({
               {isLoading ? (
                 <p className="text-white/50 text-xs">Loading...</p>
               ) : leaderboardView === 'individual' ? (
-                // Individual leaderboard
+                // Individual leaderboard - now clickable
                 leaderboardData.length > 0 ? (
                   leaderboardData.map((member) => (
-                    <div
+                    <button
                       key={member.userId}
-                      className={`flex items-center justify-between p-2 rounded-full ${
-                        member.isCurrentUser ? 'bg-[#FFFFFF]' : 'bg-[#FFFFFF]/60 backdrop-blur-sm border border-white/10'
+                      onClick={() => handleUserClick(member)}
+                      className={`w-full flex items-center justify-between p-2 rounded-full transition-all ${
+                        member.isCurrentUser 
+                          ? 'bg-[#FFFFFF] hover:bg-[#FFFFFF]/90' 
+                          : 'bg-[#FFFFFF]/60 backdrop-blur-sm border border-white/10 hover:bg-[#FFFFFF]/80'
                       }`}
                     >
                       <div className="flex items-center gap-2">
@@ -181,7 +234,7 @@ function LeaderboardModalComponent({
                         <span className="text-white text-sm">{member.isCurrentUser ? 'You' : member.name}</span>
                       </div>
                       <span className="text-white text-sm">{formatMetricValue(member)}</span>
-                    </div>
+                    </button>
                   ))
                 ) : (
                   <p className="text-white/50 text-xs italic">No workouts yet in this league</p>
@@ -222,9 +275,69 @@ function LeaderboardModalComponent({
             </button>
           </div>
         )}
+
+        {/* Step 3: User Workout List */}
+        {modalStep === 3 && selectedUser && (
+          <div className="flex flex-col items-center text-center w-full px-4">
+            <p className="text-white text-sm mb-1">
+              {selectedUser.isCurrentUser ? 'Your' : `${selectedUser.name}'s`} Workouts
+            </p>
+            <p className="text-white/70 text-xs mb-3">{selectedLeague?.name}</p>
+            
+            <div className="space-y-2 w-full max-h-56 overflow-y-auto mb-4" style={{
+              scrollbarWidth: 'none',
+              msOverflowStyle: 'none',
+              WebkitOverflowScrolling: 'touch'
+            }}>
+              {loadingWorkouts ? (
+                <p className="text-white/50 text-xs">Loading workouts...</p>
+              ) : userWorkouts.length > 0 ? (
+                userWorkouts.map((workout) => (
+                  <div
+                    key={workout.id}
+                    className="p-3 rounded-2xl bg-[#FFFFFF]/60 backdrop-blur-sm border border-white/10 text-left"
+                  >
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-white text-sm font-medium">
+                        {workout.title || workout.type}
+                      </span>
+                      <span className="text-white/70 text-xs">{formatWorkoutDate(workout.date)}</span>
+                    </div>
+                    <div className="flex items-center gap-3 text-white/80 text-xs">
+                      <span>{workout.duration} min</span>
+                      {workout.distance && workout.distance > 0 && (
+                        <>
+                          <span>•</span>
+                          <span>
+                            {workout.type === 'Swimming' && workout.distance < 1
+                              ? `${(workout.distance * 1000).toFixed(0)} m`
+                              : `${workout.distance.toFixed(1)} km`}
+                          </span>
+                        </>
+                      )}
+                    </div>
+                    {workout.notes && (
+                      <p className="text-white/60 text-xs mt-1 italic">{workout.notes}</p>
+                    )}
+                  </div>
+                ))
+              ) : (
+                <p className="text-white/50 text-xs italic">No workouts found</p>
+              )}
+            </div>
+            
+            <button
+              onClick={() => setModalStep(2)}
+              className="px-6 py-2 rounded-full bg-white/10 backdrop-blur-sm text-white text-sm border border-white/20 hover:bg-white/20 flex items-center gap-2"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Leaderboard
+            </button>
+          </div>
+        )}
       </div>
 
-            {/* External Filter Buttons (only on step 2) */}
+      {/* External Filter Buttons (only on step 2) */}
       {modalStep === 2 && (
         <>
           {/* Right Side: Metric Type Buttons (3 high, 1 wide) */}

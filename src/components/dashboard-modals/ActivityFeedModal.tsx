@@ -38,19 +38,30 @@ function ActivityFeedModalComponent({
           ) : (
             activities
               .filter(activity => activityFilter === 'all' || activity.userId === currentUserId) // ✅ Changed from userName === 'You'
-              .slice(0, 8)
+              .slice(0, 100)
               .map((activity) => (
-                <button
+                  <button
                   key={activity.id}
                   onClick={() => onActivityClick(activity)}
                   className={`w-full p-2.5 rounded-3xl transition-all text-left cursor-pointer ${
-                    activity.userId === currentUserId ? 'bg-white/20 backdrop-blur-sm border border-white/30 hover:bg-white/30' : 'bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20' // ✅ Changed from userName === 'You'
+                    activity.userId === currentUserId ? 'bg-white/20 backdrop-blur-sm border border-white/30 hover:bg-white/30' : 'bg-white/10 backdrop-blur-sm border border-white/20 hover:bg-white/20'
                   }`}
                 >
                   <p className="text-white text-xs pointer-events-none">
-                    <span className="font-medium">{activity.userName}</span> completed {activity.sport}
+                    <span className="font-medium">{activity.userName}</span>
+                    {activity.type === 'workout' && activity.title ? (
+                      <> - <span className="italic">{activity.title}</span></>
+                    ) : (
+                      <> - {activity.sport}</>
+                    )}
+                    {activity.type === 'workout' && activity.duration && (
+                      <span className="text-white/70"> • {activity.duration} min</span>
+                    )}
+                    <span className="text-white/60"> • {new Date(activity.date || activity.time).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric'
+                    })}</span>
                   </p>
-                  <p className="text-white/60 text-[10px] pointer-events-none">{activity.timestamp}</p>
                 </button>
               ))
           )}

@@ -249,6 +249,9 @@ useEffect(() => {
             {/* Workout Info */}
             {activity.type === 'workout' && activity.sport && (
               <div className="space-y-1">
+                {activity.title && (
+                  <p className="text-white text-lg font-semibold mb-1">{activity.title}</p>
+                )}
                 <p className="text-white text-base">{activity.sport}</p>
                 <p className="text-white/70 text-sm">
                   {activity.duration} min

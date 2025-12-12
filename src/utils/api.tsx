@@ -260,6 +260,7 @@ export class APIClient {
 
  async createWorkout(workout: {
   type: string;
+  title?: string;
   duration: number;
   distance?: number;
   date: string;
@@ -293,6 +294,7 @@ export class APIClient {
         {
           user_id: user.id,
           type: workout.type,
+          title: workout.title || null,
           duration_min: workout.duration,
           distance_km: workout.distance,
           notes: workout.notes,
@@ -375,6 +377,7 @@ export class APIClient {
 
     async updateWorkout(workoutId: string, workoutData: {
     type: string;
+    title?: string; 
     duration: number;
     distance?: number;
     date: string;
@@ -392,6 +395,7 @@ export class APIClient {
       .from('workouts')
       .update({
         type: workoutData.type,
+        title: workoutData.title || null,
         duration_min: workoutData.duration,
         distance_km: workoutData.distance,
         notes: workoutData.notes,
@@ -703,6 +707,26 @@ export class APIClient {
     console.error('❌ Failed to fetch leagues:', error);
     throw error;
   }
+}
+
+async getUserWorkoutsInLeague(userId: string, leagueId: string): Promise<any[]> {
+  const { data, error } = await this.supabase
+    .from('workouts')
+    .select('id, type, title, duration_min, distance_km, created_at, notes')  // ✅ ADD title
+    .eq('user_id', userId)
+    .order('created_at', { ascending: false });
+
+  if (error) throw error;
+
+  return (data || []).map(workout => ({
+    id: workout.id,
+    type: workout.type,
+    title: workout.title,  // ✅ ADD THIS LINE
+    duration: workout.duration_min,
+    distance: workout.distance_km,
+    date: workout.created_at,
+    notes: workout.notes,
+  }));
 }
 
 async joinLeague(leagueCode: string) {
@@ -1564,6 +1588,7 @@ return sorted;
           userName: workout.profiles?.username || 'User',
           userAvatar: workout.profiles?.avatar_url || '',
           sport: workout.type,
+          title: workout.title,
           duration: workout.duration_min,
           distance: workout.distance_km,
           time: new Date(workout.created_at).toLocaleString(),

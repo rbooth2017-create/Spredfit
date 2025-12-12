@@ -173,10 +173,19 @@ function ActivityCarouselComponent({
                         }`} strokeWidth={1.5} />
                       </div>
                       
-                      {/* 2. User Name */}
-                      <h2 className="text-[#eef0ed] mb-2 font-semibold text-xl">
-                        {activity.userName}
-                      </h2>
+                    {/* 2. Username and Title */}
+                    <div className="mb-2">
+                      <p className="text-[#eef0ed] font-semibold text-xl">{activity.userName}</p>
+                      {activity.type === 'workout' && activity.title && (
+                        <h2 className="text-[#eef0ed] font-semibold text-xl">{activity.title}</h2>
+                      )}
+                      {activity.type === 'workout' && !activity.title && (
+                        <h2 className="text-[#eef0ed] font-semibold text-xl">{activity.sport}</h2>
+                      )}
+                      {activity.type !== 'workout' && (
+                        <h2 className="text-[#eef0ed] font-semibold text-xl">{activityLabel}</h2>
+                      )}
+                    </div>
 
                       {/* 2.5. Date */}
                       <p className="text-[#eef0ed]/60 mb-2 text-xs">

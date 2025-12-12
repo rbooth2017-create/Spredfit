@@ -104,6 +104,8 @@ export function Dashboard({
 
   const [logDate, setLogDate] = useState<string>(new Date().toISOString().split('T')[0]);
 
+  const [logTitle, setLogTitle] = useState('');
+
   // Tutorial state - show if user just signed up
   const [showTutorial, setShowTutorial] = useState(false);
 
@@ -1176,6 +1178,8 @@ for (const league of leagues) {
                 editingWorkoutId={editingWorkoutId}
                 logDate={logDate}
                 setLogDate={setLogDate}
+                logTitle={logTitle}     
+                setLogTitle={setLogTitle}
                 onUpdate={async (workoutId, data) => {
                   if (!accessToken) {
                     toast.error("Not authenticated");
@@ -1203,6 +1207,7 @@ for (const league of leagues) {
                     onClose={() => {
                     closeModal();
                     setLogDate(new Date().toISOString().split('T')[0]);
+                    setLogTitle(''); 
                   }}
                   />
                 )}
@@ -1318,7 +1323,7 @@ for (const league of leagues) {
               />
             )}
 
-            {/* Activity Detail Modal */}
+          {/* Activity Detail Modal */}
             {activeModal === "activityDetail" &&
               selectedActivity && (
                 <ActivityDetailModal
@@ -1334,8 +1339,12 @@ for (const league of leagues) {
                     // Pre-fill the log workout form with existing data
                     setEditingWorkoutId(activity.id);
                     setSelectedSport(activity.sport || null);
+                    setLogTitle(activity.title || ""); 
+                    // Convert km back to meters for swimming when editing
                     setLogDistance(
-                      activity.distance?.toString() || ""
+                      activity.sport === 'Swimming' 
+                        ? (activity.distance ? (activity.distance * 1000).toString() : "")
+                        : (activity.distance?.toString() || "")
                     );
                     setLogHours(
                       Math.floor(
