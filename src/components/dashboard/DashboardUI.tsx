@@ -148,18 +148,18 @@ function ActivityCarouselComponent({
                       onActivityClick(activity);
                     }}
                   >
-                    {/* Background Image at 10% opacity */}
-                    {activity.photo && (
-                      <div 
-                        className="absolute inset-0"
-                        style={{
-                          backgroundImage: `url(${activity.photo})`,
-                          backgroundSize: 'cover',
-                          backgroundPosition: 'center',
-                          opacity: 0.1
-                        }}
-                      />
-                    )}
+                  {/* Background Image at 10% opacity */}
+                  {activity.type === 'workout' && (
+                    <div 
+                      className="absolute inset-0"
+                      style={{
+                        backgroundImage: `url(${activity.photo || `/workout/workout-${(activity.sport || '').toLowerCase().replace(/\s+/g, '-')}.png`})`,
+                        backgroundSize: 'cover',
+                        backgroundPosition: 'center',
+                        opacity: 0.1
+                      }}
+                    />
+                  )}
                     
                     {/* Content */}
                     <div className="relative z-10 px-6">
