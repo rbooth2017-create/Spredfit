@@ -81,245 +81,249 @@ function DashboardHeaderComponent({ onModalOpen }: DashboardHeaderProps) {
 
 export const DashboardHeader = memo(DashboardHeaderComponent);
 
-/**
- * ActivityCarousel Component
- * 
- * Renders the circular floating carousel that displays recent activities.
- * Users can scroll horizontally through activities and click to view details.
- */
-function ActivityCarouselComponent({ 
-  activities, 
-  currentLeague, 
-  onActivityClick,
-  getSportIcon,
-  isExpanded,
-}: ActivityCarouselProps) {
-  return (
-    <div className="absolute left-0 right-0 top-0 bottom-0 z-10">
-      <div className="w-full h-full">
-        {/* Full width square container with padding */}
-        <div className="w-full h-full relative overflow-hidden" data-tutorial="activity-carousel">
-          <div 
-            className="overflow-x-auto absolute inset-0 flex items-center px-4"
-            style={{ 
-              scrollbarWidth: 'none', 
-              msOverflowStyle: 'none',
-              WebkitOverflowScrolling: 'touch'
-            }}
-          >
-            <style>{`
-              .overflow-x-auto::-webkit-scrollbar { 
-                display: none; 
-              }
-            `}</style>
-            <div className="flex snap-x snap-mandatory h-full gap-4">
-              {activities.map((activity) => {
-                // Determine what to show based on activity type
-                let activityLabel = '';
-                let Icon = Activity;
-                
-                if (activity.type === 'workout') {
-                  activityLabel = activity.sport || 'Workout';
-                  Icon = getSportIcon(activity.sport);
-                } else if (activity.type === 'achievement') {
-                  activityLabel = activity.achievement || 'Achievement';
-                  Icon = Award;
-                } else if (activity.type === 'streak') {
-                  activityLabel = 'Streak';
-                  Icon = Flame;
-                } else if (activity.type === 'pr') {
-                  activityLabel = 'Personal Record';
-                  Icon = Zap; // Lightning bolt for PRs
-                } else if (activity.type === 'plan_complete') {
-                  activityLabel = 'Training Plan';
-                  Icon = Calendar;
-                }
-                
-                // Get last 3 comments
-                const recentComments = (activity.comments || []).slice(-3);
-                
-                return (
-                  <div 
-                    key={activity.id} 
-                    className="flex-shrink-0 h-full flex flex-col items-center justify-center text-center snap-center cursor-pointer relative rounded-2xl overflow-hidden"
-                    style={{ width: 'calc(100vw - 4rem)' }}
-                    onClick={() => {
-                      console.log('🔍 Activity clicked:', activity);
-                      onActivityClick(activity);
-                    }}
-                  >
-                  {/* Background Image at 10% opacity */}
-                  {activity.type === 'workout' && (
-                    <div 
-                      className="absolute inset-0"
-                      style={{
-                        backgroundImage: `url(${activity.photo || `/workout/workout-${(activity.sport || '').toLowerCase().replace(/\s+/g, '-')}.png`})`,
-                        backgroundSize: 'cover',
-                        backgroundPosition: 'center',
-                        opacity: 0.1
-                      }}
-                    />
-                  )}
-                    
-                    {/* Content */}
-                    <div className="relative z-10 px-6">
-                      {/* 1. Sport Icon */}
-                      <div className="mb-3">
-                        <Icon className={`w-12 h-12 mx-auto ${
-                          activity.type === 'streak' ? 'text-orange-400' : 
-                          activity.type === 'achievement' ? 'text-yellow-400' : 
-                          activity.type === 'pr' ? 'text-purple-400' :
-                          'text-[#eef0ed]'
-                        }`} strokeWidth={1.5} />
-                      </div>
-                      
-                    {/* 2. Username and Title */}
-                    <div className="mb-2">
-                      <p className="text-[#eef0ed] font-semibold text-xl">{activity.userName}</p>
-                      {activity.type === 'workout' && activity.title && (
-                        <h2 className="text-[#eef0ed] font-semibold text-xl">{activity.title}</h2>
-                      )}
-                      {activity.type === 'workout' && !activity.title && (
-                        <h2 className="text-[#eef0ed] font-semibold text-xl">{activity.sport}</h2>
-                      )}
-                      {activity.type !== 'workout' && (
-                        <h2 className="text-[#eef0ed] font-semibold text-xl">{activityLabel}</h2>
-                      )}
-                    </div>
-
-                      {/* 2.5. Date */}
-                      <p className="text-[#eef0ed]/60 mb-2 text-xs">
-                        {new Date(activity.date || activity.time).toLocaleDateString('en-US', {
-                          month: 'short',
-                          day: 'numeric',
-                          year: 'numeric'
-                        })}
-                      </p>
-                      
-                      {/* 3. Streak Display */}
-                      {activity.type === 'streak' && (
-                        <div className="mb-4">
-                          <p className="text-orange-400 font-bold text-3xl mb-1">
-                            {activity.streak} Day{activity.streak !== 1 ? 's' : ''}
-                          </p>
-                          <p className="text-[#eef0ed]/80 text-sm">
-                            On Fire! 🔥
-                          </p>
-                        </div>
-                      )}
-
-                      {/* 3. Achievement Display */}
-                      {activity.type === 'achievement' && (
-                        <div className="mb-4">
-                          <p className="text-yellow-400 font-bold text-2xl mb-1">
-                            {activity.achievement}
-                          </p>
-                          <p className="text-[#eef0ed]/80 text-sm">
-                            Milestone Unlocked! 🏆
-                          </p>
-                        </div>
-                      )}
-
-                      {/* 3. PR Display */}
-                      {activity.type === 'pr' && (
-                        <div className="mb-4">
-                          <p className="text-purple-400 font-bold text-2xl mb-1">
-                            {activity.prType === 'distance' 
-                              ? `${activity.prValue.toFixed(1)} km` 
-                              : `${Math.round(activity.prValue)} min`
-                            }
-                          </p>
-                          <p className="text-[#eef0ed]/80 text-sm mb-1">
-                            Longest {activity.sport}!
-                          </p>
-                          <p className="text-purple-400 text-xs">
-                            ⚡ New Record!
-                          </p>
-                        </div>
-                      )}
-                      
-                      {/* 3. Distance and Time (for workouts only) */}
-                      {activity.type === 'workout' && (
-                        <p className="text-[#eef0ed]/90 mb-2 font-medium text-base">
-                          {activity.distance && activity.distance > 0 
-                            ? `${activity.distance} km • ${activity.duration} min`
-                            : `${activity.duration} min`
-                          }
-                        </p>
-                      )}
-                      
-                      {/* 4. Primary League Info (only for workouts) */}
-                      {activity.type === 'workout' && activity.primaryLeague ? (
-                        <div className="mb-4">
-                          {/* League Name */}
-                          <p className="text-[#eef0ed]/70 mb-2 text-sm">
-                            {activity.primaryLeague.leagueName}
-                          </p>
-                          
-                          {/* League Position */}
-                          <div className="flex items-center justify-center gap-2">
-                            <p className="text-[#eef0ed] font-semibold text-base">
-                              #{activity.primaryLeague.rank}
-                            </p>
-                            <span className="text-[#eef0ed]/60 text-xs">
-                              of {activity.primaryLeague.totalMembers}
-                            </span>
-                          </div>
-                          
-                          {/* Show if counts for multiple leagues */}
-                          {activity.applicableLeagues && activity.applicableLeagues.length > 1 && (
-                            <p className="text-[#eef0ed]/50 text-[10px] mt-1">
-                              +{activity.applicableLeagues.length - 1} more league{activity.applicableLeagues.length > 2 ? 's' : ''}
-                            </p>
-                          )}
-                        </div>
-                      ) : activity.type === 'workout' ? (
-                        /* Fallback - show current league or no league message */
-                        <p className="text-[#eef0ed]/70 mb-4 text-sm">
-                          {currentLeague?.name || 'No active league'}
-                        </p>
-                      ) : null}
-
-                      {/* 5. Last 3 Comments */}
-                      {recentComments.length > 0 && (
-                        <div className="mt-4 space-y-2 max-w-xs mx-auto">
-                          {recentComments.map((comment) => (
-                            <div key={comment.id} className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-left">
-                              <p className="text-[#FFFFFF] text-xs font-semibold">{comment.userName}</p>
-                              <p className="text-[#FFFFFF]/80 text-[10px] line-clamp-2">{comment.text}</p>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-              
-              {/* Show message if no activities */}
-              {activities.length === 0 && (
+        /**
+         * ActivityCarousel Component
+         * 
+         * Renders the circular floating carousel that displays recent activities.
+         * Users can scroll horizontally through activities and click to view details.
+         */
+        function ActivityCarouselComponent({ 
+          activities, 
+          currentLeague, 
+          onActivityClick,
+          getSportIcon,
+          isExpanded,
+        }: ActivityCarouselProps) {
+          return (
+            <div className="absolute inset-0 z-10 flex items-center justify-center">
+              {/* Carousel Container - Centered */}
+              <div 
+                className="relative overflow-hidden rounded-full border-2 border-white/40"
+                style={{
+                  width: '380px',
+                  height: '380px'
+                }}
+                data-tutorial="activity-carousel"
+              >
                 <div 
-                  className="flex-shrink-0 h-full flex flex-col items-center justify-center text-center snap-center"
-                  style={{ width: 'calc(100vw - 4rem)' }}
+                  className="overflow-x-auto absolute inset-0 flex items-center px-4"
+                  style={{ 
+                    scrollbarWidth: 'none', 
+                    msOverflowStyle: 'none',
+                    WebkitOverflowScrolling: 'touch'
+                  }}
                 >
-                  <div className="mb-2">
-                    <Activity className="w-8 h-8 text-[#eef0ed] mx-auto" strokeWidth={1.5} />
+                  <style>{`
+                    .overflow-x-auto::-webkit-scrollbar { 
+                      display: none; 
+                    }
+                  `}</style>
+                  <div className="flex snap-x snap-mandatory h-full gap-4">
+                    {activities.map((activity) => {
+                      // Determine what to show based on activity type
+                      let activityLabel = '';
+                      let Icon = Activity;
+                      
+                      if (activity.type === 'workout') {
+                        activityLabel = activity.sport || 'Workout';
+                        Icon = getSportIcon(activity.sport);
+                      } else if (activity.type === 'achievement') {
+                        activityLabel = activity.achievement || 'Achievement';
+                        Icon = Award;
+                      } else if (activity.type === 'streak') {
+                        activityLabel = 'Streak';
+                        Icon = Flame;
+                      } else if (activity.type === 'pr') {
+                        activityLabel = 'Personal Record';
+                        Icon = Zap; // Lightning bolt for PRs
+                      } else if (activity.type === 'plan_complete') {
+                        activityLabel = 'Training Plan';
+                        Icon = Calendar;
+                      }
+                      
+                      // Get last 3 comments
+                      const recentComments = (activity.comments || []).slice(-3);
+                      
+                      return (
+                        <div 
+                          key={activity.id} 
+                          className="flex-shrink-0 h-full flex flex-col items-center justify-center text-center snap-center cursor-pointer relative rounded-2xl overflow-hidden"
+                          style={{ width: '380px', minWidth: '380px' }}
+                          onClick={() => {
+                            console.log('🔍 Activity clicked:', activity);
+                            onActivityClick(activity);
+                          }}
+                        >
+                          {/* Background Image at 10% opacity */}
+                          {activity.type === 'workout' && (
+                            <div 
+                              className="absolute inset-0"
+                              style={{
+                                backgroundImage: `url(${activity.photo || `/workout/workout-${(activity.sport || '').toLowerCase().replace(/\s+/g, '-')}.png`})`,
+                                backgroundSize: 'cover',
+                                backgroundPosition: 'center',
+                                opacity: 0.1
+                              }}
+                            />
+                          )}
+                          
+                          {/* Content */}
+                          <div className="relative z-10 px-6">
+                            {/* 1. Sport Icon */}
+                            <div className="mb-3">
+                              <Icon className={`w-12 h-12 mx-auto ${
+                                activity.type === 'streak' ? 'text-orange-400' : 
+                                activity.type === 'achievement' ? 'text-yellow-400' : 
+                                activity.type === 'pr' ? 'text-purple-400' :
+                                'text-[#eef0ed]'
+                              }`} strokeWidth={1.5} />
+                            </div>
+                            
+                            {/* 2. Username and Title */}
+                            <div className="mb-2">
+                              <p className="text-[#eef0ed] font-semibold text-xl">{activity.userName}</p>
+                              {activity.type === 'workout' && activity.title && (
+                                <h2 className="text-[#eef0ed] font-semibold text-xl">{activity.title}</h2>
+                              )}
+                              {activity.type === 'workout' && !activity.title && (
+                                <h2 className="text-[#eef0ed] font-semibold text-xl">{activity.sport}</h2>
+                              )}
+                              {activity.type !== 'workout' && (
+                                <h2 className="text-[#eef0ed] font-semibold text-xl">{activityLabel}</h2>
+                              )}
+                            </div>
+        
+                            {/* 2.5. Date */}
+                            <p className="text-[#eef0ed]/60 mb-2 text-xs">
+                              {new Date(activity.date || activity.time).toLocaleDateString('en-US', {
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                            </p>
+                            
+                            {/* 3. Streak Display */}
+                            {activity.type === 'streak' && (
+                              <div className="mb-4">
+                                <p className="text-orange-400 font-bold text-3xl mb-1">
+                                  {activity.streak} Day{activity.streak !== 1 ? 's' : ''}
+                                </p>
+                                <p className="text-[#eef0ed]/80 text-sm">
+                                  On Fire! 🔥
+                                </p>
+                              </div>
+                            )}
+        
+                            {/* 3. Achievement Display */}
+                            {activity.type === 'achievement' && (
+                              <div className="mb-4">
+                                <p className="text-yellow-400 font-bold text-2xl mb-1">
+                                  {activity.achievement}
+                                </p>
+                                <p className="text-[#eef0ed]/80 text-sm">
+                                  Milestone Unlocked! 🏆
+                                </p>
+                              </div>
+                            )}
+        
+                            {/* 3. PR Display */}
+                            {activity.type === 'pr' && (
+                              <div className="mb-4">
+                                <p className="text-purple-400 font-bold text-2xl mb-1">
+                                  {activity.prType === 'distance' 
+                                    ? `${activity.prValue.toFixed(1)} km` 
+                                    : `${Math.round(activity.prValue)} min`
+                                  }
+                                </p>
+                                <p className="text-[#eef0ed]/80 text-sm mb-1">
+                                  Longest {activity.sport}!
+                                </p>
+                                <p className="text-purple-400 text-xs">
+                                  ⚡ New Record!
+                                </p>
+                              </div>
+                            )}
+                            
+                            {/* 3. Distance and Time (for workouts only) */}
+                            {activity.type === 'workout' && (
+                              <p className="text-[#eef0ed]/90 mb-2 font-medium text-base">
+                                {activity.distance && activity.distance > 0 
+                                  ? `${activity.distance} km • ${activity.duration} min`
+                                  : `${activity.duration} min`
+                                }
+                              </p>
+                            )}
+                            
+                            {/* 4. Primary League Info (only for workouts) */}
+                            {activity.type === 'workout' && activity.primaryLeague ? (
+                              <div className="mb-4">
+                                {/* League Name */}
+                                <p className="text-[#eef0ed]/70 mb-2 text-sm">
+                                  {activity.primaryLeague.leagueName}
+                                </p>
+                                
+                                {/* League Position */}
+                                <div className="flex items-center justify-center gap-2">
+                                  <p className="text-[#eef0ed] font-semibold text-base">
+                                    #{activity.primaryLeague.rank}
+                                  </p>
+                                  <span className="text-[#eef0ed]/60 text-xs">
+                                    of {activity.primaryLeague.totalMembers}
+                                  </span>
+                                </div>
+                                
+                                {/* Show if counts for multiple leagues */}
+                                {activity.applicableLeagues && activity.applicableLeagues.length > 1 && (
+                                  <p className="text-[#eef0ed]/50 text-[10px] mt-1">
+                                    +{activity.applicableLeagues.length - 1} more league{activity.applicableLeagues.length > 2 ? 's' : ''}
+                                  </p>
+                                )}
+                              </div>
+                            ) : activity.type === 'workout' ? (
+                              /* Fallback - show current league or no league message */
+                              <p className="text-[#eef0ed]/70 mb-4 text-sm">
+                                {currentLeague?.name || 'No active league'}
+                              </p>
+                            ) : null}
+        
+                            {/* 5. Last 3 Comments */}
+                            {recentComments.length > 0 && (
+                              <div className="mt-4 space-y-2 max-w-xs mx-auto">
+                                {recentComments.map((comment) => (
+                                  <div key={comment.id} className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-left">
+                                    <p className="text-[#FFFFFF] text-xs font-semibold">{comment.userName}</p>
+                                    <p className="text-[#FFFFFF]/80 text-[10px] line-clamp-2">{comment.text}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                    
+                    {/* Show message if no activities */}
+                    {activities.length === 0 && (
+                      <div 
+                        className="flex-shrink-0 h-full flex flex-col items-center justify-center text-center snap-center"
+                        style={{ width: '380px', minWidth: '380px' }}
+                      >
+                        <div className="mb-2">
+                          <Activity className="w-8 h-8 text-[#eef0ed] mx-auto" strokeWidth={1.5} />
+                        </div>
+                        <h2 className="text-[#eef0ed] mb-1 text-2xl">No Activity Yet</h2>
+                        <p className="text-[#eef0ed]/60 px-4 text-xs">
+                          Log a workout to see activity in your league
+                        </p>
+                      </div>
+                    )}
                   </div>
-                  <h2 className="text-[#eef0ed] mb-1 text-2xl">No Activity Yet</h2>
-                  <p className="text-[#eef0ed]/60 px-4 text-xs">
-                    Log a workout to see activity in your league
-                  </p>
                 </div>
-              )}
+              </div>
             </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
-export const ActivityCarousel = memo(ActivityCarouselComponent);
-              
+          );
+        }
+        export const ActivityCarousel = memo(ActivityCarouselComponent);         
           
 /**
  * MainActionCards Component
