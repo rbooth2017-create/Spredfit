@@ -81,6 +81,57 @@ function DashboardHeaderComponent({ onModalOpen }: DashboardHeaderProps) {
 
 export const DashboardHeader = memo(DashboardHeaderComponent);
 
+/**
+ * LeagueStatsDisplay Component
+ * 
+ * Displays the current league name and total workout time from all members
+ */
+interface LeagueStatsDisplayProps {
+  currentLeague: any;
+  totalLeagueTime: number; // in minutes
+}
+
+function LeagueStatsDisplayComponent({ 
+  currentLeague, 
+  totalLeagueTime 
+}: LeagueStatsDisplayProps) {
+  const formatTime = (minutes: number) => {
+    const hours = Math.floor(minutes / 60);
+    const mins = minutes % 60;
+    
+    if (hours > 0) {
+      return `${hours}h ${mins}m`;
+    }
+    return `${mins}m`;
+  };
+
+  console.log('LeagueStatsDisplay - currentLeague:', currentLeague, 'totalLeagueTime:', totalLeagueTime);
+
+  if (!currentLeague) {
+    console.log('❌ No currentLeague set');
+    return null;
+  }
+  console.log('✅ Showing league stats for:', currentLeague.name);
+
+  return (
+      <div className="absolute inset-0 z-20 flex items-start justify-center pt-8 pointer-events-none">
+      <div className="bg-black/40 backdrop-blur-md rounded-lg px-6 py-3 border border-white/20 shadow-lg">
+        <div className="text-center">
+          <p className="text-[#eef0ed]/70 text-sm mb-1">
+            <span className="font-semibold">{currentLeague.name}</span>
+          </p>
+          <p className="text-[#eef0ed] text-lg font-bold">
+            Total Time: <span className="text-blue-400">{formatTime(totalLeagueTime)}</span>
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export const LeagueStatsDisplay = memo(LeagueStatsDisplayComponent);
+
+
         /**
          * ActivityCarousel Component
          * 
@@ -384,6 +435,7 @@ function MainActionCardsComponent({ onModalOpen }: MainActionCardsProps) {
   );
 }
 export const MainActionCards = memo(MainActionCardsComponent);
+
 
 /**
  * NavigationSidebar Component

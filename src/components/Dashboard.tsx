@@ -22,6 +22,7 @@ import {
   ActivityCarousel,
   MainActionCards,
   NavigationSidebar,
+  LeagueStatsDisplay,
 } from "./dashboard/DashboardUI";
 import { WorkoutPhotoModal } from "./dashboard/WorkoutPhotoModal";
 import { ExternalModalButtons } from "./dashboard/ExternalModalButtons";
@@ -352,6 +353,25 @@ const storePosition = (userId: string, leagueId: string, position: number) => {
   const [gpsPositions, setGpsPositions] = useState<GeolocationPosition[]>([]);
   const [lastPosition, setLastPosition] =
     useState<GeolocationPosition | null>(null);
+
+    const [totalLeagueTime, setTotalLeagueTime] = useState(0);
+
+        // Calculate total league time from all activities
+    useEffect(() => {
+      if (!currentLeague || !activities) {
+        setTotalLeagueTime(0);
+        return;
+      }
+    
+      const total = activities.reduce((sum, activity) => {
+        if (activity.type === 'workout' && activity.duration) {
+          return sum + activity.duration;
+        }
+        return sum;
+      }, 0);
+    
+      setTotalLeagueTime(total);
+    }, [currentLeague, activities]);
 
   // League states (using leagues from context)
   console.log("🔍 BEFORE useMemo - leagues:", leagues);
@@ -791,7 +811,7 @@ for (const league of leagues) {
     }
   }
   loadActivities();
-}, [accessToken, setActivities, refreshTrigger, leagues, user?.id, currentLeague?.id]);
+}, [accessToken, setActivities, refreshTrigger, leagues.length, user?.id, currentLeague?.id]);
 
     // Load chat when league changes
     const loadChat = async () => {
@@ -1047,6 +1067,14 @@ for (const league of leagues) {
           <DashboardHeader onModalOpen={setActiveModal} />
         </div>
       </div>
+
+            {/* League Stats Display */}
+      {currentLeague && (
+        <LeagueStatsDisplay 
+          currentLeague={currentLeague}
+          totalLeagueTime={totalLeagueTime}
+        />
+      )}
 
       {/* Floating Activity Carousel Component */}
       <ActivityCarousel
