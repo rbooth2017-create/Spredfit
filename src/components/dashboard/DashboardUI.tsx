@@ -114,7 +114,7 @@ function LeagueStatsDisplayComponent({
   console.log('✅ Showing league stats for:', currentLeague.name);
 
   return (
-      <div className="absolute inset-0 z-20 flex items-start justify-center pt-8 pointer-events-none">
+      <div className="absolute inset-0 z-20 flex items-start justify-center pt-16 pointer-events-none">
       <div className="bg-black/40 backdrop-blur-md rounded-lg px-6 py-3 border border-white/20 shadow-lg">
         <div className="text-center">
           <p className="text-[#eef0ed]/70 text-sm mb-1">
