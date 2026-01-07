@@ -66,7 +66,8 @@ function LogWorkoutModalComponent({
   const [uploading, setUploading] = useState(false);
   const [savedWorkoutId, setSavedWorkoutId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-
+  const galleryInputRef = useRef<HTMLInputElement>(null);
+  
   const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     console.log('📸 handlePhotoUpload triggered');
     
@@ -139,33 +140,39 @@ function LogWorkoutModalComponent({
     } finally {
       console.log('🏁 Upload process finished');
       setUploading(false);
-      // Reset file input
+      // Reset file inputs
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-    }
-  };
-
-  const handleCameraButtonClick = () => {
-    console.log('📷 Camera button clicked');
-    console.log('📷 fileInputRef.current:', fileInputRef.current);
-    if (fileInputRef.current) {
-      console.log('📷 Triggering click on file input');
-      fileInputRef.current.click();
-    } else {
-      console.log('❌ fileInputRef is null!');
+      if (galleryInputRef.current) {
+        galleryInputRef.current.value = '';
+      }
     }
   };
 
   return (
     <>
-      {/* Hidden file input - ALWAYS RENDERED */}
+      {/* Hidden camera input */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
+        capture="environment"
         onChange={(e) => {
-          console.log('🎯 onChange fired! Files:', e.target.files);
+          console.log('🎯 Camera onChange fired! Files:', e.target.files);
+          handlePhotoUpload(e);
+        }}
+        className="hidden"
+        style={{ display: 'none' }}
+      />
+
+      {/* Hidden gallery input */}
+      <input
+        ref={galleryInputRef}
+        type="file"
+        accept="image/*"
+        onChange={(e) => {
+          console.log('🎯 Gallery onChange fired! Files:', e.target.files);
           handlePhotoUpload(e);
         }}
         className="hidden"
@@ -371,15 +378,25 @@ function LogWorkoutModalComponent({
                 <p className="text-white/70 text-xs">Uploading...</p>
               </div>
             ) : (
-              <button
-                onClick={handleCameraButtonClick}
-                className="w-24 h-24 rounded-full bg-white/10 backdrop-blur-sm border-2 border-dashed border-white/40 flex items-center justify-center hover:bg-white/20 transition-all"
-              >
-                <Camera className="w-10 h-10 text-white" strokeWidth={1.5} />
-              </button>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => fileInputRef.current?.click()}
+                  className="w-20 h-20 rounded-full bg-white/10 backdrop-blur-sm border-2 border-dashed border-white/40 flex items-center justify-center hover:bg-white/20 transition-all flex-col items-center gap-1"
+                >
+                  <Camera className="w-8 h-8 text-white" strokeWidth={1.5} />
+                  <span className="text-white text-[8px]">Camera</span>
+                </button>
+                <button
+                  onClick={() => galleryInputRef.current?.click()}
+                  className="w-20 h-20 rounded-full bg-white/10 backdrop-blur-sm border-2 border-dashed border-white/40 flex items-center justify-center hover:bg-white/20 transition-all flex-col items-center gap-1"
+                >
+                  <Camera className="w-8 h-8 text-white" strokeWidth={1.5} />
+                  <span className="text-white text-[8px]">Gallery</span>
+                </button>
+              </div>
             )}
             
-            <p className="text-white/50 text-xs">Tap to capture or select photo</p>
+            <p className="text-white/50 text-xs">Tap to add photo</p>
           </div>
         )}
       </div>
