@@ -1076,17 +1076,18 @@ for (const league of leagues) {
         />
       )}
 
-      {/* Floating Activity Carousel Component */}
-      <ActivityCarousel
-        activities={activities}
-        currentLeague={currentLeague}
-        onActivityClick={(activity) => {
-          setSelectedActivity(activity);
-          setActiveModal("activityDetail");
-        }}
-        getSportIcon={getSportIcon}
-        isExpanded={hideUtilityButtons}
-      />
+{/* Floating Activity Carousel Component */}
+<ActivityCarousel
+  activities={activities}
+  currentLeague={currentLeague}
+  currentUser={user}  // ← Pass the user from useAuth()
+  onActivityClick={(activity) => {
+    setSelectedActivity(activity);
+    setActiveModal("activityDetail");
+  }}
+  getSportIcon={getSportIcon}
+  isExpanded={hideUtilityButtons}
+/>
 
       {/* Main Action Cards Component - Hide when modal is open OR when used as login background */}
       {!activeModal && !isLoginBackground && (
