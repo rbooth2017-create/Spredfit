@@ -105,6 +105,18 @@ function LeagueStatsDisplayComponent({
     return `${mins}m`;
   };
 
+  const calculateAveragePerDay = () => {
+    const memberCount = currentLeague.members?.length || 1;
+    const startDate = new Date(currentLeague.start_date || currentLeague.created_at);
+    const today = new Date();
+    const daysElapsed = Math.ceil((today.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) || 1;
+    
+    const totalHours = totalLeagueTime / 60;
+    const avgPerUserPerDay = (totalHours / memberCount / daysElapsed).toFixed(1);
+    
+    return avgPerUserPerDay;
+  };
+
   console.log('LeagueStatsDisplay - currentLeague:', currentLeague, 'totalLeagueTime:', totalLeagueTime);
 
   if (!currentLeague) {
@@ -114,14 +126,17 @@ function LeagueStatsDisplayComponent({
   console.log('✅ Showing league stats for:', currentLeague.name);
 
   return (
-      <div className="absolute inset-0 z-20 flex items-start justify-center pt-16 pointer-events-none">
+    <div className="absolute inset-0 z-20 flex items-start justify-center pt-8 pointer-events-none">
       <div className="bg-black/40 backdrop-blur-md rounded-lg px-6 py-3 border border-white/20 shadow-lg">
         <div className="text-center">
           <p className="text-[#eef0ed]/70 text-sm mb-1">
             <span className="font-semibold">{currentLeague.name}</span>
           </p>
-          <p className="text-[#eef0ed] text-lg font-bold">
+          <p className="text-[#eef0ed] text-lg font-bold mb-2">
             Total Time: <span className="text-blue-400">{formatTime(totalLeagueTime)}</span>
+          </p>
+          <p className="text-[#eef0ed] text-sm">
+            Avg/User/Day: <span className="text-green-400">{calculateAveragePerDay()}h</span>
           </p>
         </div>
       </div>
@@ -213,7 +228,7 @@ export const LeagueStatsDisplay = memo(LeagueStatsDisplayComponent);
                                 backgroundImage: `url(${activity.photo || `/workout/workout-${(activity.sport || '').toLowerCase().replace(/\s+/g, '-')}.png`})`,
                                 backgroundSize: 'cover',
                                 backgroundPosition: 'center',
-                                opacity: 0.1
+                                opacity: 0.5
                               }}
                             />
                           )}

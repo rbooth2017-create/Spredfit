@@ -232,8 +232,8 @@ export class APIClient {
       }
   
       const fileExt = file.name.split('.').pop();
-      const fileName = `${user.id}_${Date.now()}.${fileExt}`;
-      const filePath = `${fileName}`;
+      const fileName = `${Date.now()}.${fileExt}`;
+      const filePath = `${user.id}/${fileName}`;  // ✅ Add user ID folder
   
       // Upload to workout-media bucket
       const { error: uploadError } = await this.supabase.storage
@@ -1974,49 +1974,6 @@ return sorted;
       throw error;
     }
   }
-
-        async uploadWorkoutPhoto(file: File): Promise<string> {
-      console.log('🔵 API Client: Uploading workout photo');
-      try {
-        const { data: { user } } = await this.supabase.auth.getUser();
-        
-        if (!user) {
-          throw new Error('No user found');
-        }
-    
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${user.id}_${Date.now()}.${fileExt}`;
-        const filePath = `${fileName}`;
-    
-        console.log('🔵 Uploading to workout-media bucket, path:', filePath);
-    
-        // Upload to workout-media bucket
-        const { data: uploadData, error: uploadError } = await this.supabase.storage
-          .from('workout-media')
-          .upload(filePath, file, { 
-            upsert: true,
-            contentType: file.type 
-          });
-    
-        if (uploadError) {
-          console.error('❌ Upload error:', uploadError);
-          throw uploadError;
-        }
-    
-        console.log('✅ Upload successful:', uploadData);
-    
-        // Get public URL from workout-media bucket
-        const { data: { publicUrl } } = this.supabase.storage
-          .from('workout-media')
-          .getPublicUrl(filePath);
-    
-        console.log('✅ Workout photo uploaded:', publicUrl);
-        return publicUrl;
-      } catch (error) {
-        console.error('❌ Failed to upload workout photo:', error);
-        throw error;
-      }
-    }
 
         async updateWorkoutPhoto(workoutId: string, file: File): Promise<string> {
       console.log('🔵 API Client: Updating workout photo');
