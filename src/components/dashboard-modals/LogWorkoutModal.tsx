@@ -67,7 +67,7 @@ function LogWorkoutModalComponent({
   const [savedWorkoutId, setSavedWorkoutId] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
-  
+
   const handlePhotoUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     console.log('📸 handlePhotoUpload triggered');
     
@@ -91,9 +91,9 @@ function LogWorkoutModalComponent({
       return;
     }
 
-    if (file.size > 5 * 1024 * 1024) {
+    if (file.size > 50 * 1024 * 1024) {
       console.log('❌ File too large:', file.size);
-      toast.error('Image must be less than 5MB');
+      toast.error('Image must be less than 50MB');
       return;
     }
 
@@ -140,39 +140,61 @@ function LogWorkoutModalComponent({
     } finally {
       console.log('🏁 Upload process finished');
       setUploading(false);
-      // Reset file inputs
+      // Reset file input
       if (fileInputRef.current) {
         fileInputRef.current.value = '';
       }
-      if (galleryInputRef.current) {
-        galleryInputRef.current.value = '';
-      }
+    }
+  };
+
+  const handleCameraButtonClick = () => {
+    console.log('📷 Camera button clicked');
+    console.log('📷 fileInputRef.current:', fileInputRef.current);
+    if (fileInputRef.current) {
+      console.log('📷 Triggering click on file input');
+      fileInputRef.current.click();
+    } else {
+      console.log('❌ fileInputRef is null!');
     }
   };
 
   return (
     <>
+
       {/* Hidden camera input */}
+<input
+  ref={fileInputRef}
+  type="file"
+  accept="image/*"
+  capture="environment"
+  onChange={(e) => {
+    console.log('🎯 onChange fired! Files:', e.target.files);
+    handlePhotoUpload(e);
+  }}
+  className="hidden"
+  style={{ display: 'none' }}
+/>
+
+{/* Hidden gallery input */}
+<input
+  ref={galleryInputRef}
+  type="file"
+  accept="image/*"
+  onChange={(e) => {
+    console.log('🎯 Gallery onChange fired! Files:', e.target.files);
+    handlePhotoUpload(e);
+  }}
+  className="hidden"
+  style={{ display: 'none' }}
+/>
+    
+      {/* Hidden file input - ALWAYS RENDERED */}
       <input
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         onChange={(e) => {
-          console.log('🎯 Camera onChange fired! Files:', e.target.files);
-          handlePhotoUpload(e);
-        }}
-        className="hidden"
-        style={{ display: 'none' }}
-      />
-
-      {/* Hidden gallery input */}
-      <input
-        ref={galleryInputRef}
-        type="file"
-        accept="image/*"
-        onChange={(e) => {
-          console.log('🎯 Gallery onChange fired! Files:', e.target.files);
+          console.log('🎯 onChange fired! Files:', e.target.files);
           handlePhotoUpload(e);
         }}
         className="hidden"
@@ -372,7 +394,7 @@ function LogWorkoutModalComponent({
           <div className="flex flex-col items-center text-center space-y-4 w-full px-4">
             <p className="text-white text-sm mb-2">Add Workout Photo</p>
             
-            {uploading ? (
+                        {uploading ? (
               <div className="flex flex-col items-center gap-2">
                 <div className="w-8 h-8 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 <p className="text-white/70 text-xs">Uploading...</p>
@@ -397,6 +419,8 @@ function LogWorkoutModalComponent({
             )}
             
             <p className="text-white/50 text-xs">Tap to add photo</p>
+            
+            <p className="text-white/50 text-xs">Tap to capture or select photo</p>
           </div>
         )}
       </div>

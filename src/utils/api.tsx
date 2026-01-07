@@ -366,83 +366,117 @@ export class APIClient {
     }
   }
 
-  async deleteWorkout(workoutId: string) {
+async deleteWorkout(workoutId: string) {
+  console.log('🔵 API Client: Deleting workout:', workoutId);
+  try {
+    // Fetch the workout to get the photo_url
+    const { data: workout } = await this.supabase
+      .from('workouts')
+      .select('photo_url')
+      .eq('id', workoutId)
+      .single();
+
+    // Delete photo from storage if it exists
+    if (workout?.photo_url && workout.photo_url.includes('/workout-media/')) {
+      console.log('🗑️  Deleting photo from bucket:', workout.photo_url);
+      try {
+        await this.deleteWorkoutPhoto(workout.photo_url);
+        console.log('✅ Photo deleted from bucket');
+      } catch (error) {
+        console.warn('⚠️  Warning: Failed to delete photo, but continuing with record deletion:', error);
+      }
+    }
+
+    // Delete the workout record
     const { error } = await this.supabase
       .from('workouts')
       .delete()
       .eq('id', workoutId);
     
     if (error) throw error;
+    
+    console.log('✅ Workout deleted successfully');
+  } catch (error) {
+    console.error('❌ Failed to delete workout:', error);
+    throw error;
   }
+}
 
-    async updateWorkout(workoutId: string, workoutData: {
+     async updateWorkout(workoutId: string, workoutData: {
     type: string;
-    title?: string; 
+    title?: string | null;
     duration: number;
     distance?: number;
     date: string;
     notes?: string;
-    photo_url?: string;
+    photo_url?: string | null;
   }) {
-    // Generate stock image URL based on workout type if not provided
-    let photoUrl = workoutData.photo_url;
-    if (!photoUrl) {
-      const sportType = workoutData.type.toLowerCase().replace(/\s+/g, '-');
-      photoUrl = `/workout/workout-${sportType}.png`;
-    }
+    console.log('🔵 API Client: Updating workout', workoutId);
+    console.log('📸 Photo URL passed in:', workoutData.photo_url);
     
-    const { data, error } = await this.supabase
-      .from('workouts')
-      .update({
+    try {
+      const { data: existingWorkout } = await this.supabase
+        .from('workouts')
+        .select('photo_url, id')
+        .eq('id', workoutId)
+        .single();
+    
+      console.log('🔍 Existing workout from DB:', existingWorkout);
+    
+      let photoUrl = workoutData.photo_url;
+      console.log('1️⃣  photoUrl value:', photoUrl);
+      console.log('2️⃣  Is undefined?', photoUrl === undefined);
+      console.log('3️⃣  Is null?', photoUrl === null);
+      
+      if (photoUrl === undefined || photoUrl === null) {
+        if (existingWorkout?.photo_url) {
+          photoUrl = existingWorkout.photo_url;
+          console.log('4️⃣  Using existing photo:', photoUrl);
+        } else {
+          const sportType = workoutData.type.toLowerCase().replace(/\s+/g, '-');
+          photoUrl = `/workout/workout-${sportType}.png`;
+          console.log('4️⃣  Using stock image:', photoUrl);
+        }
+      } else {
+        console.log('4️⃣  Using new photo:', photoUrl);
+      }
+      
+      console.log('🔴 FINAL photo_url about to save:', photoUrl);
+      console.log('📝 Full update payload:', {
         type: workoutData.type,
-        title: workoutData.title || null,
+        title: workoutData.title,
         duration_min: workoutData.duration,
         distance_km: workoutData.distance,
         notes: workoutData.notes,
         photo_url: photoUrl,
-        created_at: workoutData.date,  // ✅ Fixed: was workout.created_at
-      })
-      .eq('id', workoutId)
-      .select()
-      .single();
-  
-    if (error) throw error;
-    return data;
-  }
-
-    async getLeagueMembers(leagueId: string) {
-    console.log('🔵 API Client: Fetching league members');
-    try {
-      const { data: members, error } = await this.supabase
-        .from('league_memberships')
-        .select(`
-          user_id,
-          league_id,
-          team_id,
-          bonus_hours,
-          profiles!league_memberships_user_id_fkey (
-            id,
-            username,
-            avatar_url
-          )
-        `)
-        .eq('league_id', leagueId);
-  
-      if (error) throw error;
-  
-      console.log('✅ Members fetched:', members);
-      return members.map((m: any) => ({
-        id: m.profiles.id,
-        user_id: m.user_id,
-        league_id: m.league_id,
-        team_id: m.team_id,
-        bonus_hours: m.bonus_hours || 0,  // ✅ Add this
-        name: m.profiles?.username || 'User',
-        full_name: m.profiles?.username || 'Unknown User',
-        avatar_url: m.profiles?.avatar_url
-      }));
+        created_at: workoutData.date,
+      });
+      
+      const { data, error } = await this.supabase
+        .from('workouts')
+        .update({
+          type: workoutData.type,
+          title: workoutData.title || null,
+          duration_min: workoutData.duration,
+          distance_km: workoutData.distance,
+          notes: workoutData.notes,
+          photo_url: photoUrl,
+          created_at: workoutData.date,
+        })
+        .eq('id', workoutId)
+        .select()
+        .single();
+    
+      if (error) {
+        console.error('🔴 Update error:', error);
+        throw error;
+      }
+      
+      console.log('✅ Workout updated successfully');
+      console.log('📸 Returned data photo_url:', data?.photo_url);
+      return data;
     } catch (error) {
-      console.error('❌ Failed to fetch members:', error);
+      console.error('❌ Failed to update workout:', error);
       throw error;
     }
   }
@@ -709,6 +743,34 @@ export class APIClient {
   }
 }
 
+async deleteWorkoutPhoto(photoUrl: string): Promise<void> {
+  if (!photoUrl || !photoUrl.includes('/workout-media/')) {
+    return; // Not a workout photo, skip
+  }
+
+  try {
+    // Extract file path from URL
+    // URL format: https://xxxx.supabase.co/storage/v1/object/public/workout-media/{user-id}/{filename}
+    const urlParts = photoUrl.split('/workout-media/');
+    if (urlParts.length > 1) {
+      const filePath = urlParts[1];
+      
+      // Delete file from storage bucket
+      const { error } = await this.supabase.storage
+        .from('workout-media')
+        .remove([filePath]);
+
+      if (error) {
+        console.warn('⚠️ Warning: Failed to delete old photo:', error);
+      } else {
+        console.log('✅ Old photo deleted:', filePath);
+      }
+    }
+  } catch (error) {
+    console.warn('⚠️ Warning: Error deleting old photo:', error);
+  }
+}
+
 async getUserWorkoutsInLeague(userId: string, leagueId: string): Promise<any[]> {
   const { data, error } = await this.supabase
     .from('workouts')
@@ -905,111 +967,7 @@ async createLeague(leagueData: {
   // END TEAM MANAGEMENT METHODS
   // ============================================
 
-  async getLeagueTeamLeaderboard(leagueId: string, period: 'total' | 'weekly' = 'total') {
-    console.log('🔵 API Client: Fetching team leaderboard');
-    try {
-      const { data: { user } } = await this.supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-
-      // Get league details
-      const { data: league, error: leagueError } = await this.supabase
-        .from('leagues')
-        .select('start_date, end_date, allowed_sports')
-        .eq('id', leagueId)
-        .single();
-
-      if (leagueError) throw leagueError;
-
-      // Calculate date range
-      let startDate: string;
-      const endDate = league.end_date;
-
-      if (period === 'weekly') {
-        const now = new Date();
-        const weekStart = new Date(now);
-        weekStart.setDate(now.getDate() - now.getDay());
-        weekStart.setHours(0, 0, 0, 0);
-        startDate = weekStart.toISOString();
-      } else {
-        startDate = league.start_date;
-      }
-
-      // Get all teams
-      const { data: teams, error: teamsError } = await this.supabase
-        .from('league_teams')
-        .select('id, name')
-        .eq('league_id', leagueId);
-
-      if (teamsError) throw teamsError;
-
-      if (!teams || teams.length === 0) {
-        return [];
-      }
-
-      // Get team data
-      const teamData = await Promise.all(
-        teams.map(async (team: any) => {
-          // Get team members
-          const { data: members } = await this.supabase
-            .from('league_memberships')
-            .select('user_id, stealth_until')
-            .eq('team_id', team.id);
-
-          const memberCount = members?.length || 0;
-          const now = new Date();
-
-          // Get workouts for all team members
-          let totalMinutes = 0;
-          
-          for (const member of members || []) {
-            const inStealth = member.stealth_until && new Date(member.stealth_until) > now;
-            
-            if (!inStealth) {
-              let workoutsQuery = this.supabase
-                .from('workouts')
-                .select('duration_min')
-                .eq('user_id', member.user_id)
-                .gte('created_at', startDate)
-                .lte('created_at', endDate);
-
-              // Filter by allowed sports if specified
-              if (league.allowed_sports && league.allowed_sports.length > 0) {
-                workoutsQuery = workoutsQuery.in('type', league.allowed_sports);
-              }
-
-              const { data: workouts } = await workoutsQuery;
-
-              totalMinutes += (workouts || []).reduce((sum: number, w: any) => sum + (w.duration_min || 0), 0);
-            }
-          }
-
-          const isCurrentUserTeam = members?.some((m: any) => m.user_id === user.id) || false;
-
-          return {
-            teamId: team.id,
-            teamName: team.name,
-            totalHours: totalMinutes / 60,
-            memberCount,
-            isCurrentUserTeam
-          };
-        })
-      );
-
-      // Sort and assign ranks
-      const sorted = teamData
-        .sort((a, b) => b.totalHours - a.totalHours)
-        .map((entry, index) => ({
-          ...entry,
-          rank: index + 1
-        }));
-
-      console.log('✅ Team leaderboard fetched:', sorted);
-      return sorted;
-    } catch (error) {
-      console.error('❌ Failed to fetch team leaderboard:', error);
-      throw error;
-    }
-  }
+  
 
     async getLeagueLeaderboard(leagueId: string, period: 'total' | 'weekly' = 'total', metricType: 'time' | 'distance_run' | 'distance_cycle' = 'time') {
     console.log('🔵 API Client: Fetching league leaderboard');

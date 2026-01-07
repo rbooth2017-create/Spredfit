@@ -135,9 +135,6 @@ function LeagueStatsDisplayComponent({
           <p className="text-[#eef0ed] text-lg font-bold mb-2">
             Total Time: <span className="text-blue-400">{formatTime(totalLeagueTime)}</span>
           </p>
-          <p className="text-[#eef0ed] text-sm">
-            Avg/User/Day: <span className="text-green-400">{calculateAveragePerDay()}h</span>
-          </p>
         </div>
       </div>
     </div>
@@ -225,7 +222,7 @@ export const LeagueStatsDisplay = memo(LeagueStatsDisplayComponent);
                             <div 
                               className="absolute inset-0"
                               style={{
-                                backgroundImage: `url(${activity.photo || `/workout/workout-${(activity.sport || '').toLowerCase().replace(/\s+/g, '-')}.png`})`,
+                                backgroundImage: `url(${activity.photo ? `${activity.photo}?t=${Date.now()}` : `/workout/workout-${(activity.sport || '').toLowerCase().replace(/\s+/g, '-')}.png`})`,
                                 backgroundSize: 'cover',
                                 backgroundPosition: 'center',
                                 opacity: 0.5
