@@ -164,7 +164,6 @@ function LogWorkoutModalComponent({
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        capture="environment"
         onChange={(e) => {
           console.log('🎯 onChange fired! Files:', e.target.files);
           handlePhotoUpload(e);
