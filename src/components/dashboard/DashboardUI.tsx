@@ -115,16 +115,16 @@ function LeagueStatsDisplayComponent({
   console.log('✅ Showing league stats for:', currentLeague.name);
 
   return (
-    <div className="absolute inset-0 z-20 flex items-start justify-center pt-20 pointer-events-none">
-      <div className="bg-black/40 backdrop-blur-md rounded-lg px-6 py-3 border border-white/20 shadow-lg">
-        <div className="text-center">
-          <p className="text-[#eef0ed]/70 text-sm mb-1">
-            <span className="font-semibold">{currentLeague.name}</span>
-          </p>
-          <p className="text-[#eef0ed] text-lg font-bold mb-2">
-            Total Time: <span className="text-blue-400">{formatTime(totalLeagueTime)}</span>
-          </p>
-        </div>
+    <div className="absolute inset-0 z-20 flex items-start justify-center pt-10 pointer-events-none">
+      <div className="bg-black/40 backdrop-blur-md rounded-full w-40 h-40 flex items-center justify-center border-2 border-white/20 shadow-lg">
+       <div className="text-center">
+  <p className="text-[#eef0ed]/70 text-xs mb-2">
+    <span className="font-semibold">{currentLeague.name}</span>
+  </p>
+  <p className="text-[#eef0ed] text-2xl font-bold">
+    <span className="text-blue-400">{formatTime(totalLeagueTime)}</span>
+  </p>
+</div>
       </div>
     </div>
   );
