@@ -1404,7 +1404,6 @@ return sorted;
     const { data: memberships, error } = await this.supabase
       .from('league_memberships')
       .select(`
-        id,
         team_id,
         league_teams (
           id,
@@ -1444,6 +1443,7 @@ async getLeagueMembers(leagueId: string) {
         user_id,
         league_id,
         team_id,
+        bonus_hours,
         profiles!league_memberships_user_id_fkey (
           username
         )
@@ -1457,6 +1457,7 @@ async getLeagueMembers(leagueId: string) {
       league_id: m.league_id,
       team_id: m.team_id,
       full_name: m.profiles?.username || 'Unknown',
+      bonus_hours: m.bonus_hours || 0,
     })) || [];
   } catch (error) {
     console.error('❌ Failed to fetch league members:', error);

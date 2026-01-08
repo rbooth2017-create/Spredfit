@@ -56,7 +56,6 @@ function BonusHoursModal({ leagueId, leagueName, accessToken, onClose }: BonusHo
 
   const api = useMemo(() => new APIClient(accessToken), [accessToken]);
 
-  // Load league members with current bonus hours
   useEffect(() => {
     const loadMembers = async () => {
       try {
@@ -64,21 +63,17 @@ function BonusHoursModal({ leagueId, leagueName, accessToken, onClose }: BonusHo
         const leagueMembers = await api.getLeagueMembers(leagueId);
         const membersWithBonusHours: BonusHoursMember[] = leagueMembers.map((member: any) => ({
           userId: member.user_id,
-          userName: member.name || member.full_name || 'Unknown User',
+          userName: member.full_name || 'Unknown User',
           bonusHours: member.bonus_hours || 0,
         }));
-        
         setMembers(membersWithBonusHours);
       } catch (error) {
         console.error('Failed to load members:', error);
-        toast.error('Failed to load members', {
-          description: error instanceof Error ? error.message : 'Please try again',
-        });
+        toast.error('Failed to load members');
       } finally {
         setLoading(false);
       }
     };
-
     loadMembers();
   }, [leagueId, api]);
 
@@ -102,38 +97,28 @@ function BonusHoursModal({ leagueId, leagueName, accessToken, onClose }: BonusHo
 
     try {
       setSaving(true);
-      
-      // Update each member's bonus hours
       for (const [userId, bonusHours] of Object.entries(bonusHoursChanges)) {
         await api.updateMemberBonusHours(leagueId, userId, bonusHours);
       }
-      
-      toast.success('Bonus Hours Updated!', {
-        description: `Updated ${Object.keys(bonusHoursChanges).length} member(s)`,
-      });
-      
-      // Refresh members list
+      toast.success('Bonus Hours Updated!');
       const leagueMembers = await api.getLeagueMembers(leagueId);
       const membersWithBonusHours: BonusHoursMember[] = leagueMembers.map((member: any) => ({
         userId: member.user_id,
-        userName: member.name || member.full_name || 'Unknown User',
+        userName: member.full_name || 'Unknown User',
         bonusHours: member.bonus_hours || 0,
       }));
       setMembers(membersWithBonusHours);
       setBonusHoursChanges({});
-      
     } catch (error) {
       console.error('Failed to update bonus hours:', error);
-      toast.error('Failed to update bonus hours', {
-        description: error instanceof Error ? error.message : 'Please try again',
-      });
+      toast.error('Failed to update bonus hours');
     } finally {
       setSaving(false);
     }
   };
 
-  return (
-    <div className="bg-[#1a1a1a] rounded-3xl p-6 max-w-md w-full max-h-[80vh] flex flex-col border border-white/20 shadow-2xl">
+    return (
+    <div className="bg-[#1a1a1a] rounded-3xl border border-white/20 shadow-2xl flex flex-col p-6 w-full max-w-md overflow-hidden" style={{ maxHeight: '80vh' }}>
       {/* Header */}
       <div className="flex items-center justify-between mb-4 flex-shrink-0">
         <div className="flex items-center gap-2">
@@ -147,10 +132,10 @@ function BonusHoursModal({ leagueId, leagueName, accessToken, onClose }: BonusHo
           <X className="w-5 h-5 text-white" strokeWidth={2} />
         </button>
       </div>
-
+  
       <p className="text-white/70 text-sm mb-4 flex-shrink-0">{leagueName}</p>
-
-      {/* Members List */}
+  
+      {/* Scrollable Members List */}
       <div className="flex-1 overflow-y-auto scrollbar-hide space-y-2 mb-4 min-h-0">
         {loading ? (
           <div className="flex items-center justify-center py-8">
@@ -169,32 +154,30 @@ function BonusHoursModal({ leagueId, leagueName, accessToken, onClose }: BonusHo
               <div
                 key={member.userId}
                 className={`p-3 rounded-2xl backdrop-blur-sm border transition-all ${
-                  hasChanges
-                    ? 'bg-white/20 border-white/40'
-                    : 'bg-white/5 border-white/10'
+                  hasChanges ? 'bg-white/20 border-white/40' : 'bg-white/5 border-white/10'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <p className="text-white text-sm font-medium">{member.userName}</p>
-                    <p className="text-white/50 text-xs">Current: {member.bonusHours} hours</p>
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-white text-sm font-medium truncate">{member.userName}</p>
+                    <p className="text-white/50 text-xs">Current: {member.bonusHours}h</p>
                   </div>
-                  <div className="flex items-center gap-2">
+                  
+                  <div className="flex items-center gap-2 flex-shrink-0">
                     <button
                       onClick={() => handleBonusHoursChange(member.userId, currentHours, -1)}
-                      disabled={currentHours === 0}
-                      className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 disabled:opacity-30 disabled:cursor-not-allowed flex items-center justify-center transition-all"
+                      className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
                     >
-                      <Minus className="w-4 h-4 text-white" strokeWidth={2} />
+                      <Minus className="w-4 h-4" strokeWidth={2} />
                     </button>
                     <div className="w-12 text-center">
-                      <span className="text-white font-medium">{currentHours}</span>
+                      <p className="text-white font-semibold text-sm">{currentHours}h</p>
                     </div>
                     <button
                       onClick={() => handleBonusHoursChange(member.userId, currentHours, 1)}
-                      className="w-8 h-8 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-all"
+                      className="p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white transition-colors"
                     >
-                      <Plus className="w-4 h-4 text-white" strokeWidth={2} />
+                      <Plus className="w-4 h-4" strokeWidth={2} />
                     </button>
                   </div>
                 </div>
@@ -203,8 +186,8 @@ function BonusHoursModal({ leagueId, leagueName, accessToken, onClose }: BonusHo
           })
         )}
       </div>
-
-      {/* Actions */}
+  
+      {/* Footer Actions */}
       <div className="flex gap-2 flex-shrink-0">
         <button
           onClick={onClose}
@@ -217,7 +200,7 @@ function BonusHoursModal({ leagueId, leagueName, accessToken, onClose }: BonusHo
           disabled={saving || Object.keys(bonusHoursChanges).length === 0}
           className="flex-1 px-4 py-2 rounded-full bg-white/20 hover:bg-white/30 text-white text-sm border border-white/30 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
         >
-          {saving ? 'Saving...' : 'Save Changes'}
+          {saving ? 'Saving...' : 'Save'}
         </button>
       </div>
     </div>
