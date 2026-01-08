@@ -1,0 +1,37 @@
+  async getLeagueMembers(leagueId: string) {
+    console.log('Ì¥µ API Client: Fetching league members');
+    try {
+      const { data: members, error } = await this.supabase
+        .from('league_memberships')
+        .select(`
+          user_id,
+          bonus_hours,
+          profiles!league_memberships_user_id_fkey (
+            id,
+            name,
+            full_name,
+            username,
+            avatar_url
+          )
+        `)
+        .eq('league_id', leagueId);
+
+      if (error) throw error;
+
+      console.log('‚úÖ League members fetched:', members);
+      
+      // Transform data to match expected format
+      return (members || []).map((membership: any) => ({
+        user_id: membership.user_id,
+        name: membership.profiles?.name || membership.profiles?.full_name,
+        full_name: membership.profiles?.full_name || membership.profiles?.name,
+        bonus_hours: membership.bonus_hours || 0,
+        username: membership.profiles?.username,
+        avatar_url: membership.profiles?.avatar_url
+      }));
+    } catch (error) {
+      console.error('‚ùå Failed to fetch league members:', error);
+      throw error;
+    }
+  }
+

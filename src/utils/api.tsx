@@ -1395,43 +1395,74 @@ return sorted;
     }
   }
   
-  // Get user's teams
-  async getUserTeams() {
-    console.log('🔵 API Client: Fetching user teams');
-    try {
-      const { data: { user } } = await this.supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-  
-      const { data: memberships, error } = await this.supabase
-        .from('league_memberships')
-        .select(`
-          team_id,
-          league_teams!inner (
-            id,
-            name,
-            league_id,
-            leagues (
-              name
-            )
-          )
-        `)
-        .eq('user_id', user.id)
-        .not('team_id', 'is', null);
-  
-      if (error) throw error;
-  
-      return memberships?.map((m: any) => ({
-        id: m.league_teams.id,
-        name: m.league_teams.name,
-        leagueName: m.league_teams.leagues?.name,
-        leagueId: m.league_teams.league_id,
-      })) || [];
-    } catch (error) {
-      console.error('❌ Failed to fetch user teams:', error);
+ async getUserTeams() {
+  console.log('🔵 API Client: Fetching user teams');
+  try {
+    const { data: { user } } = await this.supabase.auth.getUser();
+    if (!user) throw new Error('Not authenticated');
+
+    const { data: memberships, error } = await this.supabase
+      .from('league_memberships')
+      .select(`
+        id,
+        team_id,
+        league_teams (
+          id,
+          name,
+          league_id
+        ),
+        leagues (
+          name
+        )
+      `)
+      .eq('user_id', user.id)
+      .not('team_id', 'is', null);
+
+    if (error) {
+      console.error('Query error:', error);
       throw error;
     }
-  }
 
+    return memberships?.map((m: any) => ({
+      id: m.league_teams?.id,
+      name: m.league_teams?.name,
+      leagueName: m.leagues?.name || 'Unknown League',
+      leagueId: m.league_teams?.league_id,
+    })).filter(t => t.id) || [];
+  } catch (error) {
+    console.error('❌ Failed to fetch user teams:', error);
+    return [];
+  }
+}
+
+async getLeagueMembers(leagueId: string) {
+  console.log('🔵 API Client: Fetching league members');
+  try {
+    const { data: members, error } = await this.supabase
+      .from('league_memberships')
+      .select(`
+        user_id,
+        league_id,
+        team_id,
+        profiles!league_memberships_user_id_fkey (
+          username
+        )
+      `)
+      .eq('league_id', leagueId);
+
+    if (error) throw error;
+
+    return members?.map((m: any) => ({
+      user_id: m.user_id,
+      league_id: m.league_id,
+      team_id: m.team_id,
+      full_name: m.profiles?.username || 'Unknown',
+    })) || [];
+  } catch (error) {
+    console.error('❌ Failed to fetch league members:', error);
+    return [];
+  }
+}
     // In api.tsx, add:
     async updateMemberBonusHours(leagueId: string, userId: string, bonusHours: number) {
     const { data, error } = await this.supabase
