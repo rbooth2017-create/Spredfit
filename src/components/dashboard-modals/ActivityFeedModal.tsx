@@ -37,7 +37,7 @@ function ActivityFeedModalComponent({
             <p className="text-white/50 text-xs italic">No activities yet. Log a workout to get started!</p>
           ) : (
             activities
-              .filter(activity => activityFilter === 'all' || activity.userId === currentUserId) // ✅ Changed from userName === 'You'
+              .filter(activity => activity.type === 'workout' && (activityFilter === 'all' || activity.userId === currentUserId))
               .slice(0, 100)
               .map((activity) => (
                   <button

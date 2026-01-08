@@ -89,26 +89,28 @@ export class APIClient {
       let streak = 0;
       if (streakData && streakData.length > 0) {
         const today = new Date();
-        today.setHours(0, 0, 0, 0);
+        today.setUTCHours(0, 0, 0, 0); 
         
         let currentDate = new Date(today);
         let foundGap = false;
         
         for (const workout of streakData) {
           const workoutDate = new Date(workout.created_at);
-          workoutDate.setHours(0, 0, 0, 0);
+          workoutDate.setUTCHours(0, 0, 0, 0); 
           
-          const daysDiff = Math.floor((currentDate.getTime() - workoutDate.getTime()) / (1000 * 60 * 60 * 24));
+          const timeDiff = currentDate.getTime() - workoutDate.getTime();
+          const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
           
-          if (daysDiff === 0) {
+          if (Math.abs(daysDiff) < 0.5) {
+            // Same day as expected
             streak++;
-            currentDate.setDate(currentDate.getDate() - 1);
-          } else if (daysDiff === 1) {
+          currentDate.setUTCDate(currentDate.getUTCDate() - 1);  // ✅ Consistent UTC
+          } else if (Math.abs(daysDiff - 1) < 0.5) {
+            // Previous day - continue streak
             streak++;
-            currentDate = new Date(workoutDate);
-            currentDate.setDate(currentDate.getDate() - 1);
+            currentDate.setUTCDate(currentDate.getUTCDate() - 1);
           } else {
-            foundGap = true;
+            // Gap found, break the streak
             break;
           }
         }
@@ -516,24 +518,27 @@ async deleteWorkout(workoutId: string) {
             const streakData = allWorkouts || [];
             if (streakData.length > 0) {
               const today = new Date();
-              today.setHours(0, 0, 0, 0);
+              today.setUTCHours(0, 0, 0, 0); 
               
               let currentDate = new Date(today);
               
               for (const workout of streakData) {
                 const workoutDate = new Date(workout.created_at);
-                workoutDate.setHours(0, 0, 0, 0);
+                workoutDate.setUTCHours(0, 0, 0, 0); 
                 
-                const daysDiff = Math.floor((currentDate.getTime() - workoutDate.getTime()) / (1000 * 60 * 60 * 24));
+                const timeDiff = currentDate.getTime() - workoutDate.getTime();
+                const daysDiff = timeDiff / (1000 * 60 * 60 * 24);
                 
-                if (daysDiff === 0) {
+                if (Math.abs(daysDiff) < 0.5) {
+                  // Same day as expected
                   streak++;
-                  currentDate.setDate(currentDate.getDate() - 1);
-                } else if (daysDiff === 1) {
+                  currentDate.setUTCDate(currentDate.getUTCDate() - 1);  // ✅ Consistent UTC
+                } else if (Math.abs(daysDiff - 1) < 0.5) {
+                  // Previous day - continue streak
                   streak++;
-                  currentDate = new Date(workoutDate);
-                  currentDate.setDate(currentDate.getDate() - 1);
+                  currentDate.setUTCDate(currentDate.getUTCDate() - 1);
                 } else {
+                  // Gap found, break the streak
                   break;
                 }
               }
