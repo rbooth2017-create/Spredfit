@@ -681,30 +681,8 @@ useEffect(() => {
     try {
       const api = new APIClient(accessToken);
       const workouts = await api.getAllVisibleWorkouts();
+      const withPhotos = normalizeWorkoutPhotos(workouts);
       
-      // Filter out workouts from users in stealth mode (but show your own)
-      const visibleWorkouts = workouts.filter(workout => {
-        // Always show your own workouts
-        if (workout.userId === user.id) return true;
-        
-        // Hide workouts from users in stealth mode
-        return !workout.inStealthMode;
-      });
-      
-const withPhotos = normalizeWorkoutPhotos(visibleWorkouts);
-
-// ✅ Cache leaderboard data to avoid N×M API calls
-const leaderboardCache = new Map<string, any[]>();
-for (const league of leagues) {
-  try {
-    const leaderboard = await api.getLeagueLeaderboard(league.id, 'total');
-    leaderboardCache.set(league.id, leaderboard);
-  } catch (error) {
-    console.error('Failed to cache leaderboard for league:', league.id, error);
-  }
-}
-
-// Add league information to each workout with THAT USER'S rank
       const activitiesWithLeagues = await Promise.all(
         withPhotos.map(async (workout: any) => {
           // Find which leagues this workout counts for
