@@ -369,6 +369,7 @@ const storePosition = (userId: string, leagueId: string, position: number) => {
         setMembershipStatus(status);
       } catch (error) {
         console.error('Failed to load membership status:', error);
+        console.log('í³Š Membership Status Loaded:', status);
         setMembershipStatus(null);
       }
     }
