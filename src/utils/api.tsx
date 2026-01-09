@@ -1058,7 +1058,7 @@ async createLeague(leagueData: {
           // Calculate time in hours
           let totalMinutes = (workouts || []).reduce((sum: number, w: any) => {
             // Skip workouts created during stealth period
-            if (stealthStart && stealthEnd) {
+            if (stealthStart && stealthEnd && member.user_id !== user.id) {
               const workoutDate = new Date(w.created_at);
               if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
                 return sum; // Skip this workout
@@ -1084,7 +1084,7 @@ async createLeague(leagueData: {
           // Calculate distance in km
           totalValue = (workouts || []).reduce((sum: number, w: any) => {
             // Skip workouts created during stealth period
-            if (stealthStart && stealthEnd) {
+            if (stealthStart && stealthEnd && member.user_id !== user.id) {
               const workoutDate = new Date(w.created_at);
               if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
                 return sum; // Skip this workout
