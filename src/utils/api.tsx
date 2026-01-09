@@ -1553,48 +1553,10 @@ async getLeagueMembers(leagueId: string) {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
+      console.log("✅ All visible workouts fetched:", workouts?.length || 0);
 
-      // Get all stealth memberships (active only)
-      const { data: stealthMemberships, error: stealthError } = await this.supabase
-        .from('league_memberships')
-        .select('user_id, league_id, stealth_until')
-        .eq('in_stealth_mode', true)
-        .not('stealth_until', 'is', null);
-
-      if (stealthError) throw stealthError;
-
-      // Create a map of users in stealth mode per league with time window
-      const now = new Date();
-      const stealthMap = new Map<string, { stealthStart: Date; stealthEnd: Date }>();
-      
-      (stealthMemberships || []).forEach(membership => {
-        const stealthEnd = new Date(membership.stealth_until);
-        
-        // Only process if stealth mode is still active
-        if (stealthEnd > now) {
-          // Calculate when stealth mode started (3 days before expiry)
-          const stealthStart = new Date(stealthEnd);
-          stealthStart.setDate(stealthStart.getDate() - 3);
-          
-          const key = `${membership.user_id}-${membership.league_id}`;
-          stealthMap.set(key, {
-            stealthStart,
-            stealthEnd
-          });
-        }
-      });
-
-      console.log('✅ All visible workouts fetched:', workouts?.length || 0);
-
-      // Filter and transform workouts
       return (workouts || [])
-        .filter((workout: any) => {
-          // Always show user's own workouts
-          if (workout.user_id === user.id) return true;
-          
-          // For now, show all workouts (stealth filtering happens in leaderboard)
-          return true;
-        })
+
         .map((workout: any) => ({
           id: workout.id,
           userId: workout.user_id,

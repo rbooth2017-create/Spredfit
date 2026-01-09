@@ -16,7 +16,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('ðŸ“¦ Caching critical assets');
+        console.log('í³¦ Caching critical assets');
         return cache.addAll(PRECACHE_ASSETS);
       })
       .then(() => self.skipWaiting())
@@ -32,7 +32,7 @@ self.addEventListener('activate', (event) => {
         cacheNames
           .filter((name) => name !== CACHE_NAME && name !== RUNTIME_CACHE)
           .map((name) => {
-            console.log('ðŸ—‘ï¸ Deleting old cache:', name);
+            console.log('í·‘ï¸ Deleting old cache:', name);
             return caches.delete(name);
           })
       );
@@ -84,13 +84,17 @@ self.addEventListener('fetch', (event) => {
           
           // Return offline page for navigation requests
           if (request.mode === 'navigate') {
-            return caches.match('/');
+            return caches.match('/').then(response => response || new Response('Offline', { status: 503 }));
           }
           
+          // Return a proper response for failed requests
           return new Response('Offline - content not available', {
             status: 503,
             statusText: 'Service Unavailable',
           });
+        }).catch(() => {
+          // Fallback if cache also fails
+          return new Response('Service Unavailable', { status: 503 });
         });
       })
   );
@@ -99,45 +103,14 @@ self.addEventListener('fetch', (event) => {
 // Background sync for offline workout logging (future feature)
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-workouts') {
-    console.log('ðŸ”„ Syncing offline workouts...');
-    // Implement offline workout sync logic here
-  }
-});
-
-// Push notification handler (future feature)
-self.addEventListener('push', (event) => {
-  const options = {
-    body: event.data ? event.data.text() : 'New activity from your league!',
-    icon: '/icons/icon-192x192.png',
-    badge: '/icons/badge-72x72.png',
-    vibrate: [200, 100, 200],
-    data: {
-      dateOfArrival: Date.now(),
-    },
-    actions: [
-      {
-        action: 'explore',
-        title: 'View',
-      },
-      {
-        action: 'close',
-        title: 'Close',
-      },
-    ],
-  };
-  
-  event.waitUntil(
-    self.registration.showNotification('SPREDfit', options)
-  );
-});
-
-// Notification click handler
-self.addEventListener('notificationclick', (event) => {
-  event.notification.close();
-  
-  if (event.action === 'explore') {
     event.waitUntil(
-      clients.openWindow('/')
+      self.clients.matchAll().then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({
+            type: 'SYNC_WORKOUTS',
+          });
+        });
+      })
     );
   }
 });

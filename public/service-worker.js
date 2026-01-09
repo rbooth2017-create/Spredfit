@@ -16,7 +16,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('ðŸ“¦ Caching critical assets');
+        console.log('í³¦ Caching critical assets');
         return cache.addAll(PRECACHE_ASSETS);
       })
       .then(() => self.skipWaiting())
@@ -32,7 +32,7 @@ self.addEventListener('activate', (event) => {
         cacheNames
           .filter((name) => name !== CACHE_NAME && name !== RUNTIME_CACHE)
           .map((name) => {
-            console.log('ðŸ—‘ï¸ Deleting old cache:', name);
+            console.log('í·‘ï¸ Deleting old cache:', name);
             return caches.delete(name);
           })
       );
@@ -81,8 +81,36 @@ self.addEventListener('fetch', (event) => {
           if (cachedResponse) {
             return cachedResponse;
           }
-          // Optionally, return a fallback page/image here
+          
+          // Return offline page for navigation requests
+          if (request.mode === 'navigate') {
+            return caches.match('/').then(response => response || new Response('Offline', { status: 503 }));
+          }
+          
+          // Return a proper response for failed requests
+          return new Response('Offline - content not available', {
+            status: 503,
+            statusText: 'Service Unavailable',
+          });
+        }).catch(() => {
+          // Fallback if cache also fails
+          return new Response('Service Unavailable', { status: 503 });
         });
       })
   );
+});
+
+// Background sync for offline workout logging (future feature)
+self.addEventListener('sync', (event) => {
+  if (event.tag === 'sync-workouts') {
+    event.waitUntil(
+      self.clients.matchAll().then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({
+            type: 'SYNC_WORKOUTS',
+          });
+        });
+      })
+    );
+  }
 });
