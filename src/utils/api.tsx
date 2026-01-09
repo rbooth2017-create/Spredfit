@@ -1055,17 +1055,6 @@ async createLeague(leagueData: {
       const stealthStart = member.stealth_activated_at ? new Date(member.stealth_activated_at) : null;
       const stealthEnd = member.stealth_until ? new Date(member.stealth_until) : null;
 
-        // ADD THESE DEBUG LOGS:
-if (stealthStart && stealthEnd) {
-  console.log(`🔍 STEALTH DEBUG for ${member.profiles?.username}:`);
-  console.log('  stealth_until from DB:', member.stealth_until);
-  console.log('  stealthStart:', stealthStart.toISOString());
-  console.log('  stealthEnd:', stealthEnd.toISOString());
-  console.log('  member.user_id:', member.user_id);
-  console.log('  current user.id:', user.id);
-  console.log('  Is viewing own profile?:', member.user_id === user.id);
-  console.log('  Total workouts to process:', workouts?.length);
-}
         
         if (metricType === 'time') {
           // Calculate time in hours
@@ -1073,12 +1062,7 @@ if (stealthStart && stealthEnd) {
             // Skip workouts created during stealth period
              if (stealthStart && stealthEnd && member.user_id !== user.id) {
               const workoutDate = new Date(w.created_at);
-                console.log(`    🔍 Checking workout:`, {
-    created_at: w.created_at,
-    workoutDate: workoutDate.toISOString(),
-    isInStealthPeriod: workoutDate >= stealthStart && workoutDate <= stealthEnd,
-    willSkip: workoutDate >= stealthStart && workoutDate <= stealthEnd
-  });
+                
               if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
                 return sum; // Skip this workout
               }
