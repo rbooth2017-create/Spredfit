@@ -1009,6 +1009,7 @@ async createLeague(leagueData: {
         .select(`
           user_id,
           stealth_until,
+          stealth_activated_at,
           double_up_date,
           bonus_hours,
           profiles!league_memberships_user_id_fkey (
@@ -1051,15 +1052,33 @@ async createLeague(leagueData: {
           if (workoutsError) throw workoutsError;
   
          let totalValue = 0;
-        const stealthStart = member.stealth_until ? new Date(new Date(member.stealth_until).getTime() - 3 * 24 * 60 * 60 * 1000) : null;
-        const stealthEnd = member.stealth_until ? new Date(member.stealth_until) : null;
+      const stealthStart = member.stealth_activated_at ? new Date(member.stealth_activated_at) : null;
+      const stealthEnd = member.stealth_until ? new Date(member.stealth_until) : null;
+
+        // ADD THESE DEBUG LOGS:
+if (stealthStart && stealthEnd) {
+  console.log(`🔍 STEALTH DEBUG for ${member.profiles?.username}:`);
+  console.log('  stealth_until from DB:', member.stealth_until);
+  console.log('  stealthStart:', stealthStart.toISOString());
+  console.log('  stealthEnd:', stealthEnd.toISOString());
+  console.log('  member.user_id:', member.user_id);
+  console.log('  current user.id:', user.id);
+  console.log('  Is viewing own profile?:', member.user_id === user.id);
+  console.log('  Total workouts to process:', workouts?.length);
+}
         
         if (metricType === 'time') {
           // Calculate time in hours
           let totalMinutes = (workouts || []).reduce((sum: number, w: any) => {
             // Skip workouts created during stealth period
-            if (stealthStart && stealthEnd && member.user_id !== user.id) {
+             if (stealthStart && stealthEnd && member.user_id !== user.id) {
               const workoutDate = new Date(w.created_at);
+                console.log(`    🔍 Checking workout:`, {
+    created_at: w.created_at,
+    workoutDate: workoutDate.toISOString(),
+    isInStealthPeriod: workoutDate >= stealthStart && workoutDate <= stealthEnd,
+    willSkip: workoutDate >= stealthStart && workoutDate <= stealthEnd
+  });
               if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
                 return sum; // Skip this workout
               }
@@ -1774,10 +1793,12 @@ async getLeagueMembers(leagueId: string) {
       const stealthUntil = new Date();
       stealthUntil.setDate(stealthUntil.getDate() + 3); // 3 days from now
 
+     const now = new Date();
       const { data, error } = await this.supabase
         .from('league_memberships')
         .update({
           in_stealth_mode: true,
+          stealth_activated_at: now.toISOString(),
           stealth_until: stealthUntil.toISOString(),
           used_stealth_mode: true
         })

@@ -369,7 +369,7 @@ const storePosition = (userId: string, leagueId: string, position: number) => {
         setMembershipStatus(status);
       } catch (error) {
         console.error('Failed to load membership status:', error);
-        console.log('í³Š Membership Status Loaded:', status);
+        console.log('ï¿½ï¿½ï¿½ Membership Status Loaded:', status);
         setMembershipStatus(null);
       }
     }
@@ -407,8 +407,6 @@ useEffect(() => {
 }, [currentLeague, activities, membershipStatus, user?.id]);
 
 // League states (using leagues from context)
-console.log("ðŸ” BEFORE useMemo - leagues:", leagues);
-console.log("ðŸ” BEFORE useMemo - profile:", profile);
 
 const userLeagues = useMemo(() => {
   const currentUserId = profile?.id;
@@ -710,7 +708,7 @@ useEffect(() => {
           const leagueRanks = applicableLeagues.map((league) => {
             try {
               // âœ… Use cached leaderboard instead of fetching
-              const leaderboard = leaderboardCache.get(league.id) || [];
+              const leaderboard: any[] = []; // Cache not implemented yet
               
               // Find this user's position in the leaderboard
               const userEntry = leaderboard.find(entry => entry.userId === workout.userId);
@@ -744,7 +742,7 @@ useEffect(() => {
             // Fetch league member stats and create streak/achievement activities
       let streakAndAchievementActivities: any[] = [];
       
-        if (currentLeague?.id && !membershipStatus?.inStealthMode) {
+        if (currentLeague?.id) {
         try {
           const memberStats = await api.getLeagueMembersWithStats(currentLeague.id);
           const now = Date.now();

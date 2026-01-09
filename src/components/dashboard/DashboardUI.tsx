@@ -152,12 +152,7 @@ function ActivityCarouselComponent({
   const [showOnlyMyExercises, setShowOnlyMyExercises] = useState(false);
   
     const filteredActivities = activities.filter(activity => {
-     // DEBUG
-  if (activity.type === 'pr') {
-    console.log('🔍 PR Activity found:', activity);
-    console.log('📊 membershipStatus:', membershipStatus);
-    console.log('⚠️ in_stealth_mode:', membershipStatus?.inStealthMode);
-  }
+
    
     // Filter achievements based on toggle
     if (!showAchievements && (activity.type === 'achievement' || activity.type === 'streak' || activity.type === 'pr')) {
