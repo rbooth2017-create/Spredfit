@@ -17,7 +17,8 @@ interface ActivityFeedModalProps {
   activityFilter: 'all' | 'you';
   setActivityFilter: (filter: 'all' | 'you') => void;
   onActivityClick: (activity: Activity) => void;
-  currentUserId?: string; // ✅ Add this
+  currentUserId?: string;
+  membershipStatus?: any; // ← ADD THIS
 }
 
 function ActivityFeedModalComponent({
@@ -25,7 +26,8 @@ function ActivityFeedModalComponent({
   activityFilter,
   setActivityFilter,
   onActivityClick,
-  currentUserId, // ✅ Add this
+  currentUserId,
+  membershipStatus, // ← ADD THIS
 }: ActivityFeedModalProps) {
   return (
     <div className="w-96 h-96 rounded-full bg-transparent border-2 border-white/40 flex items-center justify-center p-8 shadow-2xl overflow-hidden">
@@ -37,7 +39,25 @@ function ActivityFeedModalComponent({
             <p className="text-white/50 text-xs italic">No activities yet. Log a workout to get started!</p>
           ) : (
             activities
-              .filter(activity => activity.type === 'workout' && (activityFilter === 'all' || activity.userId === currentUserId))
+              .filter(activity => {
+                // Original filters
+                if (activity.type !== 'workout' || (activityFilter === 'you' && activity.userId !== currentUserId)) {
+                  return false;
+                }
+                
+              // ← FIX THIS: Hide workouts during stealth period (ONLY YOUR OWN)
+              if (membershipStatus?.stealthUntil && activity.userId === currentUserId) {
+                const stealthEnd = new Date(membershipStatus.stealthUntil);
+                const stealthStart = new Date(stealthEnd.getTime() - 3 * 24 * 60 * 60 * 1000);
+                const workoutDate = new Date(activity.date || activity.time);
+                
+                if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
+                  return false;
+                }
+              }
+                
+                return true;
+              })
               .slice(0, 100)
               .map((activity) => (
                   <button

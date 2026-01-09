@@ -39,6 +39,7 @@ interface ActivityCarouselProps {
   getSportIcon: (sport?: string) => any;
   isExpanded?: boolean;
   currentUser?: any; 
+  membershipStatus?: any; 
 }
 
 interface MainActionCardsProps {
@@ -145,11 +146,12 @@ function ActivityCarouselComponent({
   getSportIcon,
   isExpanded,
   currentUser,
+  membershipStatus,
 }: ActivityCarouselProps) {
   const [showAchievements, setShowAchievements] = useState(true);
   const [showOnlyMyExercises, setShowOnlyMyExercises] = useState(false);
 
-    // Filter activities
+  // Filter activities
   const filteredActivities = activities.filter(activity => {
     // Filter achievements
     if (!showAchievements && (activity.type === 'achievement' || activity.type === 'streak' || activity.type === 'pr')) {
@@ -159,6 +161,18 @@ function ActivityCarouselComponent({
     // Filter to only your exercises AND achievements
     if (showOnlyMyExercises) {
       if (activity.userId !== currentUser?.id) {
+        return false;
+      }
+    }
+
+        // Hide workouts created during stealth period (ONLY YOUR OWN)
+    if (activity.type === 'workout' && membershipStatus?.stealthUntil && activity.userId === currentUser?.id) {
+      const stealthEnd = new Date(membershipStatus.stealthUntil);
+      const stealthStart = new Date(stealthEnd.getTime() - 3 * 24 * 60 * 60 * 1000);
+      const workoutDate = new Date(activity.date || activity.time);
+      
+      // Hide if workout was created during stealth period
+      if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
         return false;
       }
     }

@@ -1049,6 +1049,28 @@ for (const league of leagues) {
     }
   };
 
+   // Fetch membership status for current league to hide stealth workouts in UI
+      const [membershipStatus, setMembershipStatus] = useState<any>(null);
+      
+      useEffect(() => {
+        async function loadMembershipStatus() {
+          if (!currentLeague?.id || !api) {
+            setMembershipStatus(null);
+            return;
+          }
+          
+          try {
+            const status = await api.getLeagueMembershipStatus(currentLeague.id);
+            setMembershipStatus(status);
+          } catch (error) {
+            console.error('Failed to load membership status:', error);
+            setMembershipStatus(null);
+          }
+        }
+        
+        loadMembershipStatus();
+      }, [currentLeague?.id, api]);
+
   return (
     <div className="h-screen w-full overflow-hidden relative">
       {/* Animated Background */}
@@ -1081,6 +1103,7 @@ for (const league of leagues) {
   activities={activities}
   currentLeague={currentLeague}
   currentUser={user}  // ← Pass the user from useAuth()
+  membershipStatus={membershipStatus}
   onActivityClick={(activity) => {
     setSelectedActivity(activity);
     setActiveModal("activityDetail");
@@ -1343,6 +1366,7 @@ for (const league of leagues) {
                 activities={activities}
                 activityFilter={activityFilter}
                 setActivityFilter={setActivityFilter}
+                membershipStatus={membershipStatus} 
                 onActivityClick={(activity) => {
                   setSelectedActivity(activity);
                   setActiveModal("activityDetail");

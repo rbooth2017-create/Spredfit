@@ -1050,55 +1050,73 @@ async createLeague(leagueData: {
   
           if (workoutsError) throw workoutsError;
   
-          let totalValue = 0;
-  
-          if (metricType === 'time') {
-            // Calculate time in hours
-            let totalMinutes = (workouts || []).reduce((sum: number, w: any) => {
-              let minutes = w.duration_min || 0;
-              
-              // Apply double up multiplier if applicable
-              if (member.double_up_date) {
-                const workoutDate = new Date(w.created_at).toDateString();
-                const doubleUpDate = new Date(member.double_up_date).toDateString();
-                if (workoutDate === doubleUpDate) {
-                  minutes *= 2;
-                }
+         let totalValue = 0;
+        const stealthStart = member.stealth_until ? new Date(new Date(member.stealth_until).getTime() - 3 * 24 * 60 * 60 * 1000) : null;
+        const stealthEnd = member.stealth_until ? new Date(member.stealth_until) : null;
+        
+        if (metricType === 'time') {
+          // Calculate time in hours
+          let totalMinutes = (workouts || []).reduce((sum: number, w: any) => {
+            // Skip workouts created during stealth period
+            if (stealthStart && stealthEnd) {
+              const workoutDate = new Date(w.created_at);
+              if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
+                return sum; // Skip this workout
               }
-              
-              return sum + minutes;
-            }, 0);
+            }
             
-            totalValue = totalMinutes / 60; // Convert to hours
-          } else {
-            // Calculate distance in km
-            totalValue = (workouts || []).reduce((sum: number, w: any) => {
-              let distance = w.distance_km || 0;
-              
-              // Apply double up multiplier if applicable
-              if (member.double_up_date) {
-                const workoutDate = new Date(w.created_at).toDateString();
-                const doubleUpDate = new Date(member.double_up_date).toDateString();
-                if (workoutDate === doubleUpDate) {
-                  distance *= 2;
-                }
+            let minutes = w.duration_min || 0;
+            
+            // Apply double up multiplier if applicable
+            if (member.double_up_date) {
+              const workoutDate = new Date(w.created_at).toDateString();
+              const doubleUpDate = new Date(member.double_up_date).toDateString();
+              if (workoutDate === doubleUpDate) {
+                minutes *= 2;
               }
-              
-              return sum + distance;
-            }, 0);
-          }
-  
-                    return {
-            userId: member.user_id,
-            name: member.profiles?.username || 'User',
-            totalHours: metricType === 'time' ? (inStealth ? 0 : totalValue + (member.bonus_hours || 0)) : 0,
-            totalDistance: metricType !== 'time' ? (inStealth ? 0 : totalValue) : 0,
-            isCurrentUser: member.user_id === user.id,
-            inStealth
-          };
+            }
+            
+            return sum + minutes;
+          }, 0);
+          
+          totalValue = totalMinutes / 60; // Convert to hours
+        } else {
+          // Calculate distance in km
+          totalValue = (workouts || []).reduce((sum: number, w: any) => {
+            // Skip workouts created during stealth period
+            if (stealthStart && stealthEnd) {
+              const workoutDate = new Date(w.created_at);
+              if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
+                return sum; // Skip this workout
+              }
+            }
+            
+            let distance = w.distance_km || 0;
+            
+            // Apply double up multiplier if applicable
+            if (member.double_up_date) {
+              const workoutDate = new Date(w.created_at).toDateString();
+              const doubleUpDate = new Date(member.double_up_date).toDateString();
+              if (workoutDate === doubleUpDate) {
+                distance *= 2;
+              }
+            }
+            
+            return sum + distance;
+          }, 0);
+        }
+        
+        return {
+          userId: member.user_id,
+          name: member.profiles?.username || 'User',
+          totalHours: metricType === 'time' ? (totalValue + (member.bonus_hours || 0)) : 0,
+          totalDistance: metricType !== 'time' ? totalValue : 0,
+          isCurrentUser: member.user_id === user.id,
+          inStealth
+        };
         })
       );
-  
+              
       // Sort by appropriate metric and assign ranks
       const sortKey = metricType === 'time' ? 'totalHours' : 'totalDistance';
       const sorted = leaderboardData
@@ -1770,13 +1788,25 @@ async getLeagueMembers(leagueId: string) {
   // STEALTH MODE & DOUBLE UP DAY METHODS
   // ============================================
 
-  async activateStealth(leagueId: string): Promise<{ stealth_until: string }> {
+    async activateStealth(leagueId: string): Promise<{ stealth_until: string }> {
     console.log('🔵 API Client: Activating stealth mode');
     try {
       const { data: { user } } = await this.supabase.auth.getUser();
       
       if (!user) {
         throw new Error('No user found');
+      }
+
+      // Check if stealth has already been used in this league
+      const { data: membership } = await this.supabase
+        .from('league_memberships')
+        .select('used_stealth_mode')
+        .eq('league_id', leagueId)
+        .eq('user_id', user.id)
+        .single();
+
+      if (membership?.used_stealth_mode) {
+        throw new Error('Stealth mode already used in this league');
       }
 
       const stealthUntil = new Date();
@@ -1787,7 +1817,7 @@ async getLeagueMembers(leagueId: string) {
         .update({
           in_stealth_mode: true,
           stealth_until: stealthUntil.toISOString(),
-          stealth_days_remaining: 3
+          used_stealth_mode: true
         })
         .eq('league_id', leagueId)
         .eq('user_id', user.id)
@@ -1806,33 +1836,32 @@ async getLeagueMembers(leagueId: string) {
     }
   }
 
-  async deactivateStealth(leagueId: string): Promise<void> {
-    console.log('🔵 API Client: Deactivating stealth mode');
-    try {
-      const { data: { user } } = await this.supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error('No user found');
-      }
-
-      const { error } = await this.supabase
-        .from('league_memberships')
-        .update({
-          in_stealth_mode: false,
-          stealth_until: null,
-          stealth_days_remaining: 3
-        })
-        .eq('league_id', leagueId)
-        .eq('user_id', user.id);
-
-      if (error) throw error;
-
-      console.log('✅ Stealth mode deactivated');
-    } catch (error) {
-      console.error('❌ Failed to deactivate stealth:', error);
-      throw error;
+ async deactivateStealth(leagueId: string): Promise<void> {
+  console.log('🔵 API Client: Deactivating stealth mode');
+  try {
+    const { data: { user } } = await this.supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('No user found');
     }
+
+    const { error } = await this.supabase
+      .from('league_memberships')
+      .update({
+        in_stealth_mode: false,
+        stealth_until: null
+      })
+      .eq('league_id', leagueId)
+      .eq('user_id', user.id);
+
+    if (error) throw error;
+
+    console.log('✅ Stealth mode deactivated');
+  } catch (error) {
+    console.error('❌ Failed to deactivate stealth:', error);
+    throw error;
   }
+}
 
   async activateDoubleUp(leagueId: string): Promise<{ double_up_date: string }> {
     console.log('🔵 API Client: Activating double up day');
@@ -1880,42 +1909,44 @@ async getLeagueMembers(leagueId: string) {
     }
   }
 
-  async getLeagueMembershipStatus(leagueId: string): Promise<{
-    stealthUntil: string | null;
-    inStealthMode: boolean;
-    doubleUpDate: string | null;
-    doubleUpUsed: boolean;
-  }> {
-    console.log('🔵 API Client: Fetching membership status');
-    try {
-      const { data: { user } } = await this.supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error('No user found');
-      }
-
-      const { data: membership, error } = await this.supabase
-        .from('league_memberships')
-        .select('in_stealth_mode, stealth_until, used_double_up, double_up_date')
-        .eq('league_id', leagueId)
-        .eq('user_id', user.id)
-        .single();
-
-      if (error) throw error;
-
-      console.log('✅ Membership status fetched:', membership);
-
-      return {
-        stealthUntil: membership?.stealth_until || null,
-        inStealthMode: membership?.in_stealth_mode || false,
-        doubleUpDate: membership?.double_up_date || null,
-        doubleUpUsed: membership?.used_double_up || false
-      };
-    } catch (error) {
-      console.error('❌ Failed to fetch membership status:', error);
-      throw error;
+ async getLeagueMembershipStatus(leagueId: string): Promise<{
+  stealthUntil: string | null;
+  inStealthMode: boolean;
+  stealthUsed: boolean;
+  doubleUpDate: string | null;
+  doubleUpUsed: boolean;
+}> {
+  console.log('🔵 API Client: Fetching membership status');
+  try {
+    const { data: { user } } = await this.supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('No user found');
     }
+
+    const { data: membership, error } = await this.supabase
+      .from('league_memberships')
+      .select('in_stealth_mode, stealth_until, used_stealth_mode, used_double_up, double_up_date')
+      .eq('league_id', leagueId)
+      .eq('user_id', user.id)
+      .single();
+
+    if (error) throw error;
+
+    console.log('✅ Membership status fetched:', membership);
+
+    return {
+      stealthUntil: membership?.stealth_until || null,
+      inStealthMode: membership?.in_stealth_mode || false,
+      stealthUsed: membership?.used_stealth_mode || false,
+      doubleUpDate: membership?.double_up_date || null,
+      doubleUpUsed: membership?.used_double_up || false
+    };
+  } catch (error) {
+    console.error('❌ Failed to fetch membership status:', error);
+    throw error;
   }
+}
 
   // ============================================
   // END STEALTH MODE & DOUBLE UP DAY METHODS
