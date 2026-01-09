@@ -150,10 +150,16 @@ function ActivityCarouselComponent({
 }: ActivityCarouselProps) {
   const [showAchievements, setShowAchievements] = useState(true);
   const [showOnlyMyExercises, setShowOnlyMyExercises] = useState(false);
-
-  // Filter activities
-  const filteredActivities = activities.filter(activity => {
-    // Filter achievements
+  
+    const filteredActivities = activities.filter(activity => {
+     // DEBUG
+  if (activity.type === 'pr') {
+    console.log('🔍 PR Activity found:', activity);
+    console.log('📊 membershipStatus:', membershipStatus);
+    console.log('⚠️ in_stealth_mode:', membershipStatus?.inStealthMode);
+  }
+   
+    // Filter achievements based on toggle
     if (!showAchievements && (activity.type === 'achievement' || activity.type === 'streak' || activity.type === 'pr')) {
       return false;
     }
@@ -165,13 +171,17 @@ function ActivityCarouselComponent({
       }
     }
 
-        // Hide workouts created during stealth period (ONLY YOUR OWN)
+     // Hide achievements/streaks/PRs when in stealth mode
+    if (membershipStatus?.inStealthMode && (activity.type === "achievement" || activity.type === "streak" || activity.type === "pr") && activity.userId === currentUser?.id) {
+      return false;
+    }
+  
+    // Hide workouts created during stealth period (ONLY YOUR OWN)
     if (activity.type === 'workout' && membershipStatus?.stealthUntil && activity.userId === currentUser?.id) {
       const stealthEnd = new Date(membershipStatus.stealthUntil);
       const stealthStart = new Date(stealthEnd.getTime() - 3 * 24 * 60 * 60 * 1000);
       const workoutDate = new Date(activity.date || activity.time);
       
-      // Hide if workout was created during stealth period
       if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
         return false;
       }

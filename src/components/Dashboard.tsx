@@ -354,59 +354,91 @@ const storePosition = (userId: string, leagueId: string, position: number) => {
   const [lastPosition, setLastPosition] =
     useState<GeolocationPosition | null>(null);
 
-    const [totalLeagueTime, setTotalLeagueTime] = useState(0);
-
-        // Calculate total league time from all activities
-    useEffect(() => {
-      if (!currentLeague || !activities) {
-        setTotalLeagueTime(0);
+   // Fetch membership status for current league to hide stealth workouts in UI
+  const [membershipStatus, setMembershipStatus] = useState<any>(null);
+  
+  useEffect(() => {
+    async function loadMembershipStatus() {
+      if (!currentLeague?.id || !api) {
+        setMembershipStatus(null);
         return;
       }
+      
+      try {
+        const status = await api.getLeagueMembershipStatus(currentLeague.id);
+        setMembershipStatus(status);
+      } catch (error) {
+        console.error('Failed to load membership status:', error);
+        setMembershipStatus(null);
+      }
+    }
     
-      const total = activities.reduce((sum, activity) => {
-        if (activity.type === 'workout' && activity.duration) {
-          return sum + activity.duration;
-        }
-        return sum;
-      }, 0);
-    
-      setTotalLeagueTime(total);
-    }, [currentLeague, activities]);
+    loadMembershipStatus();
+  }, [currentLeague?.id, api]);
 
-  // League states (using leagues from context)
-  console.log("🔍 BEFORE useMemo - leagues:", leagues);
-  console.log("🔍 BEFORE useMemo - profile:", profile);
-
-    const userLeagues = useMemo(() => {
-    const currentUserId = profile?.id;
+  const [totalLeagueTime, setTotalLeagueTime] = useState(0);  
   
-    return leagues.map((league, index) => ({
-      name: league.name,
-      rank: league.userRank || 1, // ✅ Use actual rank from API
-      totalMembers: league.members?.length || 0,
-      id: league.id,
-      isManager: league.createdBy === currentUserId,
-      code: league.leagueCode,
-      ownerId: league.ownerId,
-      allowStealthMode: league.allowStealthMode,  // ✅ Add this
-      allowDoubleUp: league.allowDoubleUp,        // ✅ Add this
-    }));
-  }, [leagues, profile]);
+// Calculate total league time from all activities (excluding stealth workouts)
+useEffect(() => {
+  if (!currentLeague || !activities) {
+    setTotalLeagueTime(0);
+    return;
+  }
 
-  // Available sports
-  const sports = useMemo(
-    () => [
-      { name: "Running", icon: PersonStanding },
-      { name: "Cycling", icon: Bike },
-      { name: "Swimming", icon: Waves },
-      { name: "Strength", icon: Dumbbell },
-      { name: "Yoga", icon: Heart },
-      { name: "HIIT", icon: Zap },
-      { name: "Team Sports", icon: Users },
-      { name: "Other", icon: MoreHorizontal },
-    ],
-    []
-  );
+  const total = activities.reduce((sum, activity) => {
+    if (activity.type === 'workout' && activity.duration) {
+      // Exclude your own workouts created during your stealth period
+      if (membershipStatus?.stealthUntil && activity.userId === user?.id) {
+        const stealthEnd = new Date(membershipStatus.stealthUntil);
+        const stealthStart = new Date(stealthEnd.getTime() - 3 * 24 * 60 * 60 * 1000);
+        const workoutDate = new Date(activity.date || activity.time);
+        
+        if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
+          return sum; // Skip this workout
+        }
+      }
+      return sum + activity.duration;
+    }
+    return sum;
+  }, 0);
+
+  setTotalLeagueTime(total);
+}, [currentLeague, activities, membershipStatus, user?.id]);
+
+// League states (using leagues from context)
+console.log("🔍 BEFORE useMemo - leagues:", leagues);
+console.log("🔍 BEFORE useMemo - profile:", profile);
+
+const userLeagues = useMemo(() => {
+  const currentUserId = profile?.id;
+
+  return leagues.map((league, index) => ({
+    name: league.name,
+    rank: league.userRank || 1, // ✅ Use actual rank from API
+    totalMembers: league.members?.length || 0,
+    id: league.id,
+    isManager: league.createdBy === currentUserId,
+    code: league.leagueCode,
+    ownerId: league.ownerId,
+    allowStealthMode: league.allowStealthMode,  // ✅ Add this
+    allowDoubleUp: league.allowDoubleUp,        // ✅ Add this
+  }));
+}, [leagues, profile]);
+
+// Available sports
+const sports = useMemo(
+  () => [
+    { name: "Running", icon: PersonStanding },
+    { name: "Cycling", icon: Bike },
+    { name: "Swimming", icon: Waves },
+    { name: "Strength", icon: Dumbbell },
+    { name: "Yoga", icon: Heart },
+    { name: "HIIT", icon: Zap },
+    { name: "Team Sports", icon: Users },
+    { name: "Other", icon: MoreHorizontal },
+  ],
+  []
+);
 
   // Calculate distance between two GPS coordinates (Haversine formula)
   const calculateDistance = (
@@ -728,11 +760,12 @@ for (const league of leagues) {
           };
         })
       );
+
       
             // Fetch league member stats and create streak/achievement activities
       let streakAndAchievementActivities: any[] = [];
       
-      if (currentLeague?.id) {
+        if (currentLeague?.id && !membershipStatus?.inStealthMode) {
         try {
           const memberStats = await api.getLeagueMembersWithStats(currentLeague.id);
           const now = Date.now();
@@ -811,7 +844,7 @@ for (const league of leagues) {
     }
   }
   loadActivities();
-}, [accessToken, setActivities, refreshTrigger, leagues.length, user?.id, currentLeague?.id]);
+}, [accessToken, setActivities, refreshTrigger, leagues.length, user?.id, currentLeague?.id, membershipStatus]);
 
     // Load chat when league changes
     const loadChat = async () => {
@@ -1049,27 +1082,7 @@ for (const league of leagues) {
     }
   };
 
-   // Fetch membership status for current league to hide stealth workouts in UI
-      const [membershipStatus, setMembershipStatus] = useState<any>(null);
-      
-      useEffect(() => {
-        async function loadMembershipStatus() {
-          if (!currentLeague?.id || !api) {
-            setMembershipStatus(null);
-            return;
-          }
-          
-          try {
-            const status = await api.getLeagueMembershipStatus(currentLeague.id);
-            setMembershipStatus(status);
-          } catch (error) {
-            console.error('Failed to load membership status:', error);
-            setMembershipStatus(null);
-          }
-        }
-        
-        loadMembershipStatus();
-      }, [currentLeague?.id, api]);
+   
 
   return (
     <div className="h-screen w-full overflow-hidden relative">
