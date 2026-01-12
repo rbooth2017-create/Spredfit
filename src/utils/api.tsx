@@ -972,170 +972,163 @@ async createLeague(leagueData: {
   // END TEAM MANAGEMENT METHODS
   // ============================================
 
-  
-
-    async getLeagueLeaderboard(leagueId: string, period: 'total' | 'weekly' = 'total', metricType: 'time' | 'distance_run' | 'distance_cycle' = 'time') {
-    console.log('🔵 API Client: Fetching league leaderboard');
-    try {
-      const { data: { user } } = await this.supabase.auth.getUser();
-      if (!user) throw new Error('Not authenticated');
-  
-      // Get league details
-      const { data: league, error: leagueError } = await this.supabase
-        .from('leagues')
-        .select('start_date, end_date, allowed_sports')
-        .eq('id', leagueId)
-        .single();
-  
-      if (leagueError) throw leagueError;
-  
-      // Calculate date range
-      let startDate: string;
-      const endDate = league.end_date;
-  
-      if (period === 'weekly') {
-        const now = new Date();
-        const weekStart = new Date(now);
-        weekStart.setDate(now.getDate() - now.getDay());
-        weekStart.setHours(0, 0, 0, 0);
-        startDate = weekStart.toISOString();
-      } else {
-        startDate = league.start_date;
-      }
-  
-      // Get all members
-      const { data: members, error: membersError } = await this.supabase
-        .from('league_memberships')
-        .select(`
-          user_id,
-          stealth_until,
-          stealth_activated_at,
-          double_up_date,
-          bonus_hours,
-          profiles!league_memberships_user_id_fkey (
-            id,
-            username,
-            avatar_url
-          )
-        `)
-        .eq('league_id', leagueId);
-  
-      if (membersError) throw membersError;
-  
-      const now = new Date();
-  
-      // Get workouts for each member
-      const leaderboardData = await Promise.all(
-        (members || []).map(async (member: any) => {
-          // Check if in stealth mode
-          const inStealth = member.stealth_until && new Date(member.stealth_until) > now;
-  
-          let workoutsQuery = this.supabase
-            .from('workouts')
-            .select('duration_min, distance_km, created_at, type')
-            .eq('user_id', member.user_id)
-            .gte('created_at', startDate)
-            .lte('created_at', endDate);
-  
-          // Filter by sport type if distance metric (case-insensitive)
-          if (metricType === 'distance_run') {
-            workoutsQuery = workoutsQuery.ilike('type', 'running');
-          } else if (metricType === 'distance_cycle') {
-            workoutsQuery = workoutsQuery.ilike('type', 'cycling');
-          } else if (league.allowed_sports && league.allowed_sports.length > 0) {
-            // Filter by allowed sports for time metric
-            workoutsQuery = workoutsQuery.in('type', league.allowed_sports);
+  async getLeagueLeaderboard(leagueId: string, period: 'total' | 'weekly' = 'total', metricType: 'time' | 'distance_run' | 'distance_cycle' = 'time') {
+        console.log('🔵 API Client: Fetching league leaderboard');
+        try {
+          const { data: { user } } = await this.supabase.auth.getUser();
+          if (!user) throw new Error('Not authenticated');
+      
+          // Get league details
+          const { data: league, error: leagueError } = await this.supabase
+            .from('leagues')
+            .select('start_date, end_date, allowed_sports')
+            .eq('id', leagueId)
+            .single();
+      
+          if (leagueError) throw leagueError;
+      
+          // Calculate date range
+          let startDate: string;
+          const endDate = league.end_date;
+      
+          if (period === 'weekly') {
+            const now = new Date();
+            const weekStart = new Date(now);
+            weekStart.setDate(now.getDate() - now.getDay());
+            weekStart.setHours(0, 0, 0, 0);
+            startDate = weekStart.toISOString();
+          } else {
+            startDate = league.start_date;
           }
+      
+          // Get all members
+          const { data: members, error: membersError } = await this.supabase
+            .from('league_memberships')
+            .select(`
+              user_id,
+              stealth_until,
+              stealth_activated_at,
+              in_stealth_mode,
+              double_up_date,
+              bonus_hours,
+              profiles:profiles!league_memberships_user_id_fkey (
+                id,
+                username,
+                avatar_url
+              )
+            `)
+            .eq('league_id', leagueId);
+      
+          if (membersError) throw membersError;
+      
+          // Get workouts for each member
+          const leaderboardData = await Promise.all(
+            (members || []).map(async (member: any) => {
+              // Gracefully handle cases where a member might not have a profile
+              if (!member.profiles) {
+                return null; 
+              }
   
-          const { data: workouts, error: workoutsError } = await workoutsQuery;
-  
-          if (workoutsError) throw workoutsError;
-  
-         let totalValue = 0;
-      const stealthStart = member.stealth_activated_at ? new Date(member.stealth_activated_at) : null;
-      const stealthEnd = member.stealth_until ? new Date(member.stealth_until) : null;
-
-        
-        if (metricType === 'time') {
-          // Calculate time in hours
-          let totalMinutes = (workouts || []).reduce((sum: number, w: any) => {
-            // Skip workouts created during stealth period
-             if (stealthStart && stealthEnd && member.user_id !== user.id) {
-              const workoutDate = new Date(w.created_at);
-                
-              if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
-                return sum; // Skip this workout
-              }
-            }
-            
-            let minutes = w.duration_min || 0;
-            
-            // Apply double up multiplier if applicable
-            if (member.double_up_date) {
-              const workoutDate = new Date(w.created_at).toDateString();
-              const doubleUpDate = new Date(member.double_up_date).toDateString();
-              if (workoutDate === doubleUpDate) {
-                minutes *= 2;
-              }
-            }
-            
-            return sum + minutes;
-          }, 0);
-          
-          totalValue = totalMinutes / 60; // Convert to hours
-        } else {
-          // Calculate distance in km
-          totalValue = (workouts || []).reduce((sum: number, w: any) => {
-            // Skip workouts created during stealth period
-            if (stealthStart && stealthEnd && member.user_id !== user.id) {
-              const workoutDate = new Date(w.created_at);
-              if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
-                return sum; // Skip this workout
-              }
-            }
-            
-            let distance = w.distance_km || 0;
-            
-            // Apply double up multiplier if applicable
-            if (member.double_up_date) {
-              const workoutDate = new Date(w.created_at).toDateString();
-              const doubleUpDate = new Date(member.double_up_date).toDateString();
-              if (workoutDate === doubleUpDate) {
-                distance *= 2;
-              }
-            }
-            
-            return sum + distance;
-          }, 0);
-        }
-        
-        return {
-          userId: member.user_id,
-          name: member.profiles?.username || 'User',
-          totalHours: metricType === 'time' ? (totalValue + (member.bonus_hours || 0)) : 0,
-          totalDistance: metricType !== 'time' ? totalValue : 0,
-          isCurrentUser: member.user_id === user.id,
-          inStealth
-        };
-        })
-      );
+              const now = new Date();
+              const isCurrentlyInStealth = member.in_stealth_mode && member.stealth_until && new Date(member.stealth_until) > now;
+              const isViewingSelf = member.user_id === user.id;
+    
+              let workoutsQuery = this.supabase
+                .from('workouts')
+                .select('duration_min, distance_km, created_at, type')
+                .eq('user_id', member.user_id)
+                .gte('created_at', startDate)
+                .lte('created_at', endDate);
+      
+                            // Find this section in getLeagueLeaderboard (around line 1040-1048) and replace:
               
-      // Sort by appropriate metric and assign ranks
-      const sortKey = metricType === 'time' ? 'totalHours' : 'totalDistance';
-      const sorted = leaderboardData
-        .sort((a, b) => b[sortKey] - a[sortKey])
-        .map((entry, index) => ({
-          ...entry,
-          rank: index + 1
-        }));
-  
-      console.log('✅ Leaderboard fetched:', sorted);
-      return sorted;
-    } catch (error) {
-      console.error('❌ Failed to fetch leaderboard:', error);
-      throw error;
-    }
-  }
+                            // Filter by sport type if distance metric is used
+                            if (metricType === 'distance_run') {
+                              // Match running workout types (case variations)
+                              workoutsQuery = workoutsQuery.or('type.eq.Run,type.eq.Treadmill,type.eq.Running,type.eq.run,type.eq.treadmill,type.eq.running');
+                            } else if (metricType === 'distance_cycle') {
+                              // Match cycling workout types (case variations)
+                              workoutsQuery = workoutsQuery.or('type.eq.Bike,type.eq.Spin,type.eq.Cycling,type.eq.Cycle,type.eq.bike,type.eq.spin,type.eq.cycling,type.eq.cycle');
+                            } else if (league.allowed_sports && league.allowed_sports.length > 0) {
+                              workoutsQuery = workoutsQuery.in('type', league.allowed_sports);
+                            }
+      
+              const { data: workouts, error: workoutsError } = await workoutsQuery;
+      
+              if (workoutsError) throw workoutsError;
+      
+              const stealthStart = member.stealth_activated_at ? new Date(member.stealth_activated_at) : null;
+              const stealthEnd = member.stealth_until ? new Date(member.stealth_until) : null;
+    
+              const visibleWorkouts = isViewingSelf ? workouts : (workouts || []).filter(w => {
+                // If the viewer is not the user, and stealth is active, filter out workouts within the stealth period.
+                if (isCurrentlyInStealth && stealthStart && stealthEnd) {
+                  const workoutDate = new Date(w.created_at);
+                  // Hide workout if it's within the stealth period
+                  if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
+                    return false;
+                  }
+                }
+                return true;
+              });
+    
+              let totalValue = 0;
+              if (metricType === 'time') {
+                let totalMinutes = visibleWorkouts.reduce((sum: number, w: any) => {
+                  let minutes = w.duration_min || 0;
+                  if (member.double_up_date) {
+                    const workoutDate = new Date(w.created_at).toDateString();
+                    const doubleUpDate = new Date(member.double_up_date).toDateString();
+                    if (workoutDate === doubleUpDate) {
+                      minutes *= 2;
+                    }
+                  }
+                  return sum + minutes;
+                }, 0);
+                totalValue = totalMinutes / 60; // Convert to hours
+              } else { // distance metrics
+                totalValue = visibleWorkouts.reduce((sum: number, w: any) => {
+                  let distance = w.distance_km || 0;
+                  if (member.double_up_date) {
+                    const workoutDate = new Date(w.created_at).toDateString();
+                    const doubleUpDate = new Date(member.double_up_date).toDateString();
+                    if (workoutDate === doubleUpDate) {
+                      distance *= 2;
+                    }
+                  }
+                  return sum + distance;
+                }, 0);
+              }
+            
+              return {
+                userId: member.user_id,
+                name: member.profiles?.username || 'User',
+                avatar: member.profiles?.avatar_url,
+                totalHours: metricType === 'time' ? (totalValue + (member.bonus_hours || 0)) : 0,
+                totalDistance: metricType !== 'time' ? totalValue : 0,
+                isCurrentUser: isViewingSelf,
+                inStealth: isCurrentlyInStealth && !isViewingSelf // Only show stealth status to others
+              };
+            })
+          );
+                  
+          // Sort by appropriate metric and assign ranks
+          const sortKey = metricType === 'time' ? 'totalHours' : 'totalDistance';
+          const sorted = leaderboardData
+            .filter(Boolean) // remove any null/undefined entries from failed profile fetches
+            .sort((a, b) => b[sortKey] - a[sortKey])
+            .map((entry, index) => ({
+              ...entry,
+              rank: index + 1
+            }));
+      
+          console.log('✅ Leaderboard fetched:', sorted);
+          return sorted;
+        } catch (error) {
+          console.error('❌ Failed to fetch leaderboard:', error);
+          throw error;
+        }
+      }
   
   async getLeagueTeamLeaderboard(leagueId: string, period: 'total' | 'weekly' = 'total', metricType: 'time' | 'distance_run' | 'distance_cycle' = 'time') {
     console.log('🔵 API Client: Fetching team leaderboard');
@@ -1289,6 +1282,231 @@ return sorted;
       throw error;
     }
   }
+  
+    async getLeagueF1Leaderboard(leagueId: string, period: 'total' | 'weekly' = 'total') {
+      console.log('🔵 API Client: Fetching F1 points leaderboard');
+      try {
+        const { data: { user } } = await this.supabase.auth.getUser();
+        if (!user) throw new Error('Not authenticated');
+  
+        // F1 points for positions 1-10
+        const F1_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+  
+        // Get league details
+        const { data: league, error: leagueError } = await this.supabase
+          .from('leagues')
+          .select('start_date, end_date, allowed_sports')
+          .eq('id', leagueId)
+          .single();
+  
+        if (leagueError) throw leagueError;
+  
+        // Calculate date range
+        let startDate: string;
+        const endDate = league.end_date;
+  
+        if (period === 'weekly') {
+          const now = new Date();
+          const weekStart = new Date(now);
+          weekStart.setDate(now.getDate() - now.getDay());
+          weekStart.setHours(0, 0, 0, 0);
+          startDate = weekStart.toISOString();
+        } else {
+          startDate = league.start_date;
+        }
+  
+        // Get all members
+        const { data: members, error: membersError } = await this.supabase
+          .from('league_memberships')
+          .select(`
+            user_id,
+            stealth_until,
+            stealth_activated_at,
+            in_stealth_mode,
+            double_up_date,
+            bonus_hours,
+            profiles:profiles!league_memberships_user_id_fkey (
+              id,
+              username,
+              avatar_url
+            )
+          `)
+          .eq('league_id', leagueId);
+  
+        if (membersError) throw membersError;
+  
+        // Collect data for all 3 categories per member
+        const memberStats = await Promise.all(
+          (members || []).map(async (member: any) => {
+            if (!member.profiles) return null;
+  
+            const now = new Date();
+            const isCurrentlyInStealth = member.in_stealth_mode && member.stealth_until && new Date(member.stealth_until) > now;
+            const isViewingSelf = member.user_id === user.id;
+            const stealthStart = member.stealth_activated_at ? new Date(member.stealth_activated_at) : null;
+            const stealthEnd = member.stealth_until ? new Date(member.stealth_until) : null;
+  
+            // Fetch all workouts for this member
+            const { data: allWorkouts, error: workoutsError } = await this.supabase
+              .from('workouts')
+              .select('duration_min, distance_km, created_at, type')
+              .eq('user_id', member.user_id)
+              .gte('created_at', startDate)
+              .lte('created_at', endDate);
+  
+            if (workoutsError) throw workoutsError;
+  
+            // Filter for stealth
+            const visibleWorkouts = isViewingSelf ? allWorkouts : (allWorkouts || []).filter(w => {
+              if (isCurrentlyInStealth && stealthStart && stealthEnd) {
+                const workoutDate = new Date(w.created_at);
+                if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
+                  return false;
+                }
+              }
+              return true;
+            });
+  
+                        // Find this section in getLeagueF1Leaderboard and replace:
+            
+                        // Calculate running distance - case insensitive matching
+                        const runningWorkouts = visibleWorkouts.filter(w => {
+                          const type = (w.type || '').toLowerCase();
+                          return type === 'run' || type === 'treadmill' || type === 'running';
+                        });
+                        const runningDistance = runningWorkouts.reduce((sum, w) => {
+                          let distance = w.distance_km || 0;
+                          if (member.double_up_date) {
+                            const workoutDate = new Date(w.created_at).toDateString();
+                            const doubleUpDate = new Date(member.double_up_date).toDateString();
+                            if (workoutDate === doubleUpDate) distance *= 2;
+                          }
+                          return sum + distance;
+                        }, 0);
+            
+                        // Calculate cycling distance - case insensitive matching
+                        const cyclingWorkouts = visibleWorkouts.filter(w => {
+                          const type = (w.type || '').toLowerCase();
+                          return type === 'bike' || type === 'spin' || type === 'cycling' || type === 'cycle';
+                        });
+                        const cyclingDistance = cyclingWorkouts.reduce((sum, w) => {
+                          let distance = w.distance_km || 0;
+                          if (member.double_up_date) {
+                            const workoutDate = new Date(w.created_at).toDateString();
+                            const doubleUpDate = new Date(member.double_up_date).toDateString();
+                            if (workoutDate === doubleUpDate) distance *= 2;
+                          }
+                          return sum + distance;
+                        }, 0);
+  
+            // Calculate other workout time (total time - running time - cycling time)
+            const runningTime = runningWorkouts.reduce((sum, w) => {
+              let mins = w.duration_min || 0;
+              if (member.double_up_date) {
+                const workoutDate = new Date(w.created_at).toDateString();
+                const doubleUpDate = new Date(member.double_up_date).toDateString();
+                if (workoutDate === doubleUpDate) mins *= 2;
+              }
+              return sum + mins;
+            }, 0);
+  
+            const cyclingTime = cyclingWorkouts.reduce((sum, w) => {
+              let mins = w.duration_min || 0;
+              if (member.double_up_date) {
+                const workoutDate = new Date(w.created_at).toDateString();
+                const doubleUpDate = new Date(member.double_up_date).toDateString();
+                if (workoutDate === doubleUpDate) mins *= 2;
+              }
+              return sum + mins;
+            }, 0);
+  
+            const totalTime = visibleWorkouts.reduce((sum, w) => {
+              let mins = w.duration_min || 0;
+              if (member.double_up_date) {
+                const workoutDate = new Date(w.created_at).toDateString();
+                const doubleUpDate = new Date(member.double_up_date).toDateString();
+                if (workoutDate === doubleUpDate) mins *= 2;
+              }
+              return sum + mins;
+            }, 0);
+  
+            const otherTime = totalTime - runningTime - cyclingTime;
+  
+            return {
+              userId: member.user_id,
+              name: member.profiles?.username || 'User',
+              avatar: member.profiles?.avatar_url,
+              isCurrentUser: isViewingSelf,
+              runningDistance,
+              cyclingDistance,
+              otherTime: otherTime / 60, // Convert to hours
+            };
+          })
+        );
+  
+        const validMembers = memberStats.filter(Boolean);
+  
+        // Rank each category and assign points
+        const assignPoints = (members: any[], key: string) => {
+          const sorted = [...members].sort((a, b) => b[key] - a[key]);
+          const pointsMap: Record<string, number> = {};
+          
+          let currentRank = 0;
+          let previousValue = -1;
+          
+          sorted.forEach((member, index) => {
+            const value = member[key];
+            
+            // Only assign points if they have a positive value
+            if (value > 0) {
+              // If different from previous, update rank
+              if (value !== previousValue) {
+                currentRank = index;
+                previousValue = value;
+              }
+              // Assign points based on rank (ties get same points)
+              pointsMap[member.userId] = currentRank < 10 ? F1_POINTS[currentRank] : 0;
+            } else {
+              pointsMap[member.userId] = 0;
+            }
+          });
+          
+          return pointsMap;
+        };
+  
+        const runningPoints = assignPoints(validMembers, 'runningDistance');
+        const cyclingPoints = assignPoints(validMembers, 'cyclingDistance');
+        const otherTimePoints = assignPoints(validMembers, 'otherTime');
+  
+        // Calculate total points for each member
+        const leaderboardData = validMembers.map(member => ({
+          userId: member.userId,
+          name: member.name,
+          avatar: member.avatar,
+          isCurrentUser: member.isCurrentUser,
+          totalPoints: (runningPoints[member.userId] || 0) + 
+                       (cyclingPoints[member.userId] || 0) + 
+                       (otherTimePoints[member.userId] || 0),
+          totalHours: 0,
+          totalDistance: 0,
+        }));
+  
+        // Sort by total points and assign ranks
+        const sorted = leaderboardData
+          .sort((a, b) => b.totalPoints - a.totalPoints)
+          .map((entry, index) => ({
+            ...entry,
+            rank: index + 1
+          }));
+  
+        console.log('✅ F1 Leaderboard fetched:', sorted);
+        return sorted;
+      } catch (error) {
+        console.error('❌ Failed to fetch F1 leaderboard:', error);
+        throw error;
+      }
+    }
+  
 
   async getLeagueChat(leagueId: string) {
     console.log('🔵 API Client: Fetching league chat');
