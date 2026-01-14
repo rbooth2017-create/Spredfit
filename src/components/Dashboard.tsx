@@ -348,6 +348,10 @@ const storePosition = (userId: string, leagueId: string, position: number) => {
   const sliderRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // ADD THESE: Track activity loading to prevent duplicates
+const hasLoadedActivities = useRef(false);
+const lastLeagueId = useRef<string | null>(null);
+
   // GPS tracking state
   const [gpsWatchId, setGpsWatchId] = useState<number | null>(null);
   const [gpsPositions, setGpsPositions] = useState<GeolocationPosition[]>([]);
@@ -670,13 +674,27 @@ const sports = useMemo(
     }
   }, [workoutTime, recordedDistance, setRecordedPace]);
 
-// Load activities when component mounts or when a workout is created
+// ...existing code...
+
+/// Load activities when component mounts or when a workout is created
 useEffect(() => {
   async function loadActivities() {
     if (!accessToken || !user?.id) {
       setActivities([]);
       return;
     }
+    
+    // Prevent duplicate loads - only reload if league changed or explicitly triggered
+    const leagueChanged = currentLeague?.id !== lastLeagueId.current;
+    if (hasLoadedActivities.current && !leagueChanged && refreshTrigger === 0) {
+      console.log("🟡 Skipping duplicate activity load");
+      return;
+    }
+    
+    console.log("🔵 Loading activities...", { refreshTrigger, leagueId: currentLeague?.id });
+    hasLoadedActivities.current = true;
+    lastLeagueId.current = currentLeague?.id || null;
+    
     try {
       const api = new APIClient(accessToken);
       const workouts = await api.getAllVisibleWorkouts();
@@ -704,13 +722,11 @@ useEffect(() => {
             
             return true;
           });
-                    // Get the workout creator's rank in each applicable league
+          
+          // Get the workout creator's rank in each applicable league
           const leagueRanks = applicableLeagues.map((league) => {
             try {
-              // ✅ Use cached leaderboard instead of fetching
-              const leaderboard: any[] = []; // Cache not implemented yet
-              
-              // Find this user's position in the leaderboard
+              const leaderboard: any[] = [];
               const userEntry = leaderboard.find(entry => entry.userId === workout.userId);
                 
               return {
@@ -738,17 +754,15 @@ useEffect(() => {
         })
       );
 
-      
-            // Fetch league member stats and create streak/achievement activities
+      // Fetch league member stats and create streak/achievement activities
       let streakAndAchievementActivities: any[] = [];
       
-        if (currentLeague?.id) {
+      if (currentLeague?.id) {
         try {
           const memberStats = await api.getLeagueMembersWithStats(currentLeague.id);
           const now = Date.now();
           
           memberStats.forEach((member, index) => {
-            // Only show streaks >= 3 days
             if (member.streak >= 3) {
               streakAndAchievementActivities.push({
                 id: `streak-${member.userId}-${currentLeague.id}`,
@@ -764,7 +778,6 @@ useEffect(() => {
               });
             }
       
-            // Show milestone achievements (10, 25, 50, 100 workouts)
             const milestones = [100, 50, 25, 10];
             const milestone = milestones.find(m => member.totalWorkouts === m);
             
@@ -784,24 +797,23 @@ useEffect(() => {
               });
             }
       
-            // Show recent PRs (last 7 days)
             if (member.recentPRs && member.recentPRs.length > 0) {
-            member.recentPRs.forEach((pr: any, prIndex: number) => {
-              streakAndAchievementActivities.push({
-                id: `pr-${member.userId}-${pr.sport}-${pr.type}-${pr.date}-${currentLeague.id}`,
-                userId: member.userId,
-                userName: member.userName,
-                userAvatar: member.userAvatar,
-                type: 'pr',
-                sport: pr.sport,
-                prType: pr.type,
-                prValue: pr.value,
-                date: pr.date,
-                time: pr.date,
-                comments: [],
-                photo: null
+              member.recentPRs.forEach((pr: any, prIndex: number) => {
+                streakAndAchievementActivities.push({
+                  id: `pr-${member.userId}-${pr.sport}-${pr.type}-${pr.date}-${currentLeague.id}`,
+                  userId: member.userId,
+                  userName: member.userName,
+                  userAvatar: member.userAvatar,
+                  type: 'pr',
+                  sport: pr.sport,
+                  prType: pr.type,
+                  prValue: pr.value,
+                  date: pr.date,
+                  time: pr.date,
+                  comments: [],
+                  photo: null
+                });
               });
-            });
             }
           });
         } catch (error) {
@@ -809,7 +821,6 @@ useEffect(() => {
         }
       }
       
-      // Merge workouts with streaks/achievements and sort by date
       const allActivities = [...activitiesWithLeagues, ...streakAndAchievementActivities]
         .sort((a, b) => new Date(b.date || b.time).getTime() - new Date(a.date || a.time).getTime());
       
@@ -821,10 +832,10 @@ useEffect(() => {
     }
   }
   loadActivities();
-}, [accessToken, setActivities, refreshTrigger, leagues.length, user?.id, currentLeague?.id, membershipStatus]);
+}, [accessToken, user?.id, currentLeague?.id, refreshTrigger]);
 
-    // Load chat when league changes
-    const loadChat = async () => {
+// Load chat when league changes
+const loadChat = async () => {
     if (!selectedChat || !accessToken || !api) return;
     
     try {
@@ -849,16 +860,7 @@ useEffect(() => {
     }
   };
 
-    // Load chat when a chat is selected and poll for new messages
-  useEffect(() => {
-    if (selectedChat && accessToken) {
-      loadChat();
-      
-      // Poll for new messages every 5 seconds
-      const interval = setInterval(loadChat, 5000);
-      return () => clearInterval(interval);
-    }
-  }, [selectedChat, accessToken, user?.id]);  // Load chat when a chat is selected and poll for new messages
+   // Load chat when a chat is selected and poll for new messages
   useEffect(() => {
     if (selectedChat && accessToken) {
       loadChat();

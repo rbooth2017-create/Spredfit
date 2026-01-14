@@ -83,6 +83,12 @@ function LeaderboardModalComponent({
         return;
       }
 
+          // ✅ ADD THIS CHECK
+    if (!accessToken) {
+      console.warn('⚠️ Skipping leaderboard load - no access token yet');
+      return;
+    }
+
       setIsLoading(true);
       try {
         const api = new APIClient(accessToken);
@@ -189,6 +195,16 @@ function LeaderboardModalComponent({
     <>
       {/* Modal Content */}
       <div className="w-96 h-96 rounded-full bg-transparent border-2 border-white/40 flex items-center justify-center p-8 shadow-2xl overflow-hidden">
+
+        {/* 🟢 ADD THIS LOADING GUARD HERE - BEFORE STEP 1 */}
+        {!accessToken && modalStep === 2 && (
+          <div className="flex flex-col items-center justify-center text-center w-full h-full">
+            <p className="text-white text-sm mb-2">Loading...</p>
+            <p className="text-white/50 text-xs">Authenticating...</p>
+          </div>
+        )}
+
+
         {/* Step 1: All Leagues Overview */}
         {modalStep === 1 && (
           <div className="flex flex-col items-center text-center w-full">

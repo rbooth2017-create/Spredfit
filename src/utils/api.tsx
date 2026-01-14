@@ -1,4 +1,5 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { SupabaseClient } from '@supabase/supabase-js';
+import { supabase } from './auth'; // Import the shared Supabase instance
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -7,7 +8,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-console.log('🟠 auth.tsx: Supabase URL', supabaseUrl);
+console.log('🟠 api.tsx: Supabase URL', supabaseUrl);
 
 export class APIClient {
   private supabase: SupabaseClient;
@@ -15,20 +16,8 @@ export class APIClient {
 
   constructor(accessToken: string | null = null) {
     this.accessToken = accessToken;
-    
-    if (accessToken) {
-      // Use the existing supabase client with the token
-      this.supabase = createClient(supabaseUrl, supabaseAnonKey, {
-        global: {
-          headers: {
-            Authorization: `Bearer ${accessToken}`
-          }
-        }
-      });
-    } else {
-      // No token, create basic client
-      this.supabase = createClient(supabaseUrl, supabaseAnonKey);
-    }
+    // ✅ Use the shared Supabase client from auth.tsx instead of creating new ones
+    this.supabase = supabase;
   }
 
   private async request(endpoint: string, options: RequestInit = {}) {
@@ -51,6 +40,25 @@ export class APIClient {
     }
 
     return response.json();
+  }
+
+    private async getAuthenticatedUser() {
+    const maxRetries = 3;
+    let lastError;
+    
+    for (let i = 0; i < maxRetries; i++) {
+      try {
+        const { data: { user }, error } = await this.supabase.auth.getUser();
+        if (error) throw error;
+        if (user) return user;
+      } catch (error) {
+        lastError = error;
+        if (i < maxRetries - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500 * (i + 1)));
+        }
+      }
+    }
+    throw new Error('Not authenticated after retries');
   }
 
   async getUserProfile() {
@@ -115,7 +123,7 @@ export class APIClient {
           }
         }
       }
-
+      
       console.log('✅ Profile fetched:', {
         name: profile?.name,
         totalWorkouts,
