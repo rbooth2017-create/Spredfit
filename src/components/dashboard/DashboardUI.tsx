@@ -1,5 +1,5 @@
 import { useAuth } from "../../utils/auth";
-import { useState, memo } from "react";
+import { useState, memo, useRef } from "react";
 import {
   UserCircle,
   Activity,
@@ -150,10 +150,10 @@ function ActivityCarouselComponent({
 }: ActivityCarouselProps) {
   const [showAchievements, setShowAchievements] = useState(true);
   const [showOnlyMyExercises, setShowOnlyMyExercises] = useState(false);
+  const [visibleCount, setVisibleCount] = useState(30);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
   
-    const filteredActivities = activities.filter(activity => {
-
-   
+  const filteredActivities = activities.filter(activity => {
     // Filter achievements based on toggle
     if (!showAchievements && (activity.type === 'achievement' || activity.type === 'streak' || activity.type === 'pr')) {
       return false;
@@ -166,7 +166,7 @@ function ActivityCarouselComponent({
       }
     }
 
-     // Hide achievements/streaks/PRs when in stealth mode
+    // Hide achievements/streaks/PRs when in stealth mode
     if (membershipStatus?.inStealthMode && (activity.type === "achievement" || activity.type === "streak" || activity.type === "pr") && activity.userId === currentUser?.id) {
       return false;
     }
@@ -184,6 +184,25 @@ function ActivityCarouselComponent({
     
     return true;
   });
+
+  const displayedActivities = filteredActivities.slice(0, visibleCount);
+
+  console.log(`📊 Displaying ${displayedActivities.length} of ${filteredActivities.length} total activities`);
+  
+  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+    const element = e.currentTarget;
+    const scrollLeft = element.scrollLeft;
+    const scrollWidth = element.scrollWidth;
+    const clientWidth = element.clientWidth;
+    
+    // Load more when within 500px of the end
+    if (scrollLeft + clientWidth >= scrollWidth - 500) {
+      if (visibleCount < filteredActivities.length) {
+        console.log(`🔄 Loading more... Current: ${visibleCount}, Total available: ${filteredActivities.length}`);
+        setVisibleCount(prev => Math.min(prev + 30, filteredActivities.length));
+      }
+    }
+  };
   
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center">
@@ -198,6 +217,8 @@ function ActivityCarouselComponent({
         data-tutorial="activity-carousel"
       >
         <div 
+          ref={scrollContainerRef}
+          onScroll={handleScroll}
           className="overflow-x-auto absolute inset-0 flex items-center px-4"
           style={{ 
             scrollbarWidth: 'none', 
@@ -211,7 +232,7 @@ function ActivityCarouselComponent({
             }
           `}</style>
           <div className="flex snap-x snap-mandatory h-full gap-4">
-            {filteredActivities.map((activity) => {
+            {displayedActivities.map((activity) => {
               // Determine what to show based on activity type
               let activityLabel = '';
               let Icon = Activity;
@@ -251,7 +272,7 @@ function ActivityCarouselComponent({
                     <div 
                       className="absolute inset-0"
                       style={{
-                        backgroundImage: `url(${activity.photo ? `${activity.photo}?t=${Date.now()}` : `/workout/workout-${(activity.sport || '').toLowerCase().replace(/\s+/g, '-')}.png`})`,
+                        backgroundImage: `url(${activity.photo || `/workout/workout-${(activity.sport || '').toLowerCase().replace(/\s+/g, '-')}.png`})`,
                         backgroundSize: 'cover',
                         backgroundPosition: 'center',
                         opacity: 0.5
@@ -372,7 +393,6 @@ function ActivityCarouselComponent({
                         )}
                       </div>
                     ) : activity.type === 'workout' ? (
-                      /* Fallback - show current league or no league message */
                       <p className="text-[#eef0ed]/70 mb-4 text-sm">
                         {currentLeague?.name || 'No active league'}
                       </p>
