@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // ...existing code...
   
     // Single populateUserFromSession function
-    async function populateUserFromSession(session: Session) {
+        async function populateUserFromSession(session: Session) {
       try {
         const supaUser = session.user;
         
@@ -103,13 +103,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log("🟢 auth.tsx: populateUserFromSession", supaUser.id);
         setAccessToken(session.access_token);
         
-        // Just use metadata for now - profile will be fetched by API client later
+        // Fetch username from profiles table instead of metadata
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('username, avatar_url')
+          .eq('id', supaUser.id)
+          .single();
+        
         const userData: UserProfile = {
           id: supaUser.id,
           email: supaUser.email || '',
           name: supaUser.user_metadata?.name || supaUser.user_metadata?.full_name || null,
-          username: supaUser.user_metadata?.username || null,
-          avatar_url: supaUser.user_metadata?.avatar_url || null,
+          username: profile?.username || supaUser.user_metadata?.username || null,
+          avatar_url: profile?.avatar_url || supaUser.user_metadata?.avatar_url || null,
         };
         
         console.log("🟢 Setting user:", userData);
