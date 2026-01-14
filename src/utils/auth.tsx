@@ -103,24 +103,40 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         console.log("🟢 auth.tsx: populateUserFromSession", supaUser.id);
         setAccessToken(session.access_token);
         
-        // Fetch username from profiles table instead of metadata
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('username, avatar_url')
-          .eq('id', supaUser.id)
-          .single();
-        
-        const userData: UserProfile = {
+        // Set user immediately with metadata (fast login)
+        const initialUserData: UserProfile = {
           id: supaUser.id,
           email: supaUser.email || '',
           name: supaUser.user_metadata?.name || supaUser.user_metadata?.full_name || null,
-          username: profile?.username || supaUser.user_metadata?.username || null,
-          avatar_url: profile?.avatar_url || supaUser.user_metadata?.avatar_url || null,
+          username: supaUser.user_metadata?.username || null,
+          avatar_url: supaUser.user_metadata?.avatar_url || null,
         };
         
-        console.log("🟢 Setting user:", userData);
-        setUser(userData);
+        console.log("🟢 Setting user (initial):", initialUserData);
+        setUser(initialUserData);
         lastPopulatedUserId.current = supaUser.id;
+        
+        // Fetch from profiles table in background and update
+        supabase
+          .from('profiles')
+          .select('username, avatar_url')
+          .eq('id', supaUser.id)
+          .single()
+          .then(({ data: profile }) => {
+            if (profile && (profile.username || profile.avatar_url)) {
+              console.log("✅ Profile fetched, updating user:", profile);
+              const updatedUserData: UserProfile = {
+                ...initialUserData,
+                username: profile.username || initialUserData.username,
+                avatar_url: profile.avatar_url || initialUserData.avatar_url,
+              };
+              setUser(updatedUserData);
+            }
+          })
+          .catch((err) => {
+            console.warn("⚠️ Profile fetch failed:", err.message);
+          });
+        
         console.log("🟢 User set complete!");
       } catch (err) {
         console.error("🔴 auth.tsx: populateUserFromSession error", err);
