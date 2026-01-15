@@ -23,6 +23,7 @@ import {
   Heart,
   Zap,
   Link,
+  AlignCenter,
 } from "lucide-react";
 import { toast } from "sonner@2.0.3";
 import logo from "figma:asset/acd126c619660e3932cb554ee937e18cc6986211.png";
@@ -415,15 +416,17 @@ function ActivityCarouselComponent({
       {/* Heart Reaction Button - Only for workouts */}
 {activity.type === 'workout' && onReaction && (
   <button
-    onClick={async (e) => {
-      e.stopPropagation();
-      try {
-        await onReaction(activity.id, '❤️');
-      } catch (error) {
-        console.error('Failed to add reaction:', error);
-      }
-    }}
-    className="absolute bottom-4 right-4 z-20 w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center hover:bg-white/20 transition-all"
+     onClick={async (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    try {
+      await onReaction(activity.id, '❤️');
+    } catch (error) {
+      console.error('Failed to add reaction:', error);
+    }
+  }}
+        className="absolute z-[999] w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center hover:bg-white/20 transition-all pointer-events-auto"
+style={{ bottom: '30px', AlignCenter: '100px' }}
   >
     <Heart 
       className={`w-6 h-6 transition-all ${
