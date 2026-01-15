@@ -7,7 +7,7 @@ import { toast } from "sonner@2.0.3";
  * Centralizes all event handler functions for the Dashboard component.
  * Returns memoized callbacks to prevent unnecessary re-renders.
  */
-export function useDashboardHandlers(state: any) {
+export function useDashboardHandlers(state: any, api?: any, triggerRefresh?: () => void) {
   const {
     setWorkoutPhoto,
     setShowPhotoUpload,
@@ -194,41 +194,46 @@ export function useDashboardHandlers(state: any) {
     setLeagueIndex((prev: number) => (prev - 1 + userLeagues.length) % userLeagues.length);
   }, [setLeagueIndex]);
 
-  // Activity - handle reaction
-  const handleReaction = useCallback((activityId: string, reaction: "so-so" | "awesome" | "mind-blown") => {
-    setActivities(activities.map((activity: any) => {
-      if (activity.id === activityId) {
-        const newReactions = { ...activity.reactions };
-        
-        // Remove old reaction if exists
-        if (activity.userReaction) {
-          newReactions[activity.userReaction] = Math.max(0, newReactions[activity.userReaction] - 1);
-        }
-        
-        // Add new reaction if not the same as current (toggle off if same)
-        const newUserReaction = activity.userReaction === reaction ? null : reaction;
-        if (newUserReaction) {
-          newReactions[newUserReaction] = newReactions[newUserReaction] + 1;
-        }
-        
-        return {
-          ...activity,
-          reactions: newReactions,
-          userReaction: newUserReaction
-        };
-      }
-      return activity;
-    }));
-    
-    // Update selected activity
-    if (selectedActivity?.id === activityId) {
-      setSelectedActivity({
-        ...selectedActivity,
-        reactions: activities.find((a: any) => a.id === activityId)?.reactions,
-        userReaction: activities.find((a: any) => a.id === activityId)?.userReaction === reaction ? null : reaction
-      });
+    // Activity - handle reaction
+  const handleReaction = useCallback(async (workoutId: string, reactionType: string) => {
+    if (!api) {
+      toast.error('API client not available');
+      return;
     }
-  }, [activities, selectedActivity, setActivities, setSelectedActivity]);
+    
+    try {
+      console.log('💗 Adding reaction...', { workoutId, reactionType });
+      
+      // Call API to add/remove reaction
+      const result = await api.addWorkoutReaction(workoutId, reactionType);
+      console.log('💗 Reaction API result:', result);
+      
+      // Fetch updated reactions for just this workout
+      const updatedReactions = await api.getWorkoutReactions(workoutId);
+      console.log('💗 Updated reactions fetched:', updatedReactions);
+      
+      // Update only this workout in the activities array - use functional form to avoid stale closure
+      setActivities((prevActivities: any[]) => prevActivities.map((activity: any) => {
+        if (activity.id === workoutId) {
+          console.log('💗 Updating activity with new reactions:', {
+            activityId: activity.id,
+            oldReactions: activity.reactions,
+            newReactions: updatedReactions
+          });
+          return {
+            ...activity,
+            reactions: updatedReactions
+          };
+        }
+        return activity;
+      }));
+      
+      toast.success(result.removed ? 'Reaction removed!' : 'Reaction added!');
+    } catch (error) {
+      console.error('Failed to add reaction:', error);
+      toast.error('Failed to add reaction');
+    }
+  }, [api, setActivities]);
 
   // Activity - handle comment
   const handleComment = useCallback((activityId: string) => {

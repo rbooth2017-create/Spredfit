@@ -97,10 +97,11 @@ export function Dashboard({
     profile,
     currentLeague,
     refreshLeagues,
-    refreshProfile,
-    createWorkout,
-    refreshTrigger,
-  } = useApp();
+        refreshProfile,
+        createWorkout,
+        refreshTrigger,
+        refreshActivities,
+      } = useApp();
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
 
   const [logDate, setLogDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -684,6 +685,12 @@ useEffect(() => {
       return;
     }
     
+    // Wait for leagues to load before loading activities
+    if (leagues.length === 0) {
+      console.log("🟡 Waiting for leagues to load before loading activities");
+      return;
+    }
+    
     // Prevent duplicate loads - only reload if league changed or explicitly triggered
     const leagueChanged = currentLeague?.id !== lastLeagueId.current;
     if (hasLoadedActivities.current && !leagueChanged && refreshTrigger === 0) {
@@ -745,11 +752,14 @@ useEffect(() => {
               };
             }
           });
+
+         const reactions ={};
           
           return {
             ...workout,
             applicableLeagues: leagueRanks,
-            primaryLeague: leagueRanks[0] || null
+            primaryLeague: leagueRanks[0] || null,
+            reactions: reactions,
           };
         })
       );
@@ -774,7 +784,8 @@ useEffect(() => {
                 date: new Date(now - index * 1000).toISOString(),
                 time: new Date(now - index * 1000).toISOString(),
                 comments: [],
-                photo: null
+                photo: null,
+                reactions: {} 
               });
             }
       
@@ -793,7 +804,8 @@ useEffect(() => {
                 date: new Date(now - index * 1000).toISOString(),
                 time: new Date(now - index * 1000).toISOString(),
                 comments: [],
-                photo: null
+                photo: null,
+                reactions: {} 
               });
             }
       
@@ -811,7 +823,8 @@ useEffect(() => {
                   date: pr.date,
                   time: pr.date,
                   comments: [],
-                  photo: null
+                  photo: null,
+                  reactions: {} 
                 });
               });
             }
@@ -825,7 +838,40 @@ useEffect(() => {
         .sort((a, b) => new Date(b.date || b.time).getTime() - new Date(a.date || a.time).getTime());
       
       const transformedActivities = transformActivityUserNames(allActivities);
+      
       setActivities(transformedActivities);
+      
+      // Fetch reactions for first 30 workouts (visible ones) - but only for workouts that don't have reactions yet
+      const workoutsNeedingReactions = transformedActivities
+        .filter(a => a.type === 'workout' && (!a.reactions || Object.keys(a.reactions).length === 0))
+        .slice(0, 30);
+      
+      if (workoutsNeedingReactions.length > 0) {
+        console.log(`🔵 Fetching reactions for ${workoutsNeedingReactions.length} workouts`);
+        
+        // Small delay to avoid double-fetch on league change
+        setTimeout(() => {
+          Promise.all(
+            workoutsNeedingReactions.map(workout => 
+              api.getWorkoutReactions(workout.id).catch(() => ({}))
+            )
+          ).then(reactionsArray => {
+            setActivities(prev => prev.map((activity) => {
+              if (activity.type === 'workout') {
+                const reactionIndex = workoutsNeedingReactions.findIndex(w => w.id === activity.id);
+                if (reactionIndex >= 0) {
+                  return {
+                    ...activity,
+                    reactions: reactionsArray[reactionIndex]
+                  };
+                }
+              }
+              return activity;
+            }));
+          });
+        }, 100);
+      }
+
     } catch (error) {
       console.error("Failed to load workouts:", error);
       setActivities([]);
@@ -946,7 +992,7 @@ const loadChat = async () => {
     }
   };
   // ✅ Use custom hooks for handlers and timers
-  const handlers = useDashboardHandlers(state);
+const handlers = useDashboardHandlers(state, api, refreshActivities);
   useWorkoutTimer(
     state,
     {
@@ -1096,6 +1142,7 @@ const loadChat = async () => {
   currentLeague={currentLeague}
   currentUser={user}  // ← Pass the user from useAuth()
   membershipStatus={membershipStatus}
+  onReaction={handleReaction} 
   onActivityClick={(activity) => {
     setSelectedActivity(activity);
     setActiveModal("activityDetail");

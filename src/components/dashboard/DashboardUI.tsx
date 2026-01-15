@@ -40,6 +40,7 @@ interface ActivityCarouselProps {
   isExpanded?: boolean;
   currentUser?: any; 
   membershipStatus?: any; 
+  onReaction?: (workoutId: string, reactionType: string) => Promise<void>; 
 }
 
 interface MainActionCardsProps {
@@ -147,6 +148,7 @@ function ActivityCarouselComponent({
   isExpanded,
   currentUser,
   membershipStatus,
+  onReaction,
 }: ActivityCarouselProps) {
   const [showAchievements, setShowAchievements] = useState(true);
   const [showOnlyMyExercises, setShowOnlyMyExercises] = useState(false);
@@ -256,7 +258,6 @@ function ActivityCarouselComponent({
               
               // Get last 3 comments
               const recentComments = (activity.comments || []).slice(-3);
-              
               return (
                 <div 
                   key={activity.id} 
@@ -398,21 +399,53 @@ function ActivityCarouselComponent({
                       </p>
                     ) : null}
                     
-                    {/* 5. Last 3 Comments */}
-                    {recentComments.length > 0 && (
-                      <div className="mt-4 space-y-2 max-w-xs mx-auto">
-                        {recentComments.map((comment) => (
-                          <div key={comment.id} className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-left">
-                            <p className="text-[#FFFFFF] text-xs font-semibold">{comment.userName}</p>
-                            <p className="text-[#FFFFFF]/80 text-[10px] line-clamp-2">{comment.text}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+   {/* 5. Last 3 Comments */}
+      {recentComments.length > 0 && (
+        <div className="mt-4 space-y-2 max-w-xs mx-auto">
+          {recentComments.map((comment) => (
+            <div key={comment.id} className="bg-white/10 backdrop-blur-sm rounded-lg p-2 text-left">
+              <p className="text-[#FFFFFF] text-xs font-semibold">{comment.userName}</p>
+              <p className="text-[#FFFFFF]/80 text-[10px] line-clamp-2">{comment.text}</p>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+                        
+      {/* Heart Reaction Button - Only for workouts */}
+{activity.type === 'workout' && onReaction && (
+  <button
+    onClick={async (e) => {
+      e.stopPropagation();
+      try {
+        await onReaction(activity.id, '❤️');
+      } catch (error) {
+        console.error('Failed to add reaction:', error);
+      }
+    }}
+    className="absolute bottom-4 right-4 z-20 w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm border-2 border-white/30 flex items-center justify-center hover:bg-white/20 transition-all"
+  >
+    <Heart 
+      className={`w-6 h-6 transition-all ${
+        activity.reactions?.['❤️']?.userReacted 
+          ? 'text-pink-500' 
+          : 'text-white'
+      }`}
+      fill={activity.reactions?.['❤️']?.userReacted ? '#ec4899' : 'none'}
+      strokeWidth={2}
+    />
+    {activity.reactions?.['❤️']?.count > 0 && (
+      <div className="absolute -bottom-1 -right-1 bg-pink-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+        {activity.reactions['❤️'].count}
+      </div>
+    )}
+  </button>
+)}
+    </div>
+  );
+})}
+                                    
+ 
             
             {/* Show message if no activities */}
             {filteredActivities.length === 0 && (

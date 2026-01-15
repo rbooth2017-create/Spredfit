@@ -1916,7 +1916,7 @@ async getLeagueMembers(leagueId: string) {
     }
   }
 
-  async addWorkoutReaction(workoutId: string, reactionType: string) {
+    async addWorkoutReaction(workoutId: string, reactionType: string) {
     console.log('🔵 API Client: Adding reaction to workout');
     try {
       const { data: { user } } = await this.supabase.auth.getUser();
@@ -1924,22 +1924,28 @@ async getLeagueMembers(leagueId: string) {
       if (!user) {
         throw new Error('No user found');
       }
-
-      // Check if user already reacted
-      const { data: existing } = await this.supabase
+  
+      // Check if user already reacted - handle potential RLS issues
+      const { data: existing, error: selectError } = await this.supabase
         .from('workout_reactions')
         .select('id, reaction_type')
         .eq('workout_id', workoutId)
-        .eq('user_id', user.id)
-        .maybeSingle();
-
-      if (existing) {
+        .eq('user_id', user.id);
+  
+      // Log any select errors but continue
+      if (selectError) {
+        console.warn('⚠️ Error checking existing reaction:', selectError);
+      }
+  
+      const existingReaction = existing?.[0];
+  
+      if (existingReaction) {
         // If same reaction, remove it (toggle off)
-        if (existing.reaction_type === reactionType) {
+        if (existingReaction.reaction_type === reactionType) {
           const { error } = await this.supabase
             .from('workout_reactions')
             .delete()
-            .eq('id', existing.id);
+            .eq('id', existingReaction.id);
           
           if (error) throw error;
           console.log('✅ Reaction removed');
@@ -1949,10 +1955,11 @@ async getLeagueMembers(leagueId: string) {
           const { error } = await this.supabase
             .from('workout_reactions')
             .update({ reaction_type: reactionType })
-            .eq('id', existing.id);
+            .eq('id', existingReaction.id);
           
           if (error) throw error;
           console.log('✅ Reaction updated');
+          return { removed: false };
         }
       } else {
         // Insert new reaction
@@ -1964,11 +1971,27 @@ async getLeagueMembers(leagueId: string) {
             reaction_type: reactionType,
           });
         
-        if (error) throw error;
+        if (error) {
+          // If duplicate key error, it means the reaction exists but we couldn't SELECT it
+          // Try to delete it instead
+          if (error.code === '23505') {
+            console.log('🔄 Duplicate detected, removing reaction instead');
+            const { error: deleteError } = await this.supabase
+              .from('workout_reactions')
+              .delete()
+              .eq('workout_id', workoutId)
+              .eq('user_id', user.id)
+              .eq('reaction_type', reactionType);
+            
+            if (deleteError) throw deleteError;
+            console.log('✅ Reaction removed');
+            return { removed: true };
+          }
+          throw error;
+        }
         console.log('✅ Reaction added');
+        return { removed: false };
       }
-
-      return { removed: false };
     } catch (error) {
       console.error('❌ Failed to add reaction:', error);
       throw error;
