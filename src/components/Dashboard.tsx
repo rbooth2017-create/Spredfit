@@ -384,7 +384,7 @@ const lastLeagueId = useRef<string | null>(null);
 
   const [totalLeagueTime, setTotalLeagueTime] = useState(0);  
   
-// Calculate total league time from all activities (excluding stealth workouts)
+// Calculate total league time from all activities (excluding OTHER users' stealth workouts)
 useEffect(() => {
   if (!currentLeague || !activities) {
     setTotalLeagueTime(0);
@@ -393,14 +393,17 @@ useEffect(() => {
 
   const total = activities.reduce((sum, activity) => {
     if (activity.type === 'workout' && activity.duration) {
-      // Exclude your own workouts created during your stealth period
-      if (membershipStatus?.stealthUntil && activity.userId === user?.id) {
-        const stealthEnd = new Date(membershipStatus.stealthUntil);
-        const stealthStart = new Date(stealthEnd.getTime() - 3 * 24 * 60 * 60 * 1000);
+      // Exclude OTHER users' workouts created during their stealth period
+      // Always include your own workouts
+      if (activity.stealthUntil && activity.userId !== user?.id) {
+        const stealthEnd = new Date(activity.stealthUntil);
+        const stealthStart = activity.stealthActivatedAt 
+          ? new Date(activity.stealthActivatedAt) 
+          : new Date(stealthEnd.getTime() - 3 * 24 * 60 * 60 * 1000);
         const workoutDate = new Date(activity.date || activity.time);
         
         if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
-          return sum; // Skip this workout
+          return sum; // Skip this workout (it's someone else's stealth workout)
         }
       }
       return sum + activity.duration;
@@ -409,7 +412,7 @@ useEffect(() => {
   }, 0);
 
   setTotalLeagueTime(total);
-}, [currentLeague, activities, membershipStatus, user?.id]);
+}, [currentLeague, activities, user?.id]);
 
 // League states (using leagues from context)
 
