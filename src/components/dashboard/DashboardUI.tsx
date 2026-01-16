@@ -93,11 +93,13 @@ export const DashboardHeader = memo(DashboardHeaderComponent);
 interface LeagueStatsDisplayProps {
   currentLeague: any;
   totalLeagueTime: number; // in minutes
+  onModalOpen: (modal: string) => void;  // ← Add this line
 }
 
 function LeagueStatsDisplayComponent({ 
   currentLeague, 
-  totalLeagueTime 
+  totalLeagueTime, 
+  onModalOpen  
 }: LeagueStatsDisplayProps) {
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
@@ -117,20 +119,23 @@ function LeagueStatsDisplayComponent({
   }
   console.log('✅ Showing league stats for:', currentLeague.name);
 
-  return (
-    <div className="absolute inset-0 z-20 flex items-start justify-center pt-10 pointer-events-none">
-      <div className="bg-black/40 backdrop-blur-md rounded-full w-40 h-40 flex items-center justify-center border-2 border-white/20 shadow-lg">
-       <div className="text-center">
-  <p className="text-[#eef0ed]/70 text-xs mb-2">
-    <span className="font-semibold">{currentLeague.name}</span>
-  </p>
-  <p className="text-[#eef0ed] text-2xl font-bold">
-    <span className="text-blue-400">{formatTime(totalLeagueTime)}</span>
-  </p>
-</div>
+return (
+  <div className="absolute inset-0 z-20 flex items-start justify-center pt-10 pointer-events-none">
+    <div 
+      className="bg-black/40 backdrop-blur-md rounded-full w-40 h-40 flex items-center justify-center border-2 border-white/20 shadow-lg cursor-pointer hover:border-white/40 transition-all pointer-events-auto"
+      onClick={() => onModalOpen('leaderboard')}
+    >
+      <div className="text-center">
+        <p className="text-[#eef0ed]/70 text-xs mb-2">
+          <span className="font-semibold">{currentLeague.name}</span>
+        </p>
+        <p className="text-[#eef0ed] text-2xl font-bold">
+          <span className="text-blue-400">{formatTime(totalLeagueTime)}</span>
+        </p>
       </div>
     </div>
-  );
+  </div>
+);
 }
 
 export const LeagueStatsDisplay = memo(LeagueStatsDisplayComponent);
@@ -157,6 +162,19 @@ function ActivityCarouselComponent({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   
   const filteredActivities = activities.filter(activity => {
+
+
+        // Hide workouts created during stealth period (for OTHER users only)
+    if (activity.type === 'workout' && activity.stealthUntil && activity.userId !== currentUser?.id) {
+      const stealthEnd = new Date(activity.stealthUntil);
+      const stealthStart = activity.stealthActivatedAt ? new Date(activity.stealthActivatedAt) : new Date(stealthEnd.getTime() - 3 * 24 * 60 * 60 * 1000);
+      const workoutDate = new Date(activity.date || activity.time);
+      
+      if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
+        return false;
+      }
+    }
+    
     // Filter achievements based on toggle
     if (!showAchievements && (activity.type === 'achievement' || activity.type === 'streak' || activity.type === 'pr')) {
       return false;
@@ -168,44 +186,41 @@ function ActivityCarouselComponent({
         return false;
       }
     }
-
-    // Hide achievements/streaks/PRs when in stealth mode
-    if (membershipStatus?.inStealthMode && (activity.type === "achievement" || activity.type === "streak" || activity.type === "pr") && activity.userId === currentUser?.id) {
-      return false;
-    }
-  
-    // Hide workouts created during stealth period (ONLY YOUR OWN)
-    if (activity.type === 'workout' && membershipStatus?.stealthUntil && activity.userId === currentUser?.id) {
-      const stealthEnd = new Date(membershipStatus.stealthUntil);
-      const stealthStart = new Date(stealthEnd.getTime() - 3 * 24 * 60 * 60 * 1000);
-      const workoutDate = new Date(activity.date || activity.time);
+    
+    // Hide OTHER users' achievements/streaks/PRs if they are currently in stealth mode
+    if ((activity.type === 'achievement' || activity.type === 'streak' || activity.type === 'pr') 
+        && activity.stealthUntil 
+        && activity.userId !== currentUser?.id) {
+      const stealthEnd = new Date(activity.stealthUntil);
+      const now = new Date();
       
-      if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
-        return false;
+      if (now <= stealthEnd) {
+        return false; // User is currently in stealth, hide their achievements
       }
     }
     
     return true;
-  });
 
-  const displayedActivities = filteredActivities.slice(0, visibleCount);
-
-  console.log(`📊 Displaying ${displayedActivities.length} of ${filteredActivities.length} total activities`);
-  
-  const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    const element = e.currentTarget;
-    const scrollLeft = element.scrollLeft;
-    const scrollWidth = element.scrollWidth;
-    const clientWidth = element.clientWidth;
+        });
     
-    // Load more when within 500px of the end
-    if (scrollLeft + clientWidth >= scrollWidth - 500) {
-      if (visibleCount < filteredActivities.length) {
-        console.log(`🔄 Loading more... Current: ${visibleCount}, Total available: ${filteredActivities.length}`);
-        setVisibleCount(prev => Math.min(prev + 30, filteredActivities.length));
+    const displayedActivities = filteredActivities.slice(0, visibleCount);
+    
+    console.log(`📊 Displaying ${displayedActivities.length} of ${filteredActivities.length} total activities`);
+    
+    const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
+      const element = e.currentTarget;
+      const scrollLeft = element.scrollLeft;
+      const scrollWidth = element.scrollWidth;
+      const clientWidth = element.clientWidth;
+      
+      // Load more when within 500px of the end
+      if (scrollLeft + clientWidth >= scrollWidth - 500) {
+        if (visibleCount < filteredActivities.length) {
+          console.log(`🔄 Loading more... Current: ${visibleCount}, Total available: ${filteredActivities.length}`);
+          setVisibleCount(prev => Math.min(prev + 30, filteredActivities.length));
+        }
       }
-    }
-  };
+    };
   
   return (
     <div className="absolute inset-0 z-10 flex items-center justify-center">
@@ -438,7 +453,7 @@ style={{ bottom: '30px', AlignCenter: '100px' }}
       strokeWidth={2}
     />
     {activity.reactions?.['❤️']?.count > 0 && (
-      <div className="absolute -bottom-1 -right-1 bg-pink-500 text-white text-xs font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
+      <div className="absolute -bottom-1 -right-1 bg-pink-500 text-white text-s font-bold rounded-full min-w-[20px] h-5 px-1.5 flex items-center justify-center">
         {activity.reactions['❤️'].count}
       </div>
     )}

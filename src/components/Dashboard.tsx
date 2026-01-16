@@ -764,6 +764,36 @@ useEffect(() => {
         })
       );
 
+        // Fetch stealth status for all league members
+    const membershipStatuses = new Map();
+    if (currentLeague?.id) {
+      const { data: memberships } = await api.supabase
+        .from('league_memberships')
+        .select('user_id, stealth_activated_at, stealth_until, in_stealth_mode')
+        .eq('league_id', currentLeague.id);
+        
+      memberships?.forEach((m: any) => {
+        membershipStatuses.set(m.user_id, {
+          stealthActivatedAt: m.stealth_activated_at,
+          stealthUntil: m.stealth_until,
+          inStealthMode: m.in_stealth_mode
+        });
+      });
+    }
+    
+    // Add stealth metadata to each workout activity
+    const activitiesWithStealthData = activitiesWithLeagues.map((workout: any) => {
+      const userStatus = membershipStatuses.get(workout.userId);
+      
+      return {
+        ...workout,
+        stealthActivatedAt: userStatus?.stealthActivatedAt,
+        stealthUntil: userStatus?.stealthUntil,
+      };
+    });
+
+    
+
       // Fetch league member stats and create streak/achievement activities
       let streakAndAchievementActivities: any[] = [];
       
@@ -775,24 +805,26 @@ useEffect(() => {
           memberStats.forEach((member, index) => {
             if (member.streak >= 3) {
               streakAndAchievementActivities.push({
-                id: `streak-${member.userId}-${currentLeague.id}`,
-                userId: member.userId,
-                userName: member.userName,
-                userAvatar: member.userAvatar,
-                type: 'streak',
-                streak: member.streak,
-                date: new Date(now - index * 1000).toISOString(),
-                time: new Date(now - index * 1000).toISOString(),
-                comments: [],
-                photo: null,
-                reactions: {} 
-              });
+              id: `streak-${member.userId}-${currentLeague.id}`,
+              userId: member.userId,
+              userName: member.userName,
+              userAvatar: member.userAvatar,
+              type: 'streak',
+              streak: member.streak,
+              date: new Date(now - index * 1000).toISOString(),
+              time: new Date(now - index * 1000).toISOString(),
+              comments: [],
+              photo: null,
+              reactions: {},
+              stealthActivatedAt: membershipStatuses.get(member.userId)?.stealthActivatedAt,
+              stealthUntil: membershipStatuses.get(member.userId)?.stealthUntil,
+            });
             }
       
             const milestones = [100, 50, 25, 10];
             const milestone = milestones.find(m => member.totalWorkouts === m);
             
-            if (milestone) {
+              if (milestone) {
               streakAndAchievementActivities.push({
                 id: `achievement-${member.userId}-${milestone}-${currentLeague.id}`,
                 userId: member.userId,
@@ -805,36 +837,39 @@ useEffect(() => {
                 time: new Date(now - index * 1000).toISOString(),
                 comments: [],
                 photo: null,
-                reactions: {} 
+                reactions: {},
+                stealthActivatedAt: membershipStatuses.get(member.userId)?.stealthActivatedAt,  // ← ADD THIS
+                stealthUntil: membershipStatuses.get(member.userId)?.stealthUntil,              // ← ADD THIS
               });
             }
       
             if (member.recentPRs && member.recentPRs.length > 0) {
-              member.recentPRs.forEach((pr: any, prIndex: number) => {
-                streakAndAchievementActivities.push({
-                  id: `pr-${member.userId}-${pr.sport}-${pr.type}-${pr.date}-${currentLeague.id}`,
-                  userId: member.userId,
-                  userName: member.userName,
-                  userAvatar: member.userAvatar,
-                  type: 'pr',
-                  sport: pr.sport,
-                  prType: pr.type,
-                  prValue: pr.value,
-                  date: pr.date,
-                  time: pr.date,
-                  comments: [],
-                  photo: null,
-                  reactions: {} 
-                });
+            member.recentPRs.forEach((pr: any, prIndex: number) => {
+              streakAndAchievementActivities.push({
+                id: `pr-${member.userId}-${pr.sport}-${pr.type}-${pr.date}-${currentLeague.id}`,
+                userId: member.userId,
+                userName: member.userName,
+                userAvatar: member.userAvatar,
+                type: 'pr',
+                sport: pr.sport,
+                prType: pr.type,
+                prValue: pr.value,
+                date: pr.date,
+                time: pr.date,
+                comments: [],
+                photo: null,
+                reactions: {},
+                stealthActivatedAt: membershipStatuses.get(member.userId)?.stealthActivatedAt,
+                stealthUntil: membershipStatuses.get(member.userId)?.stealthUntil,
               });
-            }
+            });
+          }
           });
         } catch (error) {
           console.error('Failed to fetch league member stats:', error);
         }
       }
-      
-      const allActivities = [...activitiesWithLeagues, ...streakAndAchievementActivities]
+            const allActivities = [...activitiesWithStealthData, ...streakAndAchievementActivities]
         .sort((a, b) => new Date(b.date || b.time).getTime() - new Date(a.date || a.time).getTime());
       
       const transformedActivities = transformActivityUserNames(allActivities);
@@ -1133,6 +1168,7 @@ const handlers = useDashboardHandlers(state, api, refreshActivities);
         <LeagueStatsDisplay 
           currentLeague={currentLeague}
           totalLeagueTime={totalLeagueTime}
+          onModalOpen={setActiveModal}
         />
       )}
 

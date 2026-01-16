@@ -1,6 +1,6 @@
 // SPREDfit Service Worker for PWA
-const CACHE_NAME = 'spredfit-v1';
-const RUNTIME_CACHE = 'spredfit-runtime-v1';
+const CACHE_NAME = 'spredfit-v2';  // Changed from v1 to v2
+const RUNTIME_CACHE = 'spredfit-runtime-v2';  // Changed from v1 to v2
 
 // Assets to cache immediately on install
 const PRECACHE_ASSETS = [
@@ -16,7 +16,7 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => {
-        console.log('í³¦ Caching critical assets');
+        console.log('ï¿½ï¿½ï¿½ Caching critical assets');
         return cache.addAll(PRECACHE_ASSETS);
       })
       .then(() => self.skipWaiting())
@@ -32,7 +32,7 @@ self.addEventListener('activate', (event) => {
         cacheNames
           .filter((name) => name !== CACHE_NAME && name !== RUNTIME_CACHE)
           .map((name) => {
-            console.log('í·‘ï¸ Deleting old cache:', name);
+            console.log('ï¿½ï¿½ï¿½ï¸ Deleting old cache:', name);
             return caches.delete(name);
           })
       );

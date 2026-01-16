@@ -986,29 +986,32 @@ async createLeague(leagueData: {
           const { data: { user } } = await this.supabase.auth.getUser();
           if (!user) throw new Error('Not authenticated');
       
-          // Get league details
-          const { data: league, error: leagueError } = await this.supabase
-            .from('leagues')
-            .select('start_date, end_date, allowed_sports')
-            .eq('id', leagueId)
-            .single();
-      
-          if (leagueError) throw leagueError;
-      
-          // Calculate date range
-          let startDate: string;
-          const endDate = league.end_date;
-      
-          if (period === 'weekly') {
-            const now = new Date();
-            const weekStart = new Date(now);
-            weekStart.setDate(now.getDate() - now.getDay());
-            weekStart.setHours(0, 0, 0, 0);
-            startDate = weekStart.toISOString();
-          } else {
-            startDate = league.start_date;
-          }
-      
+                 // Get league details
+        const { data: league, error: leagueError } = await this.supabase
+          .from('leagues')
+          .select('start_date, end_date, allowed_sports')
+          .eq('id', leagueId)
+          .single();
+        
+        if (leagueError) throw leagueError;
+        
+        // Calculate date range
+        let startDate: string;
+        let endDate: string;
+        
+        if (period === 'weekly') {
+          const now = new Date();
+          const weekStart = new Date(now);
+          weekStart.setDate(now.getDate() - now.getDay());
+          weekStart.setHours(0, 0, 0, 0);
+          startDate = weekStart.toISOString();
+          endDate = new Date().toISOString();
+        } else {
+          // Ensure dates have timestamps for proper comparison
+          startDate = league.start_date.includes('T') ? league.start_date : `${league.start_date}T00:00:00.000Z`;
+          endDate = league.end_date.includes('T') ? league.end_date : `${league.end_date}T23:59:59.999Z`;
+        }
+
           // Get all members
           const { data: members, error: membersError } = await this.supabase
             .from('league_memberships')
@@ -1047,39 +1050,76 @@ async createLeague(leagueData: {
                 .eq('user_id', member.user_id)
                 .gte('created_at', startDate)
                 .lte('created_at', endDate);
+
+                                // DEBUG: Try raw query to see if RLS is the issue
+                if (member.user_id === 'c3301738-832e-463e-9472-71c0f8339e96') {
+                  console.log('🔍 Testing raw query for Rich B...');
+                  const { data: testWorkouts, error: testError } = await this.supabase
+                    .from('workouts')
+                    .select('id, created_at, type, user_id')
+                    .eq('user_id', 'c3301738-832e-463e-9472-71c0f8339e96')
+                    .limit(5);
+                  
+                  console.log('🔍 Raw query result:', {
+                    workouts: testWorkouts,
+                    error: testError,
+                    count: testWorkouts?.length
+                  });
+                }
       
-                            // Find this section in getLeagueLeaderboard (around line 1040-1048) and replace:
-              
-                            // Filter by sport type if distance metric is used
+                        // Filter by sport type ONLY for distance metrics
                             if (metricType === 'distance_run') {
                               // Match running workout types (case variations)
                               workoutsQuery = workoutsQuery.or('type.eq.Run,type.eq.Treadmill,type.eq.Running,type.eq.run,type.eq.treadmill,type.eq.running');
                             } else if (metricType === 'distance_cycle') {
                               // Match cycling workout types (case variations)
                               workoutsQuery = workoutsQuery.or('type.eq.Bike,type.eq.Spin,type.eq.Cycling,type.eq.Cycle,type.eq.bike,type.eq.spin,type.eq.cycling,type.eq.cycle');
-                            } else if (league.allowed_sports && league.allowed_sports.length > 0) {
-                              workoutsQuery = workoutsQuery.in('type', league.allowed_sports);
                             }
-      
+                            // For time metric, don't filter by sport type - count all workouts
               const { data: workouts, error: workoutsError } = await workoutsQuery;
+
+              // DEBUG: Log query details
+if (member.user_id === 'c3301738-832e-463e-9472-71c0f8339e96') {
+  console.log('🔍 Rich B query details:', {
+    userId: member.user_id,
+    startDate,
+    endDate,
+    metricType,
+    workoutsReturned: workouts?.length || 0,
+    queryError: workoutsError,
+    firstWorkout: workouts?.[0]
+  });
+}
       
               if (workoutsError) throw workoutsError;
       
-              const stealthStart = member.stealth_activated_at ? new Date(member.stealth_activated_at) : null;
-              const stealthEnd = member.stealth_until ? new Date(member.stealth_until) : null;
+const stealthStart = member.stealth_activated_at ? new Date(member.stealth_activated_at) : null;
+const stealthEnd = member.stealth_until ? new Date(member.stealth_until) : null;
+
+// DEBUG: Log the stealth dates
+console.log(`🔍 Member ${member.user_id} stealth dates:`, {
+  stealthStart: stealthStart?.toISOString(),
+  stealthEnd: stealthEnd?.toISOString(),
+  isViewingSelf,
+  workoutCount: workouts?.length
+});
+
+const visibleWorkouts = isViewingSelf ? workouts : (workouts || []).filter(w => {
+  // Only hide workouts if we have BOTH valid stealth dates
+  if (stealthStart && stealthEnd && member.stealth_activated_at && member.stealth_until) {
+    const workoutDate = new Date(w.created_at);
     
-              const visibleWorkouts = isViewingSelf ? workouts : (workouts || []).filter(w => {
-                // If the viewer is not the user, and stealth is active, filter out workouts within the stealth period.
-                if (isCurrentlyInStealth && stealthStart && stealthEnd) {
-                  const workoutDate = new Date(w.created_at);
-                  // Hide workout if it's within the stealth period
-                  if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
-                    return false;
-                  }
-                }
-                return true;
-              });
-    
+    // Hide workout if it was created within the stealth period
+    if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
+      console.log(`🚫 Hiding workout from ${workoutDate.toISOString()} (stealth period: ${stealthStart.toISOString()} to ${stealthEnd.toISOString()})`);
+      return false;
+    }
+  }
+  return true;
+});
+
+console.log(`✅ Visible workouts for member ${member.user_id}:`, visibleWorkouts.length);
+
               let totalValue = 0;
               if (metricType === 'time') {
                 let totalMinutes = visibleWorkouts.reduce((sum: number, w: any) => {

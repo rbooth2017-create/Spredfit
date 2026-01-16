@@ -45,17 +45,16 @@ function ActivityFeedModalComponent({
                   return false;
                 }
                 
-              // ← FIX THIS: Hide workouts during stealth period (ONLY YOUR OWN)
-              if (membershipStatus?.stealthUntil && activity.userId === currentUserId) {
-                const stealthEnd = new Date(membershipStatus.stealthUntil);
+            // Hide OTHER users' workouts if they were created during their stealth period
+              if (activity.stealthUntil && activity.userId !== currentUserId) {
+                const stealthEnd = new Date(activity.stealthUntil);
                 const stealthStart = new Date(stealthEnd.getTime() - 3 * 24 * 60 * 60 * 1000);
                 const workoutDate = new Date(activity.date || activity.time);
                 
                 if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
-                  return false;
+                  return false; // Hide this workout from activity feed
                 }
               }
-                
                 return true;
               })
               .slice(0, 100)
