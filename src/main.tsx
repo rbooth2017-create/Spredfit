@@ -25,13 +25,17 @@ if ('serviceWorker' in navigator) {
           registration.update();
         }, 60000);
         
-        // Listen for new service worker waiting
+                // Listen for new service worker waiting
         registration.addEventListener('updatefound', () => {
+          console.log('🔄 UPDATE FOUND EVENT FIRED!');
           const newWorker = registration.installing;
+          console.log('📦 New worker:', newWorker);
           if (newWorker) {
             newWorker.addEventListener('statechange', () => {
+              console.log('🔄 Worker state changed:', newWorker.state);
+              console.log('🔄 Has controller?', !!navigator.serviceWorker.controller);
               if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-                // New service worker available, notify the app
+                console.log('✅ DISPATCHING swUpdateAvailable EVENT');
                 window.dispatchEvent(new CustomEvent('swUpdateAvailable', { detail: registration }));
               }
             });

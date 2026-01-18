@@ -34,6 +34,7 @@ import { registerServiceWorker, addPWAMetaTags } from "./utils/pwa";
 import { initializeNativeApp, isNativeApp } from "./utils/native";
 import { AnimatedBackground } from "./components/dashboard/AnimatedBackground";
 import { PWAInstall } from "./components/PWAInstall";
+import { UpdateNotification } from './components/UpdateNotification';
 
 console.log("🟠🟠🟠 APP.TSX FILE LOADED - Top level");
 console.log("🟠 Current time:", new Date().toISOString());
@@ -1066,37 +1067,39 @@ if (authLoading) {
     );
   }
   
-  return (
-    <>
-      <Toaster position="top-center" richColors />
-      <PWAInstall autoShow={true} />
-    </>
-  );
-}
-
-export default function App() {
-  useEffect(() => {
-    try {
-      registerServiceWorker();
-      addPWAMetaTags();
-      console.log('✅ PWA features initialized for iOS');
-    } catch (error) {
-      console.log('⚠️ PWA initialization skipped:', error);
-    }
+          return (
+        <>
+          <UpdateNotification />
+          <Toaster position="top-center" richColors />
+          <PWAInstall autoShow={true} />
+        </>
+      );
+    }  // ← Add this closing brace for AppContent
     
-    if (isNativeApp()) {
-      initializeNativeApp();
-      console.log('✅ Native app features initialized');
-    }
-  }, []);
-  
-  return (
-    <AuthProvider>
-      <AppProvider>
-        <ModalProvider>
-          <AppContent />
-        </ModalProvider>
-      </AppProvider>
-    </AuthProvider>
-  );
-}
+     export default function App() {
+    useEffect(() => {
+      try {
+        registerServiceWorker();
+        addPWAMetaTags();
+        console.log('✅ PWA features initialized for iOS');
+      } catch (error) {
+        console.log('⚠️ PWA initialization skipped:', error);
+      }
+      
+      if (isNativeApp()) {
+        initializeNativeApp();
+        console.log('✅ Native app features initialized');
+      }
+    }, []);
+    
+    return (
+      <AuthProvider>
+        <AppProvider>
+          <ModalProvider>
+            <UpdateNotification />  {/* ← ADD THIS HERE */}
+            <AppContent />
+          </ModalProvider>
+        </AppProvider>
+      </AuthProvider>
+    );
+  }

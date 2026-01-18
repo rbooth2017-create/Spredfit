@@ -61,60 +61,21 @@ interface NavigationSidebarProps {
  */
 function DashboardHeaderComponent({ onModalOpen }: DashboardHeaderProps) {
   const { user } = useAuth();
-  const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [swRegistration, setSwRegistration] = useState<ServiceWorkerRegistration | null>(null);
-
-  // Listen for service worker updates
-  useEffect(() => {
-    const handleUpdate = (event: any) => {
-      setUpdateAvailable(true);
-      setSwRegistration(event.detail);
-    };
-
-    window.addEventListener('swUpdateAvailable', handleUpdate);
-    return () => window.removeEventListener('swUpdateAvailable', handleUpdate);
-  }, []);
-
-  const handleUpdate = () => {
-    if (swRegistration?.waiting) {
-      // Tell the waiting service worker to take over
-      swRegistration.waiting.postMessage({ type: 'SKIP_WAITING' });
-      // Reload the page when the new service worker takes control
-      navigator.serviceWorker.addEventListener('controllerchange', () => {
-        window.location.reload();
-      });
-    }
-  };
 
   return (
-    <div className="mb-6 flex-shrink-0 relative z-[60]">
+    <div className="mb-6 flex-shrink-0 relative z-[100]">
       {/* User Name - right aligned */}
       <div className="flex items-center justify-end mb-3">
-        <div className="flex flex-col items-end">
-          <h1 className="text-2xl text-[#eef0ed]">
-            {user?.username ? (
-              user.username
-            ) : (
-              <span className="inline-flex items-center gap-2">
-                <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                <span className="text-white/50">Loading...</span>
-              </span>
-            )}
-          </h1>
-          
-          {/* Update Available Button */}
-          {updateAvailable && (
-            <button
-              onClick={handleUpdate}
-              className="mt-1 px-3 py-1 bg-green-500 hover:bg-green-600 text-white text-sm rounded-full flex items-center gap-1 transition-all animate-pulse"
-            >
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-              </svg>
-              Update Available
-            </button>
+        <h1 className="text-2xl text-[#eef0ed]">
+          {user?.username ? (
+            user.username
+          ) : (
+            <span className="inline-flex items-center gap-2">
+              <span className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+              <span className="text-white/50">Loading...</span>
+            </span>
           )}
-        </div>
+        </h1>
       </div>
     </div>
   );
