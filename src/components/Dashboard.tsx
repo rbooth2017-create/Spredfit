@@ -710,92 +710,113 @@ useEffect(() => {
       const workouts = await api.getAllVisibleWorkouts();
       const withPhotos = normalizeWorkoutPhotos(workouts);
       
-      const activitiesWithLeagues = await Promise.all(
-        withPhotos.map(async (workout: any) => {
-          // Find which leagues this workout counts for
-          const applicableLeagues = leagues.filter(league => {
-            // Check if the workout creator is a member of this league
-            const isMember = league.members?.some((m: any) => m.user_id === workout.userId);
-            if (!isMember) return false;
-
-            const workoutDate = new Date(workout.date);
-            const leagueStart = new Date(league.start_date);
-            const leagueEnd = new Date(league.end_date);
-            
-            // Check if workout is in league date range
-            if (workoutDate < leagueStart || workoutDate > leagueEnd) return false;
-            
-            // Check if sport is allowed in league (if sports filter exists)
-            if (league.allowedSports && league.allowedSports.length > 0) {
-              return league.allowedSports.includes(workout.sport);
-            }
-            
-            return true;
-          });
-          
-          // Get the workout creator's rank in each applicable league
-          const leagueRanks = applicableLeagues.map((league) => {
-            try {
-              const leaderboard: any[] = [];
-              const userEntry = leaderboard.find(entry => entry.userId === workout.userId);
-                
-              return {
-                leagueId: league.id,
-                leagueName: league.name,
-                rank: userEntry?.rank || league.members?.length || 1,
-                totalMembers: league.members?.length || leaderboard.length
-              };
-            } catch (error) {
-              console.error('Failed to get leaderboard for league:', league.id, error);
-              return {
-                leagueId: league.id,
-                leagueName: league.name,
-                rank: league.members?.length || 1,
-                totalMembers: league.members?.length || 0
-              };
-            }
-          });
-
-         const reactions ={};
-          
-          return {
-            ...workout,
-            applicableLeagues: leagueRanks,
-            primaryLeague: leagueRanks[0] || null,
-            reactions: reactions,
-          };
-        })
-      );
-
-        // Fetch stealth status for all league members
-    const membershipStatuses = new Map();
-    if (currentLeague?.id) {
-      const { data: memberships } = await api.supabase
-        .from('league_memberships')
-        .select('user_id, stealth_activated_at, stealth_until, in_stealth_mode')
-        .eq('league_id', currentLeague.id);
-        
-      memberships?.forEach((m: any) => {
-        membershipStatuses.set(m.user_id, {
-          stealthActivatedAt: m.stealth_activated_at,
-          stealthUntil: m.stealth_until,
-          inStealthMode: m.in_stealth_mode
-        });
-      });
+      // ✅ FETCH ALL LEADERBOARDS ONCE (instead of 231 times)
+    // ✅ Only log summary, not every league
+    console.log(`🔵 Fetching leaderboards for ${leagues.length} leagues...`);
+    const leaderboardCache = new Map();
+    for (const league of leagues) {
+      try {
+        const leaderboard = await api.getLeagueLeaderboard(league.id, 'total', 'time');
+        leaderboardCache.set(league.id, leaderboard);
+      } catch (error) {
+        console.error(`Failed to fetch leaderboard for league ${league.id}:`, error);
+        leaderboardCache.set(league.id, []);
+      }
     }
-    
-    // Add stealth metadata to each workout activity
-    const activitiesWithStealthData = activitiesWithLeagues.map((workout: any) => {
-      const userStatus = membershipStatuses.get(workout.userId);
-      
-      return {
-        ...workout,
-        stealthActivatedAt: userStatus?.stealthActivatedAt,
-        stealthUntil: userStatus?.stealthUntil,
-      };
-    });
+    console.log(`✅ Cached ${leaderboardCache.size} leaderboards with ${Array.from(leaderboardCache.values()).reduce((sum, lb) => sum + lb.length, 0)} total members`);
 
-    
+    const leagueMembershipCache = new Map<string, Array<{
+  leagueId: string;
+  leagueName: string;
+  start: Date;
+  end: Date;
+  allowedSports?: string[];
+}>>();
+
+leagues.forEach(league => {
+  league.members?.forEach((m: any) => {
+    if (!leagueMembershipCache.has(m.user_id)) {
+      leagueMembershipCache.set(m.user_id, []);
+    }
+    leagueMembershipCache.get(m.user_id)!.push({
+      leagueId: league.id,
+      leagueName: league.name,
+      start: new Date(league.start_date),
+      end: new Date(league.end_date),
+      allowedSports: league.allowedSports
+    });
+  });
+});
+      
+        const activitiesWithLeagues = withPhotos.map((workout: any) => {
+      // ✅ Get user's leagues from cache (much faster!)
+      const userLeagues = leagueMembershipCache.get(workout.userId) || [];
+      
+      // Filter to applicable leagues
+      const applicableLeagues = userLeagues.filter(league => {
+        const workoutDate = new Date(workout.date);
+        
+        // Check date range
+        if (workoutDate < league.start || workoutDate > league.end) return false;
+        
+        // Check allowed sports
+        if (league.allowedSports && league.allowedSports.length > 0) {
+          return league.allowedSports.includes(workout.sport);
+        }
+        
+        return true;
+      });
+      
+      // Get the workout creator's rank from cached leaderboards
+      const leagueRanks = applicableLeagues.map((league) => {
+        const leaderboard = leaderboardCache.get(league.leagueId) || [];
+        const userEntry = leaderboard.find((entry: any) => entry.userId === workout.userId);
+        
+        return {
+          leagueId: league.leagueId,
+          leagueName: league.leagueName,
+          rank: userEntry?.rank || 1,
+          totalMembers: leaderboard.length || 0
+        };
+      });
+
+        const reactions = {};
+        
+        return {
+          ...workout,
+          applicableLeagues: leagueRanks,
+          primaryLeague: leagueRanks[0] || null,
+          reactions: reactions,
+        };
+      });
+
+      // Fetch stealth status for all league members
+      const membershipStatuses = new Map();
+      if (currentLeague?.id) {
+        const { data: memberships } = await api.supabase
+          .from('league_memberships')
+          .select('user_id, stealth_activated_at, stealth_until, in_stealth_mode')
+          .eq('league_id', currentLeague.id);
+          
+        memberships?.forEach((m: any) => {
+          membershipStatuses.set(m.user_id, {
+            stealthActivatedAt: m.stealth_activated_at,
+            stealthUntil: m.stealth_until,
+            inStealthMode: m.in_stealth_mode
+          });
+        });
+      }
+      
+      // Add stealth metadata to each workout activity
+      const activitiesWithStealthData = activitiesWithLeagues.map((workout: any) => {
+        const userStatus = membershipStatuses.get(workout.userId);
+        
+        return {
+          ...workout,
+          stealthActivatedAt: userStatus?.stealthActivatedAt,
+          stealthUntil: userStatus?.stealthUntil,
+        };
+      });
 
       // Fetch league member stats and create streak/achievement activities
       let streakAndAchievementActivities: any[] = [];
@@ -827,7 +848,7 @@ useEffect(() => {
             const milestones = [100, 50, 25, 10];
             const milestone = milestones.find(m => member.totalWorkouts === m);
             
-              if (milestone) {
+            if (milestone) {
               streakAndAchievementActivities.push({
                 id: `achievement-${member.userId}-${milestone}-${currentLeague.id}`,
                 userId: member.userId,
@@ -841,74 +862,77 @@ useEffect(() => {
                 comments: [],
                 photo: null,
                 reactions: {},
-                stealthActivatedAt: membershipStatuses.get(member.userId)?.stealthActivatedAt,  // ← ADD THIS
-                stealthUntil: membershipStatuses.get(member.userId)?.stealthUntil,              // ← ADD THIS
+                stealthActivatedAt: membershipStatuses.get(member.userId)?.stealthActivatedAt,
+                stealthUntil: membershipStatuses.get(member.userId)?.stealthUntil,
               });
             }
       
             if (member.recentPRs && member.recentPRs.length > 0) {
-            member.recentPRs.forEach((pr: any, prIndex: number) => {
-              streakAndAchievementActivities.push({
-                id: `pr-${member.userId}-${pr.sport}-${pr.type}-${pr.date}-${currentLeague.id}`,
-                userId: member.userId,
-                userName: member.userName,
-                userAvatar: member.userAvatar,
-                type: 'pr',
-                sport: pr.sport,
-                prType: pr.type,
-                prValue: pr.value,
-                date: pr.date,
-                time: pr.date,
-                comments: [],
-                photo: null,
-                reactions: {},
-                stealthActivatedAt: membershipStatuses.get(member.userId)?.stealthActivatedAt,
-                stealthUntil: membershipStatuses.get(member.userId)?.stealthUntil,
+              member.recentPRs.forEach((pr: any, prIndex: number) => {
+                streakAndAchievementActivities.push({
+                  id: `pr-${member.userId}-${pr.sport}-${pr.type}-${pr.date}-${currentLeague.id}`,
+                  userId: member.userId,
+                  userName: member.userName,
+                  userAvatar: member.userAvatar,
+                  type: 'pr',
+                  sport: pr.sport,
+                  prType: pr.type,
+                  prValue: pr.value,
+                  date: pr.date,
+                  time: pr.date,
+                  comments: [],
+                  photo: null,
+                  reactions: {},
+                  stealthActivatedAt: membershipStatuses.get(member.userId)?.stealthActivatedAt,
+                  stealthUntil: membershipStatuses.get(member.userId)?.stealthUntil,
+                });
               });
-            });
-          }
+            }
           });
         } catch (error) {
           console.error('Failed to fetch league member stats:', error);
         }
       }
-            const allActivities = [...activitiesWithStealthData, ...streakAndAchievementActivities]
+      
+      const allActivities = [...activitiesWithStealthData, ...streakAndAchievementActivities]
         .sort((a, b) => new Date(b.date || b.time).getTime() - new Date(a.date || a.time).getTime());
       
       const transformedActivities = transformActivityUserNames(allActivities);
       
       setActivities(transformedActivities);
       
-      // Fetch reactions for first 30 workouts (visible ones) - but only for workouts that don't have reactions yet
-      const workoutsNeedingReactions = transformedActivities
-        .filter(a => a.type === 'workout' && (!a.reactions || Object.keys(a.reactions).length === 0))
-        .slice(0, 30);
+         // Fetch reactions for first 30 workouts using BATCH API
+ const workoutsNeedingReactions = transformedActivities
+  .filter(a => a.type === 'workout')  // Remove the reaction check
+  .slice(0, 30);
+    
+    if (workoutsNeedingReactions.length > 0) {
+      console.log(`🔵 Fetching reactions for ${workoutsNeedingReactions.length} workouts (batch)`);
       
-      if (workoutsNeedingReactions.length > 0) {
-        console.log(`🔵 Fetching reactions for ${workoutsNeedingReactions.length} workouts`);
+      // Small delay to avoid double-fetch on league change
+      setTimeout(async () => {
+        // ✅ BATCH FETCH - 1 API call instead of 30!
+        const workoutIds = workoutsNeedingReactions.map(w => w.id);
+        const reactionsMap = await api.getWorkoutReactionsBatch(workoutIds);
+
+        // 🔍 DEBUG: Log the actual reactions data
+console.log('🔍 Sample reaction data:', reactionsMap.size > 0 ? {
+  firstWorkoutId: Array.from(reactionsMap.keys())[0],
+  firstWorkoutReactions: Array.from(reactionsMap.values())[0]
+} : 'No reactions');
         
-        // Small delay to avoid double-fetch on league change
-        setTimeout(() => {
-          Promise.all(
-            workoutsNeedingReactions.map(workout => 
-              api.getWorkoutReactions(workout.id).catch(() => ({}))
-            )
-          ).then(reactionsArray => {
-            setActivities(prev => prev.map((activity) => {
-              if (activity.type === 'workout') {
-                const reactionIndex = workoutsNeedingReactions.findIndex(w => w.id === activity.id);
-                if (reactionIndex >= 0) {
-                  return {
-                    ...activity,
-                    reactions: reactionsArray[reactionIndex]
-                  };
-                }
-              }
-              return activity;
-            }));
-          });
-        }, 100);
-      }
+        // Update activities with fetched reactions
+        setActivities(prev => prev.map((activity) => {
+          if (activity.type === 'workout' && reactionsMap.has(activity.id)) {
+            return {
+              ...activity,
+              reactions: reactionsMap.get(activity.id)
+            };
+          }
+          return activity;
+        }));
+      }, 100);
+    }
 
     } catch (error) {
       console.error("Failed to load workouts:", error);
@@ -1500,17 +1524,11 @@ const handlers = useDashboardHandlers(state, api, refreshActivities);
                       }
 
                       const api = new APIClient(accessToken);
-                      await api.deleteWorkout(activityId);
-
-                      // Refresh activities list
-                      const workouts =
-                        await api.getAllVisibleWorkouts();
-                      const withPhotos =
-                        normalizeWorkoutPhotos(workouts);
-                      const transformedActivities =
-                        transformActivityUserNames(withPhotos);
-                      setActivities(transformedActivities);
-
+                    await api.deleteWorkout(activityId);
+                      
+                    // Trigger full reload (includes reactions)
+                      refreshActivities();
+                      
                       toast.success("Workout deleted");
                       closeModal();
                     } catch (error) {

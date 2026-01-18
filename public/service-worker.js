@@ -100,6 +100,13 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+// Add this message handler (can go anywhere in the file)
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
+
 // Background sync for offline workout logging (future feature)
 self.addEventListener('sync', (event) => {
   if (event.tag === 'sync-workouts') {

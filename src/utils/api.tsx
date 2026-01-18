@@ -9,6 +9,7 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 console.log('🟠 api.tsx: Supabase URL', supabaseUrl);
+const DEBUG = import.meta.env.DEV;
 
 export class APIClient {
   private supabase: SupabaseClient;
@@ -1050,22 +1051,6 @@ async createLeague(leagueData: {
                 .eq('user_id', member.user_id)
                 .gte('created_at', startDate)
                 .lte('created_at', endDate);
-
-                                // DEBUG: Try raw query to see if RLS is the issue
-                if (member.user_id === 'c3301738-832e-463e-9472-71c0f8339e96') {
-                  console.log('🔍 Testing raw query for Rich B...');
-                  const { data: testWorkouts, error: testError } = await this.supabase
-                    .from('workouts')
-                    .select('id, created_at, type, user_id')
-                    .eq('user_id', 'c3301738-832e-463e-9472-71c0f8339e96')
-                    .limit(5);
-                  
-                  console.log('🔍 Raw query result:', {
-                    workouts: testWorkouts,
-                    error: testError,
-                    count: testWorkouts?.length
-                  });
-                }
       
                         // Filter by sport type ONLY for distance metrics
                             if (metricType === 'distance_run') {
@@ -1078,31 +1063,10 @@ async createLeague(leagueData: {
                             // For time metric, don't filter by sport type - count all workouts
               const { data: workouts, error: workoutsError } = await workoutsQuery;
 
-              // DEBUG: Log query details
-if (member.user_id === 'c3301738-832e-463e-9472-71c0f8339e96') {
-  console.log('🔍 Rich B query details:', {
-    userId: member.user_id,
-    startDate,
-    endDate,
-    metricType,
-    workoutsReturned: workouts?.length || 0,
-    queryError: workoutsError,
-    firstWorkout: workouts?.[0]
-  });
-}
-      
               if (workoutsError) throw workoutsError;
       
 const stealthStart = member.stealth_activated_at ? new Date(member.stealth_activated_at) : null;
 const stealthEnd = member.stealth_until ? new Date(member.stealth_until) : null;
-
-// DEBUG: Log the stealth dates
-console.log(`🔍 Member ${member.user_id} stealth dates:`, {
-  stealthStart: stealthStart?.toISOString(),
-  stealthEnd: stealthEnd?.toISOString(),
-  isViewingSelf,
-  workoutCount: workouts?.length
-});
 
 const visibleWorkouts = isViewingSelf ? workouts : (workouts || []).filter(w => {
   // Only hide workouts if we have BOTH valid stealth dates
@@ -1117,8 +1081,6 @@ const visibleWorkouts = isViewingSelf ? workouts : (workouts || []).filter(w => 
   }
   return true;
 });
-
-console.log(`✅ Visible workouts for member ${member.user_id}:`, visibleWorkouts.length);
 
               let totalValue = 0;
               if (metricType === 'time') {
@@ -1956,87 +1918,87 @@ async getLeagueMembers(leagueId: string) {
     }
   }
 
-    async addWorkoutReaction(workoutId: string, reactionType: string) {
-    console.log('🔵 API Client: Adding reaction to workout');
-    try {
-      const { data: { user } } = await this.supabase.auth.getUser();
-      
-      if (!user) {
-        throw new Error('No user found');
-      }
-  
-      // Check if user already reacted - handle potential RLS issues
-      const { data: existing, error: selectError } = await this.supabase
-        .from('workout_reactions')
-        .select('id, reaction_type')
-        .eq('workout_id', workoutId)
-        .eq('user_id', user.id);
-  
-      // Log any select errors but continue
-      if (selectError) {
-        console.warn('⚠️ Error checking existing reaction:', selectError);
-      }
-  
-      const existingReaction = existing?.[0];
-  
-      if (existingReaction) {
-        // If same reaction, remove it (toggle off)
-        if (existingReaction.reaction_type === reactionType) {
-          const { error } = await this.supabase
-            .from('workout_reactions')
-            .delete()
-            .eq('id', existingReaction.id);
-          
-          if (error) throw error;
-          console.log('✅ Reaction removed');
-          return { removed: true };
-        } else {
-          // Update to new reaction
-          const { error } = await this.supabase
-            .from('workout_reactions')
-            .update({ reaction_type: reactionType })
-            .eq('id', existingReaction.id);
-          
-          if (error) throw error;
-          console.log('✅ Reaction updated');
-          return { removed: false };
-        }
-      } else {
-        // Insert new reaction
+async addWorkoutReaction(workoutId: string, reactionType: string) {
+  console.log('🔵 API Client: Adding reaction to workout');
+  try {
+    const { data: { user } } = await this.supabase.auth.getUser();
+    
+    if (!user) {
+      throw new Error('No user found');
+    }
+
+    // Check if user already reacted - use composite key instead of id
+    const { data: existing, error: selectError } = await this.supabase
+      .from('workout_reactions')
+      .select('reaction_type')
+      .eq('workout_id', workoutId)
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    // Log any select errors but continue
+    if (selectError) {
+      console.warn('⚠️ Error checking existing reaction:', selectError);
+    }
+
+    if (existing) {
+      // If same reaction, remove it (toggle off)
+      if (existing.reaction_type === reactionType) {
         const { error } = await this.supabase
           .from('workout_reactions')
-          .insert({
-            workout_id: workoutId,
-            user_id: user.id,
-            reaction_type: reactionType,
-          });
+          .delete()
+          .eq('workout_id', workoutId)
+          .eq('user_id', user.id)
+          .eq('reaction_type', reactionType);
         
-        if (error) {
-          // If duplicate key error, it means the reaction exists but we couldn't SELECT it
-          // Try to delete it instead
-          if (error.code === '23505') {
-            console.log('🔄 Duplicate detected, removing reaction instead');
-            const { error: deleteError } = await this.supabase
-              .from('workout_reactions')
-              .delete()
-              .eq('workout_id', workoutId)
-              .eq('user_id', user.id)
-              .eq('reaction_type', reactionType);
-            
-            if (deleteError) throw deleteError;
-            console.log('✅ Reaction removed');
-            return { removed: true };
-          }
-          throw error;
-        }
-        console.log('✅ Reaction added');
+        if (error) throw error;
+        console.log('✅ Reaction removed');
+        return { removed: true };
+      } else {
+        // Update to new reaction
+        const { error } = await this.supabase
+          .from('workout_reactions')
+          .update({ reaction_type: reactionType })
+          .eq('workout_id', workoutId)
+          .eq('user_id', user.id);
+        
+        if (error) throw error;
+        console.log('✅ Reaction updated');
         return { removed: false };
       }
-    } catch (error) {
-      console.error('❌ Failed to add reaction:', error);
-      throw error;
+    } else {
+      // Insert new reaction
+      const { error } = await this.supabase
+        .from('workout_reactions')
+        .insert({
+          workout_id: workoutId,
+          user_id: user.id,
+          reaction_type: reactionType,
+        });
+      
+      if (error) {
+        if (error.code === '23505') {
+          console.log('🔄 Duplicate detected, removing reaction instead');
+          const { error: deleteError } = await this.supabase
+            .from('workout_reactions')
+            .delete()
+            .eq('workout_id', workoutId)
+            .eq('user_id', user.id)
+            .eq('reaction_type', reactionType);
+          
+          if (deleteError) throw deleteError;
+          console.log('✅ Reaction removed');
+          return { removed: true };
+        }
+        throw error;
+      }
+      console.log('✅ Reaction added');
+      return { removed: false };
     }
+  } catch (error) {
+    console.error('❌ Failed to add reaction:', error);
+    throw error;
   }
+}
 
   // ============================================
   // STEALTH MODE & DOUBLE UP DAY METHODS
@@ -2240,24 +2202,24 @@ async getLeagueMembers(leagueId: string) {
     }
   }
 
-  async deleteWorkoutComment(commentId: string) {
-    console.log('🔵 API Client: Deleting comment');
-    try {
-      const { error } = await this.supabase
-        .from('workout_comments')
-        .delete()
-        .eq('id', commentId);
-
-      if (error) throw error;
-
-      console.log('✅ Comment deleted');
-    } catch (error) {
-      console.error('❌ Failed to delete comment:', error);
-      throw error;
+      async deleteWorkoutComment(commentId: string) {
+      console.log('🔵 API Client: Deleting comment');
+      try {
+        const { error } = await this.supabase
+          .from('workout_comments')
+          .delete()
+          .eq('id', commentId);
+  
+        if (error) throw error;
+  
+        console.log('✅ Comment deleted');
+      } catch (error) {
+        console.error('❌ Failed to delete comment:', error);
+        throw error;
+      }
     }
-  }
-
-        async updateWorkoutPhoto(workoutId: string, file: File): Promise<string> {
+  
+    async updateWorkoutPhoto(workoutId: string, file: File): Promise<string> {
       console.log('🔵 API Client: Updating workout photo');
       try {
         // First upload the photo to workout-media bucket
@@ -2281,4 +2243,70 @@ async getLeagueMembers(leagueId: string) {
         throw error;
       }
     }
-}
+  
+    async getWorkoutReactionsBatch(workoutIds: string[]): Promise<Map<string, any>> {
+      console.log(`🔵 API Client: Fetching reactions for ${workoutIds.length} workouts (batch)`);
+      try {
+        if (workoutIds.length === 0) {
+          return new Map();
+        }
+  
+        // Get current user once at the start
+        const { data: { user } } = await this.supabase.auth.getUser();
+  
+        // Fetch all reactions for these workouts in ONE query using .in()
+        const { data: reactions, error } = await this.supabase
+          .from('workout_reactions')
+          .select(`
+            workout_id,
+            user_id,
+            reaction_type,
+            profiles:profiles!workout_reactions_user_id_fkey (
+              username
+            )
+          `)
+          .in('workout_id', workoutIds);
+  
+        if (error) {
+          console.error('❌ Error fetching batch reactions:', error);
+          return new Map();
+        }
+  
+        // Group reactions by workout_id
+        const reactionsByWorkout = new Map<string, any>();
+        
+        (reactions || []).forEach((reaction: any) => {
+          const workoutId = reaction.workout_id;
+          
+          if (!reactionsByWorkout.has(workoutId)) {
+            reactionsByWorkout.set(workoutId, {});
+          }
+          
+          const workoutReactions = reactionsByWorkout.get(workoutId);
+          const reactionType = reaction.reaction_type;
+          
+          if (!workoutReactions[reactionType]) {
+            workoutReactions[reactionType] = {
+              count: 0,
+              users: [],
+              userReacted: false
+            };
+          }
+          
+          workoutReactions[reactionType].count++;
+          workoutReactions[reactionType].users.push(reaction.profiles?.username || 'User');
+          
+          // Check if current user reacted
+          if (user && reaction.user_id === user.id) {
+           workoutReactions[reactionType].userReacted = true; 
+          }
+        });
+  
+        console.log(`✅ Batch reactions fetched for ${reactionsByWorkout.size} workouts`);
+        return reactionsByWorkout;
+      } catch (error) {
+        console.error('❌ Failed to fetch batch reactions:', error);
+        return new Map();
+      }
+    }
+  }
