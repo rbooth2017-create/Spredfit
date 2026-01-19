@@ -102,6 +102,28 @@ export function Dashboard({
         refreshTrigger,
         refreshActivities,
       } = useApp();
+
+// ✅ One-time fetch of profile and leagues on mount
+const [initialLoadDone, setInitialLoadDone] = useState(false);
+
+useEffect(() => {
+  async function initialLoad() {
+    if (accessToken && !initialLoadDone) {
+
+      try {
+        await Promise.all([refreshProfile(), refreshLeagues()]);
+        setInitialLoadDone(true);
+        // console.log('✅ Dashboard: Initial data load complete');
+      } catch (error) {
+        console.error('❌ Dashboard: Initial load failed', error);
+      }
+    }
+  }
+  
+  initialLoad();
+}, [accessToken, initialLoadDone, refreshProfile, refreshLeagues]);
+
+      
   const [editingWorkoutId, setEditingWorkoutId] = useState<string | null>(null);
 
   const [logDate, setLogDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -690,7 +712,7 @@ useEffect(() => {
     
     // Wait for leagues to load before loading activities
     if (leagues.length === 0) {
-      console.log("🟡 Waiting for leagues to load before loading activities");
+
       return;
     }
     
@@ -701,7 +723,7 @@ useEffect(() => {
       return;
     }
     
-    console.log("🔵 Loading activities...", { refreshTrigger, leagueId: currentLeague?.id });
+
     hasLoadedActivities.current = true;
     lastLeagueId.current = currentLeague?.id || null;
     
@@ -712,7 +734,7 @@ useEffect(() => {
       
       // ✅ FETCH ALL LEADERBOARDS ONCE (instead of 231 times)
     // ✅ Only log summary, not every league
-    console.log(`🔵 Fetching leaderboards for ${leagues.length} leagues...`);
+
     const leaderboardCache = new Map();
     for (const league of leagues) {
       try {
@@ -723,7 +745,6 @@ useEffect(() => {
         leaderboardCache.set(league.id, []);
       }
     }
-    console.log(`✅ Cached ${leaderboardCache.size} leaderboards with ${Array.from(leaderboardCache.values()).reduce((sum, lb) => sum + lb.length, 0)} total members`);
 
     const leagueMembershipCache = new Map<string, Array<{
   leagueId: string;
@@ -907,19 +928,13 @@ leagues.forEach(league => {
   .slice(0, 30);
     
     if (workoutsNeedingReactions.length > 0) {
-      console.log(`🔵 Fetching reactions for ${workoutsNeedingReactions.length} workouts (batch)`);
+
       
       // Small delay to avoid double-fetch on league change
       setTimeout(async () => {
         // ✅ BATCH FETCH - 1 API call instead of 30!
         const workoutIds = workoutsNeedingReactions.map(w => w.id);
         const reactionsMap = await api.getWorkoutReactionsBatch(workoutIds);
-
-        // 🔍 DEBUG: Log the actual reactions data
-console.log('🔍 Sample reaction data:', reactionsMap.size > 0 ? {
-  firstWorkoutId: Array.from(reactionsMap.keys())[0],
-  firstWorkoutReactions: Array.from(reactionsMap.values())[0]
-} : 'No reactions');
         
         // Update activities with fetched reactions
         setActivities(prev => prev.map((activity) => {

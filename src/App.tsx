@@ -36,8 +36,6 @@ import { AnimatedBackground } from "./components/dashboard/AnimatedBackground";
 import { PWAInstall } from "./components/PWAInstall";
 import { UpdateNotification } from './components/UpdateNotification';
 
-console.log("🟠🟠🟠 APP.TSX FILE LOADED - Top level");
-console.log("🟠 Current time:", new Date().toISOString());
 
 type Screen = "onboarding" | "login" | "signup" | "disclaimer" | "dashboard" | "logworkout" | "startworkout" | "activeworkout" | "leaderboard" | "profile" | "settings" | "uploadphoto" | "uploadworkoutphoto" | "workoutdetail" | "leagues" | "joinleague" | "createleague" | "manageleagues" | "useractivities" | "activityfeed" | "trainingplans" | "plandetail" | "chat" | "chatconversation" | "metrics" | "goals" | "dealfinder" | "brandedstore";
 
@@ -67,7 +65,6 @@ interface LeagueData {
 function AppContent() {
 const { user, signIn, signUp, signOut, resetPassword, loading: authLoading } = useAuth();
 
-  console.log('🔵 App.tsx: user state:', user);
 
 const { createWorkout, currentLeague, joinLeague, refreshProfile, refreshActivities } = useApp();
   

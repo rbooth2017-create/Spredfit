@@ -112,10 +112,10 @@ function LeagueStatsDisplayComponent({
   console.log('LeagueStatsDisplay - currentLeague:', currentLeague, 'totalLeagueTime:', totalLeagueTime);
 
   if (!currentLeague) {
-    console.log('❌ No currentLeague set');
+
     return null;
   }
-  console.log('✅ Showing league stats for:', currentLeague.name);
+
 
 return (
   <div className="absolute inset-0 z-20 flex items-start justify-center pt-10 pointer-events-none">
@@ -202,8 +202,7 @@ function ActivityCarouselComponent({
         });
     
     const displayedActivities = filteredActivities.slice(0, visibleCount);
-    
-    console.log(`📊 Displaying ${displayedActivities.length} of ${filteredActivities.length} total activities`);
+  
     
     const handleScroll = (e: React.UIEvent<HTMLDivElement>) => {
       const element = e.currentTarget;
@@ -278,7 +277,7 @@ function ActivityCarouselComponent({
                   className="flex-shrink-0 h-full flex flex-col items-center justify-center text-center snap-center cursor-pointer relative rounded-2xl overflow-hidden"
                   style={{ width: '380px', minWidth: '380px' }}
                   onClick={() => {
-                    console.log('🔍 Activity clicked:', activity);
+   
                     onActivityClick(activity);
                   }}
                 >

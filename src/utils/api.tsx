@@ -8,7 +8,6 @@ if (!supabaseUrl || !supabaseAnonKey) {
   throw new Error('Missing Supabase environment variables');
 }
 
-console.log('🟠 api.tsx: Supabase URL', supabaseUrl);
 const DEBUG = import.meta.env.DEV;
 
 export class APIClient {
@@ -43,7 +42,7 @@ export class APIClient {
     return response.json();
   }
 
-    private async getAuthenticatedUser() {
+  private async getAuthenticatedUser() {
     const maxRetries = 3;
     let lastError;
     
@@ -63,7 +62,6 @@ export class APIClient {
   }
 
   async getUserProfile() {
-    console.log('🔵 API Client: Fetching user profile');
     try {
       const { data: { user } } = await this.supabase.auth.getUser();
       
@@ -84,24 +82,24 @@ export class APIClient {
         .from('workouts')
         .select('duration_min, distance_km')
         .eq('user_id', user.id);
-
+      
       const totalWorkouts = workouts?.length || 0;
       const totalHours = workouts?.reduce((sum, w) => sum + (w.duration_min || 0), 0) || 0;
       const totalDistance = workouts?.reduce((sum, w) => sum + (w.distance_km || 0), 0) || 0;
-
+      
       // Get current streak
       const { data: streakData } = await this.supabase
         .from('workouts')
         .select('created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false });
+      
       let streak = 0;
       if (streakData && streakData.length > 0) {
         const today = new Date();
         today.setUTCHours(0, 0, 0, 0); 
         
         let currentDate = new Date(today);
-        let foundGap = false;
         
         for (const workout of streakData) {
           const workoutDate = new Date(workout.created_at);
@@ -113,7 +111,7 @@ export class APIClient {
           if (Math.abs(daysDiff) < 0.5) {
             // Same day as expected
             streak++;
-          currentDate.setUTCDate(currentDate.getUTCDate() - 1);  // ✅ Consistent UTC
+            currentDate.setUTCDate(currentDate.getUTCDate() - 1);
           } else if (Math.abs(daysDiff - 1) < 0.5) {
             // Previous day - continue streak
             streak++;
@@ -125,14 +123,6 @@ export class APIClient {
         }
       }
       
-      console.log('✅ Profile fetched:', {
-        name: profile?.name,
-        totalWorkouts,
-        totalHours: Math.round(totalHours / 60),
-        totalDistance: totalDistance.toFixed(1),
-        streak
-      });
-
       return {
         id: user.id,
         email: user.email,
@@ -150,7 +140,7 @@ export class APIClient {
       throw error;
     }
   }
-
+  
   async updateProfile(updates: {
     name?: string;
     username?: string;
@@ -614,7 +604,7 @@ async deleteWorkout(workoutId: string) {
           })
         );
     
-        console.log('✅ Members with stats fetched:', membersWithStats);
+
         return membersWithStats;
       } catch (error) {
         console.error('❌ Failed to fetch members with stats:', error);
@@ -622,7 +612,7 @@ async deleteWorkout(workoutId: string) {
       }
     }
  async getUserLeagues() {
-  console.log('🔵 API Client: Fetching user leagues');
+
   try {
     const { data: { user } } = await this.supabase.auth.getUser();
     
@@ -749,7 +739,7 @@ async deleteWorkout(workoutId: string) {
       })
     );
 
-    console.log('✅ Leagues fetched with ranks:', leaguesWithDetails);
+
     return leaguesWithDetails;
   } catch (error) {
     console.error('❌ Failed to fetch leagues:', error);
@@ -786,9 +776,18 @@ async deleteWorkoutPhoto(photoUrl: string): Promise<void> {
 }
 
 async getUserWorkoutsInLeague(userId: string, leagueId: string): Promise<any[]> {
+  // First get the user's stealth status for this league
+  const { data: membership } = await this.supabase
+    .from('league_memberships')
+    .select('stealth_until, stealth_activated_at')
+    .eq('user_id', userId)
+    .eq('league_id', leagueId)
+    .maybeSingle();
+
+  // Then get all workouts
   const { data, error } = await this.supabase
     .from('workouts')
-    .select('id, type, title, duration_min, distance_km, created_at, notes')  // ✅ ADD title
+    .select('id, type, title, duration_min, distance_km, created_at, notes, user_id')
     .eq('user_id', userId)
     .order('created_at', { ascending: false });
 
@@ -797,11 +796,14 @@ async getUserWorkoutsInLeague(userId: string, leagueId: string): Promise<any[]> 
   return (data || []).map(workout => ({
     id: workout.id,
     type: workout.type,
-    title: workout.title,  // ✅ ADD THIS LINE
+    title: workout.title,
     duration: workout.duration_min,
     distance: workout.distance_km,
     date: workout.created_at,
     notes: workout.notes,
+    userId: workout.user_id,
+    stealthUntil: membership?.stealth_until,
+    stealthActivatedAt: membership?.stealth_activated_at,
   }));
 }
 
@@ -870,7 +872,7 @@ async createLeague(leagueData: {
   allowBonusHours?: boolean;
   allowStealthMode?: boolean;
 }) {
-  console.log('🔵 API Client: Creating league');
+
   try {
     const { data: { user } } = await this.supabase.auth.getUser();
     
@@ -917,7 +919,7 @@ async createLeague(leagueData: {
 
     if (memberError) throw memberError;
 
-    console.log('✅ League created:', newLeague);
+
     return newLeague;
   } catch (error) {
     console.error('❌ Failed to create league:', error);
@@ -982,7 +984,7 @@ async createLeague(leagueData: {
   // ============================================
 
   async getLeagueLeaderboard(leagueId: string, period: 'total' | 'weekly' = 'total', metricType: 'time' | 'distance_run' | 'distance_cycle' = 'time') {
-        console.log('🔵 API Client: Fetching league leaderboard');
+
         try {
           const { data: { user } } = await this.supabase.auth.getUser();
           if (!user) throw new Error('Not authenticated');
@@ -1075,7 +1077,7 @@ const visibleWorkouts = isViewingSelf ? workouts : (workouts || []).filter(w => 
     
     // Hide workout if it was created within the stealth period
     if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
-      console.log(`🚫 Hiding workout from ${workoutDate.toISOString()} (stealth period: ${stealthStart.toISOString()} to ${stealthEnd.toISOString()})`);
+
       return false;
     }
   }
@@ -1132,7 +1134,7 @@ const visibleWorkouts = isViewingSelf ? workouts : (workouts || []).filter(w => 
               rank: index + 1
             }));
       
-          console.log('✅ Leaderboard fetched:', sorted);
+
           return sorted;
         } catch (error) {
           console.error('❌ Failed to fetch leaderboard:', error);
@@ -1141,7 +1143,7 @@ const visibleWorkouts = isViewingSelf ? workouts : (workouts || []).filter(w => 
       }
   
   async getLeagueTeamLeaderboard(leagueId: string, period: 'total' | 'weekly' = 'total', metricType: 'time' | 'distance_run' | 'distance_cycle' = 'time') {
-    console.log('🔵 API Client: Fetching team leaderboard');
+
     try {
       const { data: { user } } = await this.supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
@@ -1689,7 +1691,7 @@ return sorted;
 }
 
 async getLeagueMembers(leagueId: string) {
-  console.log('🔵 API Client: Fetching league members');
+
   try {
     const { data: members, error } = await this.supabase
       .from('league_memberships')
@@ -1737,7 +1739,7 @@ async getLeagueMembers(leagueId: string) {
   }
 
   async leaveLeague(leagueId: string) {
-    console.log('🔵 API Client: Leaving league');
+
     try {
       const { data: { user } } = await this.supabase.auth.getUser();
       
@@ -1754,7 +1756,7 @@ async getLeagueMembers(leagueId: string) {
 
       if (error) throw error;
 
-      console.log('✅ Left league');
+
     } catch (error) {
       console.error('❌ Failed to leave league:', error);
       throw error;
@@ -1762,7 +1764,7 @@ async getLeagueMembers(leagueId: string) {
   }
 
   async getAllVisibleWorkouts() {
-    console.log('🔵 API Client: Fetching all visible workouts');
+
     
     try {
       const { data: { user } } = await this.supabase.auth.getUser();
@@ -2117,7 +2119,7 @@ async addWorkoutReaction(workoutId: string, reactionType: string) {
 
       if (error) throw error;
 
-      console.log('✅ Double up day activated');
+
       return {
         double_up_date: data.double_up_date
       };
@@ -2134,7 +2136,7 @@ async addWorkoutReaction(workoutId: string, reactionType: string) {
   doubleUpDate: string | null;
   doubleUpUsed: boolean;
 }> {
-  console.log('🔵 API Client: Fetching membership status');
+
   try {
     const { data: { user } } = await this.supabase.auth.getUser();
     
@@ -2151,7 +2153,7 @@ async addWorkoutReaction(workoutId: string, reactionType: string) {
 
     if (error) throw error;
 
-    console.log('✅ Membership status fetched:', membership);
+
 
     return {
       stealthUntil: membership?.stealth_until || null,
@@ -2245,7 +2247,7 @@ async addWorkoutReaction(workoutId: string, reactionType: string) {
     }
   
     async getWorkoutReactionsBatch(workoutIds: string[]): Promise<Map<string, any>> {
-      console.log(`🔵 API Client: Fetching reactions for ${workoutIds.length} workouts (batch)`);
+
       try {
         if (workoutIds.length === 0) {
           return new Map();
@@ -2302,7 +2304,7 @@ async addWorkoutReaction(workoutId: string, reactionType: string) {
           }
         });
   
-        console.log(`✅ Batch reactions fetched for ${reactionsByWorkout.size} workouts`);
+
         return reactionsByWorkout;
       } catch (error) {
         console.error('❌ Failed to fetch batch reactions:', error);

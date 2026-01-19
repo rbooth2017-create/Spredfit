@@ -278,18 +278,15 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return activities;
   };
 
-  useEffect(() => {
-    if (accessToken) {
-      setLoading(true);
-      Promise.all([refreshProfile(), refreshLeagues()])
-        .finally(() => setLoading(false));
-    } else {
-      setProfile(null);
-      setLeagues([]);
-      setCurrentLeague(null);
-      setLoading(false);
-    }
-  }, [accessToken, refreshProfile, refreshLeagues]);
+ // Only reset state when logged out - don't auto-fetch on login
+useEffect(() => {
+  if (!accessToken) {
+    setProfile(null);
+    setLeagues([]);
+    setCurrentLeague(null);
+    setLoading(false);
+  }
+}, [accessToken]);
 
   const contextValue = useMemo(() => ({
     profile,

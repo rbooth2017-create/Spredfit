@@ -38,6 +38,9 @@ interface UserWorkout {
   distance?: number;
   date: string;
   notes?: string;
+  userId: string;  // Add this
+  stealthUntil?: string;  // Add this
+  stealthActivatedAt?: string;  // Add this
 }
 
 type MetricType = 'time' | 'distance_run' | 'distance_cycle' | 'f1_points';
@@ -315,46 +318,65 @@ function LeaderboardModalComponent({
             <p className="text-white/70 text-xs mb-3">{selectedLeague?.name}</p>
             
             <div className="space-y-2 w-full max-h-56 overflow-y-auto mb-4" style={{
-              scrollbarWidth: 'none',
-              msOverflowStyle: 'none',
-              WebkitOverflowScrolling: 'touch'
-            }}>
-              {loadingWorkouts ? (
-                <p className="text-white/50 text-xs">Loading workouts...</p>
-              ) : userWorkouts.length > 0 ? (
-                userWorkouts.map((workout) => (
-                  <div
-                    key={workout.id}
-                    className="p-3 rounded-2xl bg-[#FFFFFF]/60 backdrop-blur-sm border border-white/10 text-left"
-                  >
-                    <div className="flex items-center justify-between mb-1">
-                      <span className="text-white text-sm font-medium">
-                        {workout.title || workout.type}
-                      </span>
-                      <span className="text-white/70 text-xs">{formatWorkoutDate(workout.date)}</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-white/80 text-xs">
-                      <span>{workout.duration} min</span>
-                      {workout.distance && workout.distance > 0 && (
-                        <>
-                          <span>•</span>
-                          <span>
-                            {workout.type === 'Swimming' && workout.distance < 1
-                              ? `${(workout.distance * 1000).toFixed(0)} m`
-                              : `${workout.distance.toFixed(1)} km`}
-                          </span>
-                        </>
+            scrollbarWidth: 'none',
+            msOverflowStyle: 'none',
+            WebkitOverflowScrolling: 'touch'
+          }}>
+            {loadingWorkouts ? (
+              <p className="text-white/50 text-xs">Loading workouts...</p>
+            ) : (() => {
+                // Filter out stealth workouts for other users
+                const visibleWorkouts = selectedUser.isCurrentUser 
+                  ? userWorkouts 
+                  : userWorkouts.filter(workout => {
+                      if (!workout.stealthUntil) return true;
+                      
+                      const stealthEnd = new Date(workout.stealthUntil);
+                      const stealthStart = workout.stealthActivatedAt 
+                        ? new Date(workout.stealthActivatedAt) 
+                        : new Date(stealthEnd.getTime() - 3 * 24 * 60 * 60 * 1000);
+                      const workoutDate = new Date(workout.date);
+                      
+                      // Hide if workout was during stealth period
+                      return !(workoutDate >= stealthStart && workoutDate <= stealthEnd);
+                    });
+                
+                return visibleWorkouts.length > 0 ? (
+                  visibleWorkouts.map((workout) => (
+                    <div
+                      key={workout.id}
+                      className="p-3 rounded-2xl bg-[#FFFFFF]/60 backdrop-blur-sm border border-white/10 text-left"
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-white text-sm font-medium">
+                          {workout.title || workout.type}
+                        </span>
+                        <span className="text-white/70 text-xs">{formatWorkoutDate(workout.date)}</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-white/80 text-xs">
+                        <span>{workout.duration} min</span>
+                        {workout.distance && workout.distance > 0 && (
+                          <>
+                            <span>•</span>
+                            <span>
+                              {workout.type === 'Swimming' && workout.distance < 1
+                                ? `${(workout.distance * 1000).toFixed(0)} m`
+                                : `${workout.distance.toFixed(1)} km`}
+                            </span>
+                          </>
+                        )}
+                      </div>
+                      {workout.notes && (
+                        <p className="text-white/60 text-xs mt-1 italic">{workout.notes}</p>
                       )}
                     </div>
-                    {workout.notes && (
-                      <p className="text-white/60 text-xs mt-1 italic">{workout.notes}</p>
-                    )}
-                  </div>
-                ))
-              ) : (
-                <p className="text-white/50 text-xs italic">No workouts found</p>
-              )}
-            </div>
+                  ))
+                ) : (
+                  <p className="text-white/50 text-xs italic">No workouts found</p>
+                );
+              })()
+            }
+          </div>
             
             <button
               onClick={() => setModalStep(2)}

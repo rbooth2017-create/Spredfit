@@ -37,7 +37,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 /* ---------- supabase client ---------- */
 
 const supabaseUrl = `https://${projectId}.supabase.co`;
-console.log("🟠 auth.tsx: Supabase URL", supabaseUrl);
+
 
 const supabase = createClient(supabaseUrl, publicAnonKey, {
   auth: {
@@ -95,12 +95,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const supaUser = session.user;
         
         if (lastPopulatedUserId.current === supaUser.id) {
-          console.log("🟡 auth.tsx: Already populated user", supaUser.id);
+
           setAccessToken(session.access_token);
           return;
         }
         
-        console.log("🟢 auth.tsx: populateUserFromSession", supaUser.id);
+
         setAccessToken(session.access_token);
         
         // Set user immediately with metadata (fast login)
@@ -112,7 +112,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           avatar_url: supaUser.user_metadata?.avatar_url || null,
         };
         
-        console.log("🟢 Setting user (initial):", initialUserData);
+
         setUser(initialUserData);
         lastPopulatedUserId.current = supaUser.id;
         
@@ -124,7 +124,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           .single()
           .then(({ data: profile }) => {
             if (profile && (profile.username || profile.avatar_url)) {
-              console.log("✅ Profile fetched, updating user:", profile);
+  
               const updatedUserData: UserProfile = {
                 ...initialUserData,
                 username: profile.username || initialUserData.username,
@@ -137,7 +137,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             console.warn("⚠️ Profile fetch failed:", err.message);
           });
         
-        console.log("🟢 User set complete!");
+
       } catch (err) {
         console.error("🔴 auth.tsx: populateUserFromSession error", err);
         const userData: UserProfile = {
@@ -157,7 +157,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   // Load initial session
   useEffect(() => {
-    console.log("🟠 auth.tsx: useEffect -> loadInitialSession");
+
 
     async function loadInitialSession() {
       try {
@@ -168,7 +168,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (session?.user) {
-          console.log("🟢 auth.tsx: Existing session found for user", session.user.id);
+
           await populateUserFromSession(session);
         } else {
           console.log("🟡 auth.tsx: No existing session");
@@ -183,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     loadInitialSession();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log("🟠 auth.tsx: onAuthStateChange", event, { hasSession: !!session });
+   
 
       if (session?.user) {
         if (lastPopulatedUserId.current === session.user.id && user !== null) {
