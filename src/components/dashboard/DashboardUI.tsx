@@ -162,9 +162,14 @@ function ActivityCarouselComponent({
   const filteredActivities = activities.filter(activity => {
 
 
-        // Hide workouts created during stealth period (for OTHER users only)
-    if (activity.type === 'workout' && activity.stealthUntil && activity.userId !== currentUser?.id) {
-      const stealthEnd = new Date(activity.stealthUntil);
+  // Hide workouts created during stealth period (for OTHER users only IF CURRENTLY IN STEALTH)
+  if (activity.type === 'workout' && activity.stealthUntil && activity.userId !== currentUser?.id) {
+    const now = new Date();
+    const stealthEnd = new Date(activity.stealthUntil);
+    const isCurrentlyInStealth = now <= stealthEnd;
+    
+    // Only filter if user is CURRENTLY in stealth
+    if (isCurrentlyInStealth) {
       const stealthStart = activity.stealthActivatedAt ? new Date(activity.stealthActivatedAt) : new Date(stealthEnd.getTime() - 3 * 24 * 60 * 60 * 1000);
       const workoutDate = new Date(activity.date || activity.time);
       
@@ -172,6 +177,7 @@ function ActivityCarouselComponent({
         return false;
       }
     }
+  }
     
     // Filter achievements based on toggle
     if (!showAchievements && (activity.type === 'achievement' || activity.type === 'streak' || activity.type === 'pr')) {

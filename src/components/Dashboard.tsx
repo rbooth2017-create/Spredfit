@@ -417,8 +417,13 @@ useEffect(() => {
     if (activity.type === 'workout' && activity.duration) {
       // Exclude OTHER users' workouts created during their stealth period
       // Always include your own workouts
-      if (activity.stealthUntil && activity.userId !== user?.id) {
-        const stealthEnd = new Date(activity.stealthUntil);
+         if (activity.stealthUntil && activity.userId !== user?.id) {
+      const now = new Date();
+      const stealthEnd = new Date(activity.stealthUntil);
+      const isCurrentlyInStealth = now <= stealthEnd;
+      
+      // Only exclude if user is CURRENTLY in stealth
+      if (isCurrentlyInStealth) {
         const stealthStart = activity.stealthActivatedAt 
           ? new Date(activity.stealthActivatedAt) 
           : new Date(stealthEnd.getTime() - 3 * 24 * 60 * 60 * 1000);
@@ -428,6 +433,7 @@ useEffect(() => {
           return sum; // Skip this workout (it's someone else's stealth workout)
         }
       }
+    }
       return sum + activity.duration;
     }
     return sum;

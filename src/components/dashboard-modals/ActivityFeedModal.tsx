@@ -45,16 +45,24 @@ function ActivityFeedModalComponent({
                   return false;
                 }
                 
-            // Hide OTHER users' workouts if they were created during their stealth period
-              if (activity.stealthUntil && activity.userId !== currentUserId) {
-                const stealthEnd = new Date(activity.stealthUntil);
-                const stealthStart = new Date(stealthEnd.getTime() - 3 * 24 * 60 * 60 * 1000);
-                const workoutDate = new Date(activity.date || activity.time);
-                
-                if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
-                  return false; // Hide this workout from activity feed
-                }
+          // Hide OTHER users' workouts if they were created during their stealth period AND currently in stealth
+          if (activity.stealthUntil && activity.userId !== currentUserId) {
+            const now = new Date();
+            const stealthEnd = new Date(activity.stealthUntil);
+            const isCurrentlyInStealth = now <= stealthEnd;
+            
+            // Only hide if user is CURRENTLY in stealth
+            if (isCurrentlyInStealth) {
+              const stealthStart = activity.stealthActivatedAt 
+                ? new Date(activity.stealthActivatedAt)
+                : new Date(stealthEnd.getTime() - 3 * 24 * 60 * 60 * 1000);
+              const workoutDate = new Date(activity.date || activity.time);
+              
+              if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
+                return false; // Hide this workout from activity feed
               }
+            }
+          }
                 return true;
               })
               .slice(0, 100)

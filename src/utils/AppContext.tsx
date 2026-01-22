@@ -288,6 +288,20 @@ useEffect(() => {
   }
 }, [accessToken]);
 
+useEffect(() => {
+  async function checkStealthStatus() {
+    if (!accessToken || !api) return;
+    
+    try {
+      await api.updateStealthModeStatus();
+    } catch (error) {
+      console.error('Failed to update stealth status:', error);
+    }
+  }
+  
+  checkStealthStatus();
+}, [accessToken, api]);
+
   const contextValue = useMemo(() => ({
     profile,
     leagues,

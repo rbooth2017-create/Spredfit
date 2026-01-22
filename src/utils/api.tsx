@@ -1071,19 +1071,17 @@ const stealthStart = member.stealth_activated_at ? new Date(member.stealth_activ
 const stealthEnd = member.stealth_until ? new Date(member.stealth_until) : null;
 
 const visibleWorkouts = isViewingSelf ? workouts : (workouts || []).filter(w => {
-  // Only hide workouts if we have BOTH valid stealth dates
-  if (stealthStart && stealthEnd && member.stealth_activated_at && member.stealth_until) {
+  // Only hide workouts if CURRENTLY in stealth AND workout was during stealth period
+  if (isCurrentlyInStealth && stealthStart && stealthEnd) {
     const workoutDate = new Date(w.created_at);
     
     // Hide workout if it was created within the stealth period
     if (workoutDate >= stealthStart && workoutDate <= stealthEnd) {
-
       return false;
     }
   }
   return true;
 });
-
               let totalValue = 0;
               if (metricType === 'time') {
                 let totalMinutes = visibleWorkouts.reduce((sum: number, w: any) => {
@@ -2143,7 +2141,7 @@ async addWorkoutReaction(workoutId: string, reactionType: string) {
     if (!user) {
       throw new Error('No user found');
     }
-
+    
     const { data: membership, error } = await this.supabase
       .from('league_memberships')
       .select('in_stealth_mode, stealth_until, used_stealth_mode, used_double_up, double_up_date')
@@ -2165,6 +2163,23 @@ async addWorkoutReaction(workoutId: string, reactionType: string) {
   } catch (error) {
     console.error('❌ Failed to fetch membership status:', error);
     throw error;
+  }
+}
+
+async updateStealthModeStatus() {
+  try {
+    // Update all users whose stealth period has ended - no RPC needed!
+    const { error } = await this.supabase
+      .from('league_memberships')
+      .update({ in_stealth_mode: false })
+      .lt('stealth_until', new Date().toISOString())
+      .eq('in_stealth_mode', true);
+    
+    if (error) throw error;
+    
+    console.log('✅ Stealth mode status updated');
+  } catch (error) {
+    console.error('❌ Failed to update stealth mode status:', error);
   }
 }
 

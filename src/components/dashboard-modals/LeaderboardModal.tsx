@@ -327,19 +327,25 @@ function LeaderboardModalComponent({
             ) : (() => {
                 // Filter out stealth workouts for other users
                 const visibleWorkouts = selectedUser.isCurrentUser 
-                  ? userWorkouts 
-                  : userWorkouts.filter(workout => {
-                      if (!workout.stealthUntil) return true;
-                      
-                      const stealthEnd = new Date(workout.stealthUntil);
-                      const stealthStart = workout.stealthActivatedAt 
-                        ? new Date(workout.stealthActivatedAt) 
-                        : new Date(stealthEnd.getTime() - 3 * 24 * 60 * 60 * 1000);
-                      const workoutDate = new Date(workout.date);
-                      
-                      // Hide if workout was during stealth period
-                      return !(workoutDate >= stealthStart && workoutDate <= stealthEnd);
-                    });
+                ? userWorkouts 
+                : userWorkouts.filter(workout => {
+                    if (!workout.stealthUntil) return true;
+                    
+                    const now = new Date();
+                    const stealthEnd = new Date(workout.stealthUntil);
+                    const isCurrentlyInStealth = now <= stealthEnd;
+                    
+                    // Only hide if CURRENTLY in stealth
+                    if (!isCurrentlyInStealth) return true;
+                    
+                    const stealthStart = workout.stealthActivatedAt 
+                      ? new Date(workout.stealthActivatedAt) 
+                      : new Date(stealthEnd.getTime() - 3 * 24 * 60 * 60 * 1000);
+                    const workoutDate = new Date(workout.date);
+                    
+                    // Hide if workout was during stealth period
+                    return !(workoutDate >= stealthStart && workoutDate <= stealthEnd);
+                  });
                 
                 return visibleWorkouts.length > 0 ? (
                   visibleWorkouts.map((workout) => (
