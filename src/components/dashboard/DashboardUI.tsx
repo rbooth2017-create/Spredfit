@@ -101,12 +101,12 @@ function LeagueStatsDisplayComponent({
 }: LeagueStatsDisplayProps) {
   const formatTime = (minutes: number) => {
     const hours = Math.floor(minutes / 60);
-    const mins = minutes % 60;
+    const mins = Math.floor(minutes % 60);
     
     if (hours > 0) {
       return `${hours}h ${mins}m`;
     }
-    return `${mins}m`;
+   return `${Math.floor(mins)}m`; 
   };
 
   console.log('LeagueStatsDisplay - currentLeague:', currentLeague, 'totalLeagueTime:', totalLeagueTime);
